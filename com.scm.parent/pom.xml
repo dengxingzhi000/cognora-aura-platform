@@ -72,7 +72,7 @@
     <testcontainers.version>2.0.5</testcontainers.version>
 
     <!-- Database Migration -->
-    <flyway.version>13.11.1</flyway.version>
+    <flyway.version>13.12.1</flyway.version>
 
     <!-- Modules that own Flyway migrations but are temporarily exempt from the
          Flyway auto-configuration guard, because their migration to
