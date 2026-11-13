@@ -185,7 +185,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus,seata
+        include: health,info,metrics,prometheus,seata,readwrite
   endpoint:
     health:
       show-details: always
