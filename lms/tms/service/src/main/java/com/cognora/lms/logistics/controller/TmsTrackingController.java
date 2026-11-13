@@ -76,7 +76,7 @@ public class TmsTrackingController {
             description = "验签通过后解析轨迹并幂等落库；验签失败返回 401 且不落库。"
                     + "请求头：X-Lms-Timestamp / X-Lms-Nonce / X-Lms-Signature。")
     @PostMapping("/callback/{carrierCode}")
-    @AuditLog(operation = "承运商轨迹回调", businessType = "LOGISTICS", riskLevel = 2)
+    @AuditLog(operation = "承运商轨迹回调", businessType = "LOGISTICS", riskLevel = 2, recordParams = false)
     public ApiResponse<TmsTracking> callback(
             @Parameter(description = "承运商编码，用于回调来源审计") @PathVariable String carrierCode,
             @RequestHeader(value = "X-Lms-Timestamp", required = false) String timestamp,
