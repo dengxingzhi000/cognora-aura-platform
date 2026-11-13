@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.status.StatusValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,7 @@ public class PurQuotationServiceImpl extends ServiceImpl<PurQuotationMapper, Pur
     private StatusValidator statusValidator;
 
     @Override
+    @Slave
     public PurQuotation getByQuotationNo(String quotationNo) {
         return lambdaQuery()
                 .eq(PurQuotation::getQuotationNo, quotationNo)
@@ -33,6 +36,7 @@ public class PurQuotationServiceImpl extends ServiceImpl<PurQuotationMapper, Pur
     }
 
     @Override
+    @Slave
     public Page<PurQuotation> pageQuery(int page, int size, Integer status, String supplierId, String rfqId) {
         LambdaQueryWrapper<PurQuotation> wrapper = Wrappers.lambdaQuery();
         if (status != null) {
@@ -50,6 +54,7 @@ public class PurQuotationServiceImpl extends ServiceImpl<PurQuotationMapper, Pur
     }
 
     @Override
+    @Slave
     public List<PurQuotation> listByRfqId(String rfqId) {
         return lambdaQuery()
                 .eq(PurQuotation::getRfqId, rfqId)
@@ -59,6 +64,7 @@ public class PurQuotationServiceImpl extends ServiceImpl<PurQuotationMapper, Pur
     }
 
     @Override
+    @Slave
     public List<PurQuotation> listBySupplierId(String supplierId) {
         return lambdaQuery()
                 .eq(PurQuotation::getSupplierId, supplierId)
@@ -68,6 +74,7 @@ public class PurQuotationServiceImpl extends ServiceImpl<PurQuotationMapper, Pur
     }
 
     @Override
+    @Master(reason = "提交报价单")
     @Transactional(rollbackFor = Exception.class)
     public boolean submit(String id) {
         PurQuotation quotation = getById(id);
@@ -81,6 +88,7 @@ public class PurQuotationServiceImpl extends ServiceImpl<PurQuotationMapper, Pur
     }
 
     @Override
+    @Master(reason = "选中报价单")
     @Transactional(rollbackFor = Exception.class)
     public boolean select(String id, String selectedBy, String selectedByName) {
         PurQuotation quotation = getById(id);

@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.status.StatusValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,7 @@ public class PurReceiptServiceImpl extends ServiceImpl<PurReceiptMapper, PurRece
     private StatusValidator statusValidator;
 
     @Override
+    @Slave
     public PurReceipt getByReceiptNo(String receiptNo) {
         return lambdaQuery()
                 .eq(PurReceipt::getReceiptNo, receiptNo)
@@ -33,6 +36,7 @@ public class PurReceiptServiceImpl extends ServiceImpl<PurReceiptMapper, PurRece
     }
 
     @Override
+    @Slave
     public Page<PurReceipt> pageQuery(int page, int size, Integer status, Integer receiptType, String supplierId, String keyword) {
         LambdaQueryWrapper<PurReceipt> wrapper = Wrappers.lambdaQuery();
         if (status != null) {
@@ -58,6 +62,7 @@ public class PurReceiptServiceImpl extends ServiceImpl<PurReceiptMapper, PurRece
     }
 
     @Override
+    @Slave
     public List<PurReceipt> listByOrderId(String orderId) {
         return lambdaQuery()
                 .eq(PurReceipt::getOrderId, orderId)
@@ -67,6 +72,7 @@ public class PurReceiptServiceImpl extends ServiceImpl<PurReceiptMapper, PurRece
     }
 
     @Override
+    @Master(reason = "收货")
     @Transactional(rollbackFor = Exception.class)
     public boolean receive(String id, String receiverId, String receiverName) {
         PurReceipt receipt = getById(id);
@@ -83,6 +89,7 @@ public class PurReceiptServiceImpl extends ServiceImpl<PurReceiptMapper, PurRece
     }
 
     @Override
+    @Master(reason = "质检")
     @Transactional(rollbackFor = Exception.class)
     public boolean qualityInspect(String id, String inspectorId, String inspectorName, Integer result, String remark) {
         PurReceipt receipt = getById(id);
@@ -101,6 +108,7 @@ public class PurReceiptServiceImpl extends ServiceImpl<PurReceiptMapper, PurRece
     }
 
     @Override
+    @Master(reason = "上架")
     @Transactional(rollbackFor = Exception.class)
     public boolean shelve(String id, String shelvedBy, String shelvedByName) {
         PurReceipt receipt = getById(id);

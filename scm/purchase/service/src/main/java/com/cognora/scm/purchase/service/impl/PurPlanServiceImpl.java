@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.scm.purchase.domain.entity.PurPlan;
 import com.cognora.scm.purchase.mapper.PurPlanMapper;
 import com.cognora.scm.purchase.service.IPurPlanService;
@@ -32,6 +34,7 @@ public class PurPlanServiceImpl extends ServiceImpl<PurPlanMapper, PurPlan> impl
     private PurPlanCommandService purPlanCommandService;
 
     @Override
+    @Slave
     public PurPlan getByPlanNo(String planNo) {
         return lambdaQuery()
                 .eq(PurPlan::getPlanNo, planNo)
@@ -40,6 +43,7 @@ public class PurPlanServiceImpl extends ServiceImpl<PurPlanMapper, PurPlan> impl
     }
 
     @Override
+    @Slave
     public Page<PurPlan> pageQuery(int page, int size, Integer status, Integer planType, String keyword) {
         LambdaQueryWrapper<PurPlan> wrapper = Wrappers.lambdaQuery();
         if (status != null) {
@@ -60,6 +64,7 @@ public class PurPlanServiceImpl extends ServiceImpl<PurPlanMapper, PurPlan> impl
     }
 
     @Override
+    @Slave
     public List<PurPlan> listByStatus(Integer status) {
         return lambdaQuery()
                 .eq(PurPlan::getStatus, status)
@@ -69,24 +74,28 @@ public class PurPlanServiceImpl extends ServiceImpl<PurPlanMapper, PurPlan> impl
     }
 
     @Override
+    @Master(reason = "提交采购计划")
     @Transactional(rollbackFor = Exception.class)
     public boolean submit(String id) {
         return purPlanCommandService.submit(id);
     }
 
     @Override
+    @Master(reason = "审批采购计划")
     @Transactional(rollbackFor = Exception.class)
     public boolean approve(String id, String approverId, String approverName) {
         return purPlanCommandService.approve(id, approverId, approverName);
     }
 
     @Override
+    @Master(reason = "开始执行采购计划")
     @Transactional(rollbackFor = Exception.class)
     public boolean startExecution(String id) {
         return purPlanCommandService.startExecution(id);
     }
 
     @Override
+    @Master(reason = "完成采购计划")
     @Transactional(rollbackFor = Exception.class)
     public boolean complete(String id) {
         return purPlanCommandService.complete(id);
