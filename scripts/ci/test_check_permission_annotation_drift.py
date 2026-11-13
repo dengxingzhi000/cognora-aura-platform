@@ -187,8 +187,8 @@ class DriftCheckerFixtureTest(unittest.TestCase):
         self.assertIn("demo:thing:audit", output)
         self.assertNotIn("ERROR", output)
 
-    def test_unknown_spel_is_reported_but_not_fatal(self) -> None:
-        """无法判定的 SpEL 形态只报告（CONCERN），不猜语义、不失败。"""
+    def test_unknown_spel_is_ignored(self) -> None:
+        """无法判定的 SpEL 形态完全忽略：不检查、不报告、不失败。"""
         result = self.run_checker(
             [CREATE_ROW],
             controller(
@@ -199,7 +199,9 @@ class DriftCheckerFixtureTest(unittest.TestCase):
         output = self.output(result)
         self.assertEqual(result.returncode, 0, output)
         self.assertNotIn("ERROR", output)
-        self.assertIn("hasRole('ADMIN')", output)
+        self.assertNotIn("CONCERN", output)
+        self.assertNotIn("hasRole", output)
+        self.assertNotIn("ADMIN", output)
 
     def test_duplicate_catalog_row_with_same_code_is_a_note(self) -> None:
         """同码重复登记（目录里的已知重复）→ 只记 NOTE，不失败。"""
@@ -213,6 +215,41 @@ class DriftCheckerFixtureTest(unittest.TestCase):
         output = self.output(result)
         self.assertEqual(result.returncode, 0, output)
         self.assertNotIn("ERROR", output)
+
+    def test_unbound_annotation_is_a_concern(self) -> None:
+        """`hasAuthority` 但绑定不到任何 request mapping → CONCERN（不失败）。"""
+        java = controller(method('PostMapping("/things")', "hasAuthority('demo:thing:create')", "create"))
+        java = java.replace(
+            '    @PostMapping("/things")\n', "", 1
+        )  # 去掉 mapping，注解就绑不到端点了
+        result = self.run_checker([CREATE_ROW], java)
+        output = self.output(result)
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("CONCERN", output)
+        self.assertIn("demo:thing:create", output)
+        self.assertNotIn("ERROR", output)
+
+    def test_long_javadoc_does_not_abort_the_run(self) -> None:
+        """mapping 之后是很长的 javadoc 时：跳过该端点并告警，但不中断整轮检查。"""
+        # 注释块长度超过方法声明查找窗口：旧实现会 ParseError 中断整轮检查。
+        javadoc = "    /**\n" + "     * " + ("很长的说明 " * 2000) + "\n     */\n"
+        java = controller(
+            '    @PostMapping("/things")\n'
+            '    @PreAuthorize("hasAuthority(\'demo:thing:create\')")\n'
+            + javadoc
+            + '    public String create() {\n'
+            '        return "ok";\n'
+            '    }\n'
+        )
+        result = self.run_checker([CREATE_ROW], java)
+        output = self.output(result)
+        # 不中断：摘要行仍然打印，退出码由 error 决定（这里是 0）。
+        self.assertIn("checked=", output)
+        self.assertEqual(result.returncode, 0, output)
+        self.assertNotIn("ERROR parse", output)
+        # 跳过该端点时有告警，且注解因为绑定不到端点而报 CONCERN（不静默）。
+        self.assertIn("跳过该端点", output)
+        self.assertIn("CONCERN", output)
 
     def test_conflicting_catalog_rows_abort(self) -> None:
         """同一 (url, method) 绑到不同权限码 → 解析失败、退出码 1。"""

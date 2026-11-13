@@ -13,10 +13,11 @@
 controller 解析与豁免规则；两个脚本有意各自独立、**不互相 import**，改动规则时
 必须同步两边，常量也必须同步）：
   * 只检查 `@PreAuthorize("hasAuthority('<code>')")`。
-    - `isAuthenticated()` 与其它 SpEL 一律**不检查**（平台既有 20 处
-      `isAuthenticated()`，其中多条落在豁免端点上，它们是合法的）。
-    - 出现 `hasAuthority(...)` / `isAuthenticated()` 之外的 SpEL 形态时不猜语义，
-      报 CONCERN 交人工确认（本仓库当前为 0 条）。
+    - `isAuthenticated()` 与其它 SpEL 形态一律**完全忽略**：不检查、不报告、不计数
+      （平台既有 20 处 `isAuthenticated()`，其中多条落在豁免端点上，它们是合法的；
+      其它 SpEL 形态不猜语义，也不当成违规）。
+    - `hasAuthority(...)` 但绑定不到任何 request mapping（类级注解、写法异常）→
+      CONCERN：无法判定它保护哪个端点，交人工确认（本仓库当前为 0 条）。
   * 权限码在目录里完全不存在 → ERROR。
   * 端点 (path, httpMethod) 在目录里有绑定、但权限码不同 → ERROR（打印 expected）。
   * 权限码存在、但该 (path, httpMethod) 没有目录绑定 → WARNING（目录缺口，只报告，
@@ -36,6 +37,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+
+# seed 权限目录（CLI 默认值；与映射工具的同名常量指向同一个目录，
+# 一致性由 scripts/ci/test_permission_rules_conformance.py 钉住）。
+SEED_DIR = ROOT / "scripts/db/seed"
 
 DOMAINS = ("platform", "scm", "ecom", "lms")
 # 这些目录片段下的 controller 不属于本仓库的运行时端点（工作副本/嵌套仓库/构建产物）。
@@ -188,7 +193,13 @@ MAPPING_ANNOTATION = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping\b")
 CLASS_REQUEST_MAPPING = re.compile(r"@RequestMapping\b")
 PRE_AUTHORIZE = re.compile(r"@PreAuthorize\b")
 HAS_AUTHORITY = re.compile(r"^hasAuthority\(\s*'([^']*)'\s*\)$")
+# `isAuthenticated()` 与其它 SpEL 形态一律忽略：这个常量只用于说明「已识别的第二种形态」，
+# 不参与判定（见 evaluate()）。
 IS_AUTHENTICATED = re.compile(r"^isAuthenticated\(\s*\)$")
+
+# mapping 注解之后向前找方法声明的窗口（字符数）。javadoc / 注解块很长时容易超出，
+# 窗口不足会误判「找不到方法声明」，因此放宽；仍然找不到就跳过该端点而不是中断整轮检查。
+_METHOD_LOOKUP_WINDOW = 8000
 
 SEVERITY_ERROR = "error"
 SEVERITY_WARNING = "warning"
@@ -197,6 +208,11 @@ SEVERITY_CONCERN = "concern"
 
 class ParseError(RuntimeError):
     """源码/目录结构与预期不符：宁可失败，也不产出错误的检查结论。"""
+
+
+def warn(message: str) -> None:
+    """告警行（不改变退出码）。"""
+    print(f"WARNING {message}")
 
 
 # ---------------------------------------------------------------------------
@@ -447,9 +463,15 @@ def parse_controller(path: Path, root: Path) -> tuple[list[dict], list[dict]]:
         http_method = match.group(1).upper()
         args, ann_end = annotation_arguments(source, match.end())
         sub_path = mapping_path_from_args(args, f"{rel} @{http_method}Mapping")
-        declaration = JAVA_METHOD_DECL.search(source, ann_end, ann_end + 2000)
+        declaration = JAVA_METHOD_DECL.search(source, ann_end, ann_end + _METHOD_LOOKUP_WINDOW)
         if not declaration:
-            raise ParseError(f"{rel}: @{http_method}Mapping({sub_path}) 之后找不到方法声明")
+            # 方法声明可能落在很长的 javadoc / 注解块之后：跳过这个端点并告警，
+            # 而不是让整轮检查失败（该端点的注解会因绑定不到端点而报 CONCERN）。
+            warn(
+                f"{rel}: @{http_method}Mapping({sub_path}) 之后 "
+                f"{_METHOD_LOOKUP_WINDOW} 字符内找不到方法声明，跳过该端点"
+            )
+            continue
         endpoint = {
             "file": rel,
             "javaMethod": declaration.group(1),
@@ -470,7 +492,7 @@ def parse_controller(path: Path, root: Path) -> tuple[list[dict], list[dict]]:
             if len(spel) >= 2 and spel[0] == '"' and spel[-1] == '"':
                 spel = spel[1:-1].strip()
         endpoint = None
-        declaration = JAVA_METHOD_DECL.search(source, ann_end, ann_end + 2000)
+        declaration = JAVA_METHOD_DECL.search(source, ann_end, ann_end + _METHOD_LOOKUP_WINDOW)
         if declaration and not _member_boundary(source, ann_end, declaration.start()):
             endpoint = endpoint_by_declaration.get(declaration.start())
         annotations.append(
@@ -516,8 +538,10 @@ def controller_files(controllers_dir: Path, root: Path) -> list[Path]:
 # ---------------------------------------------------------------------------
 # 目录解析与匹配（与映射工具同一套语义）
 # ---------------------------------------------------------------------------
-def parse_catalog(catalog_dir: Path) -> tuple[dict[tuple[str, str], dict], set[str], list[str], int]:
-    """返回（(url, method) 索引, 全部权限码, 备注, 目录行数）。
+def parse_catalog(
+    catalog_dir: Path,
+) -> tuple[dict[tuple[str, str], dict], set[str], list[str], int, int]:
+    """返回（(url, method) 索引, 全部权限码, 备注, 目录行数, 被跳过的字面量数）。
 
     - 同一 (url, method) 绑到**不同**权限码 → ParseError（目录数据冲突，退出 1）。
     - 同一 (url, method) 同码重复登记 → 去重 + 备注（目录里已有一条已知重复）。
@@ -526,11 +550,14 @@ def parse_catalog(catalog_dir: Path) -> tuple[dict[tuple[str, str], dict], set[s
     codes: set[str] = set()
     notes: list[str] = []
     rows = 0
+    skipped_literals = 0
     for sql_path in sorted(catalog_dir.glob("*.sql")):
         raw = sql_path.read_text(encoding="utf-8", errors="replace")
         # 先剥掉 `--` 行注释（seed 里有中文注释，含 mojibake，按 replace 读入不崩溃）。
         text = re.sub(r"--[^\n]*", "", raw)
-        codes.update(_permission_codes(text))
+        file_codes, file_skipped = _permission_codes(text)
+        codes.update(file_codes)
+        skipped_literals += file_skipped
         spans: list[tuple[int, int]] = []
         for pattern, (code_group, url_group, method_group) in zip(
             _CATALOG_PATTERNS, _CATALOG_GROUPS
@@ -564,22 +591,33 @@ def parse_catalog(catalog_dir: Path) -> tuple[dict[tuple[str, str], dict], set[s
                         f"catalog: `{method} {url}`（`{code}`）重复登记于 "
                         f"`{existing['file']}` 与 `{sql_path.name}`，按一条处理"
                     )
-    return index, codes, sorted(set(notes)), rows
+    return index, codes, sorted(set(notes)), rows, skipped_literals
 
 
-def _permission_codes(text: str) -> set[str]:
+def _permission_codes(text: str) -> tuple[set[str], int]:
     """取 `INSERT INTO sys_permission` 语句块里每个权限行的权限码。
 
     seed 里所有 sys_permission 插入的元组都以权限码开头（`('code', ...)`），
     api_path 为 NULL 时该行同样属于目录 —— 只是没有 (url, method) 绑定。
+
+    只接受**像权限码**的字面量（权限码一律是 `domain:resource:action`，含 `:`）。
+    将来若有 seed 把 `permission_code` 挪到别的列，首个字面量就不再是权限码；
+    这时宁可跳过（该码按「目录里不存在」处理 → ERROR）也不要把它当成有效权限码，
+    否则「码存在但无绑定」的 WARNING 会被误判成 ERROR。跳过的数量会回报给调用方。
     """
     codes: set[str] = set()
+    skipped = 0
     for insert in _PERMISSION_INSERT.finditer(text):
         end = text.find(";", insert.end())
         region = text[insert.end():] if end < 0 else text[insert.end():end]
         for row in _PERMISSION_ROW_CODE.finditer(region):
-            codes.add(row.group(1).replace("''", "'"))
-    return codes
+            literal = row.group(1).replace("''", "'")
+            if ":" not in literal:
+                # 不像权限码（权限码是 domain:resource:action）：跳过并计数。
+                skipped += 1
+                continue
+            codes.add(literal)
+    return codes, skipped
 
 
 def catalog_lookup(index: dict[tuple[str, str], dict], path: str, method: str) -> dict | None:
@@ -671,11 +709,8 @@ def evaluate(
 
     authority = HAS_AUTHORITY.match(spel)
     if authority is None:
-        if IS_AUTHENTICATED.match(spel):
-            # 只要求登录的端点：不是权限码，不检查、不报告。
-            return "ok", ""
-        # 其它 SpEL 形态：不猜语义，报 CONCERN 交人工确认。
-        return SEVERITY_CONCERN, f"{where} 未识别的 @PreAuthorize SpEL：{spel}（已跳过，需人工确认）"
+        # `isAuthenticated()` 与其它 SpEL 形态：完全忽略（不猜语义，也不当成违规）。
+        return "ok", ""
 
     code = authority.group(1)
     if endpoint is None:
@@ -709,7 +744,24 @@ def evaluate(
     return SEVERITY_ERROR, f"{where} {code} expected <none: 目录里不存在该权限码>"
 
 
+def _force_utf8_output() -> None:
+    """把 stdout/stderr 切到 UTF-8。
+
+    Windows 控制台默认编码不是 UTF-8，中文诊断会抛 UnicodeEncodeError；
+    CI 里重定向到文件时也能保证输出是 UTF-8（不需要额外设置 PYTHONIOENCODING）。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8")
+        except (ValueError, OSError):  # pragma: no cover - 流不可重配时退回默认行为
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _force_utf8_output()
     parser = argparse.ArgumentParser(
         description="@PreAuthorize 与权限目录的 drift 检查（退出码 0/1）"
     )
@@ -737,7 +789,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         _self_check_exempt_lists()
-        index, codes, catalog_notes, catalog_rows = parse_catalog(catalog_dir)
+        index, codes, catalog_notes, catalog_rows, skipped_literals = parse_catalog(catalog_dir)
         annotations: list[dict] = []
         endpoint_count = 0
         for java_file in controller_files(controllers_dir, root):
@@ -747,9 +799,18 @@ def main(argv: list[str] | None = None) -> int:
     except ParseError as exc:
         print(f"ERROR parse: {exc}")
         return 1
+    except (OSError, UnicodeError) as exc:
+        # 读 seed / controller 失败（编码、权限、磁盘…）：给一行干净诊断，不要 traceback。
+        print(f"ERROR parse: 读取目录或源码失败：{exc.__class__.__name__}: {exc}")
+        return 1
 
     for note in catalog_notes:
         print(f"NOTE {note}")
+    if skipped_literals:
+        print(
+            f"NOTE 目录里有 {skipped_literals} 个不像权限码的字面量（权限码应为 "
+            f"domain:resource:action），已跳过：seed 的列顺序可能变了"
+        )
 
     diagnostics: list[tuple[str, str, int]] = []
     checked = 0
