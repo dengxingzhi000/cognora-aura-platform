@@ -19,6 +19,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,6 +38,7 @@ public class OrderCenterController {
 
     @Operation(summary = "分页查询订单", description = "按订单号、用户与状态分页查询订单中心订单。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('order-center:order:page')")
     public Page<OcOrder> page(
             @Parameter(description = "页码，默认 1") @RequestParam(defaultValue = "1") @Min(1) int page,
             @Parameter(description = "每页数量，默认 20，最大 100") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
@@ -48,6 +50,7 @@ public class OrderCenterController {
 
     @Operation(summary = "创建订单", description = "根据订单主体与订单明细创建新订单并返回订单信息。")
     @PostMapping
+    @PreAuthorize("hasAuthority('order-center:order:create-order')")
     @AuditLog(operation = "创建订单", businessType = "ORDER_CENTER", riskLevel = 3)
     public OcOrder createOrder(@Valid @RequestBody CreateOrderRequest request) {
         log.info("[API] Create order: orderNo={}", (request.getOrder().getOrderNo() + "").replace("\r", "_").replace("\n", "_"));
@@ -56,6 +59,7 @@ public class OrderCenterController {
 
     @Operation(summary = "查询订单详情", description = "根据订单号查询订单中心订单详情。")
     @GetMapping("/{orderNo}")
+    @PreAuthorize("hasAuthority('order-center:order:get-order')")
     public OcOrder getOrder(@Parameter(description = "订单号") @PathVariable String orderNo) {
         log.info("[API] Get order: orderNo={}", (orderNo + "").replace("\r", "_").replace("\n", "_"));
         return orderService.getOrder(orderNo);
@@ -63,6 +67,7 @@ public class OrderCenterController {
 
     @Operation(summary = "取消订单", description = "按订单号取消订单并记录取消原因。")
     @PostMapping("/{orderNo}/cancel")
+    @PreAuthorize("hasAuthority('order-center:order:cancel-order')")
     @AuditLog(operation = "取消订单", businessType = "ORDER_CENTER", riskLevel = 3)
     public boolean cancelOrder(@Parameter(description = "订单号") @PathVariable String orderNo, @Valid @RequestBody CancelRequest request) {
         log.info("[API] Cancel order: orderNo={}, reason={}", (orderNo + "").replace("\r", "_").replace("\n", "_"), (request.getReason() + "").replace("\r", "_").replace("\n", "_"));
@@ -87,6 +92,7 @@ public class OrderCenterController {
 
     @Operation(summary = "订单发货", description = "按订单号执行发货并绑定物流单号。")
     @PostMapping("/{orderNo}/ship")
+    @PreAuthorize("hasAuthority('order-center:order:ship-order')")
     @AuditLog(operation = "订单发货", businessType = "ORDER_CENTER", riskLevel = 3)
     public boolean shipOrder(@Parameter(description = "订单号") @PathVariable String orderNo, @Valid @RequestBody ShipRequest request) {
         log.info("[API] Ship order: orderNo={}, logisticsNo={}", (orderNo + "").replace("\r", "_").replace("\n", "_"), (request.getLogisticsNo() + "").replace("\r", "_").replace("\n", "_"));
@@ -96,6 +102,7 @@ public class OrderCenterController {
 
     @Operation(summary = "订单送达", description = "按订单号将订单状态流转为已送达。")
     @PostMapping("/{orderNo}/deliver")
+    @PreAuthorize("hasAuthority('order-center:order:deliver-order')")
     @AuditLog(operation = "订单送达", businessType = "ORDER_CENTER", riskLevel = 3)
     public boolean deliverOrder(@Parameter(description = "订单号") @PathVariable String orderNo) {
         log.info("[API] Deliver order: orderNo={}", (orderNo + "").replace("\r", "_").replace("\n", "_"));
@@ -105,6 +112,7 @@ public class OrderCenterController {
 
     @Operation(summary = "确认收货", description = "按订单号确认收货并完成订单状态流转。")
     @PostMapping("/{orderNo}/confirm")
+    @PreAuthorize("hasAuthority('order-center:order:confirm-order')")
     @AuditLog(operation = "确认收货", businessType = "ORDER_CENTER", riskLevel = 3)
     public boolean confirmOrder(@Parameter(description = "订单号") @PathVariable String orderNo) {
         log.info("[API] Confirm order: orderNo={}", (orderNo + "").replace("\r", "_").replace("\n", "_"));

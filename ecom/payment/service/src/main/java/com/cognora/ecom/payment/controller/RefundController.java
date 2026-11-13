@@ -18,6 +18,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,6 +42,7 @@ public class RefundController {
 
     @Operation(summary = "分页查询退款", description = "按支付单号、订单号、用户与状态分页查询退款申请。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('payment:refund:page')")
     public Page<Refund> page(
             @Parameter(description = "页码，默认 1") @RequestParam(defaultValue = "1") @Min(1) int page,
             @Parameter(description = "每页数量，默认 20，最大 100") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
@@ -76,6 +78,7 @@ public class RefundController {
 
     @Operation(summary = "审批通过退款", description = "审批通过指定退款申请并执行退款。")
     @PostMapping("/{refundNo}/approve")
+    @PreAuthorize("hasAuthority('payment:refund:approve-refund')")
     @AuditLog(operation = "审批通过退款", businessType = "PAYMENT", riskLevel = 4)
     public Refund approveRefund(@Parameter(description = "退款单号") @PathVariable String refundNo) {
         log.info("[API] Approve refund: refundNo={}", (refundNo + "").replace("\r", "_").replace("\n", "_"));
@@ -84,6 +87,7 @@ public class RefundController {
 
     @Operation(summary = "驳回退款", description = "驳回指定退款申请并记录驳回原因。")
     @PostMapping("/{refundNo}/reject")
+    @PreAuthorize("hasAuthority('payment:refund:reject-refund')")
     @AuditLog(operation = "驳回退款申请", businessType = "PAYMENT", riskLevel = 4)
     public Refund rejectRefund(@Parameter(description = "退款单号") @PathVariable String refundNo,
                                @RequestBody(required = false) RejectRequest request) {

@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,6 +27,7 @@ public class SellerController {
 
     @Operation(summary = "卖家入驻", description = "注册新的商城卖家并返回注册后的卖家信息。")
     @PostMapping
+    @PreAuthorize("hasAuthority('mall:seller:create')")
     @AuditLog(operation = "卖家入驻注册", businessType = "MALL", riskLevel = 3)
     public Seller registerSeller(@RequestBody Seller seller) {
         log.info("[API] Register seller: name={}", (seller.getSellerName() + "").replace("\r", "_").replace("\n", "_"));
@@ -34,6 +36,7 @@ public class SellerController {
 
     @Operation(summary = "查询卖家信息", description = "根据卖家 ID 获取卖家的详细信息。")
     @GetMapping("/{sellerId}")
+    @PreAuthorize("hasAuthority('mall:seller:view')")
     public Seller getSeller(@Parameter(description = "卖家 ID") @PathVariable Long sellerId) {
         return sellerService.getSeller(sellerId);
     }
