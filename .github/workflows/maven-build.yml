@@ -68,6 +68,22 @@ jobs:
       - name: Validate OpenAPI snapshot against controller mappings
         run: python3 scripts/ci/check_openapi_drift.py
 
+      # 每个 @PreAuthorize("hasAuthority('code')") 都必须能按 (path, method) 在
+      # 权限目录（scripts/db/seed/*.sql）里命中同一个码；豁免端点不许带注解。
+      # 报错退出码非 0 即失败；目录里查不到的端点只报 WARNING（缺口清单另见
+      # docs/superpowers/specs/2026-11-12-permission-catalog-gaps.md）。
+      - name: Validate permission annotations against the permission catalog
+        run: python3 scripts/ci/check_permission_annotation_drift.py
+
+      # 检查器自身的 fixture 测试（正例/反例各一套），防止护栏自己坏掉。
+      - name: Test the permission annotation drift checker
+        run: python3 scripts/ci/test_check_permission_annotation_drift.py
+
+      # 映射工具与检查器的规则一致性（豁免清单、seed 目录、路径匹配窗口）。
+      - name: Test permission rules conformance
+        run: python3 scripts/ci/test_permission_rules_conformance.py
+
+
       - name: Initialize databases
         if: github.event_name == 'push'
         env:

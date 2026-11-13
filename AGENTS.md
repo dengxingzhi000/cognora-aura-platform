@@ -303,6 +303,22 @@ no service overrides them.
 - `SysSensitiveOperationLog.realName` / `.deptName` are
   `@TableField(exist = false)`: `db_audit` has no such columns, and mapping them
   broke every read of that table.
+- **Write endpoints are annotated across all four domains.** `@AuditLog` now
+  covers the write endpoints of ecom/scm/platform/lms — 305 annotations added on
+  top of the pre-existing ones (ecom +34, scm +145, platform +114, lms-tms +12;
+  404 in total). The exemption list is the default value of
+  `ApiAccessControlProperties` (`platform/common/web`): `whitelist` /
+  `exemptPaths` / `exemptPathExclusions` / `internalSignaturePaths` /
+  `signatureOrPermissionPaths`. Exempt endpoints carry **neither** annotation —
+  an `@AuditLog` or an `@PreAuthorize` there breaks service-to-service calls,
+  payment callbacks and the search index. An endpoint with **no row in the
+  permission catalog** deliberately carries **no `@PreAuthorize`** either; those
+  endpoints are listed in the gap report
+  `docs/superpowers/specs/2026-11-12-permission-catalog-gaps.md` and are already
+  denied by `ApiAccessControlFilter` (`API_NOT_REGISTERED`), so not annotating
+  them changes nothing. `scripts/ci/check_permission_annotation_drift.py` runs in
+  CI and fails the build when an `@PreAuthorize` code drifts from the catalog or
+  an exempt endpoint carries an annotation.
 
 ### 权限解析（短 Token 之后）与生产密钥守卫
 
@@ -351,11 +367,25 @@ those DBs touches several services.
 (`com.cognora.platform.common.data.rw.annotation`); `platform/common/data-rw-stub` is a
 no-op variant for editions without replicas. Query services → `@Slave`, command
 services → `@Master`. **The whole auto-configuration is gated on
-`spring.datasource.rw.enabled=true`.** `platform-product` is the only service that
-sets it, together with `spring.datasource.dynamic.enabled=false`; every other
-service keeps the inert single-datasource behaviour. Routing semantics, fallback
-and observability are documented in `docs/guides/READ_WRITE_SEPARATION_GUIDE.md`
-(`scm-order` still ships an unactivated `application-readwrite.yml` template).
+`spring.datasource.rw.enabled=true`.** The **platform-product form is now the
+standard form**: `spring.datasource.dynamic.enabled=false` (baomidou
+dynamic-datasource off) plus a `spring.datasource.rw.*` block with
+`default-target: MASTER` and one group per service. Seven services run it —
+`platform-product` (group `product`, `db_product`) plus the six Phase 1
+activations: `scm-order` (`order`, `db_order`), `platform-inventory`
+(`inventory`, `db_inventory`), `scm-warehouse` (`warehouse`, `db_warehouse`),
+`scm-supplier` (`supplier`, `db_supplier`), `scm-purchase` (`purchase`,
+`db_purchase`), `lms-tms` (`logistics`, `db_logistics`). Every other service
+keeps the inert single-datasource behaviour. The slave URL defaults to
+`${DB_SLAVE_HOST:${DB_HOST:localhost}}`, so **with no replica the reads hit the
+primary** — no replica infrastructure is needed to run it. All seven expose the
+`readwrite` actuator endpoint (`GET /actuator/readwrite`), and each of the six
+Phase 1 services pins the YAML shape with a `ReadWriteApplicationConfigTest`
+(CI never boots a Spring context, so that static test is the only automated
+guard). Routing semantics, fallback and observability are documented in
+`docs/guides/READ_WRITE_SEPARATION_GUIDE.md`; the VM verification checklist is
+in `docs/operations/OPERATIONS_MANUAL.md` (`scm-order` still ships an
+unactivated `application-readwrite.yml` template).
 
 ### CQRS
 
@@ -586,6 +616,19 @@ scripts/db/quality/check-quality.sh
 
 `inv_reservation` lives in `db_inventory` and `sup_purchase_order` in
 `db_supplier` — not `db_order`.
+
+**The four scripts are now scheduled.** `deploy/maintenance/run-maintenance.sh`
+only calls them (it never inlines SQL): the compose service `db-maintenance`
+under the `maintenance` profile runs it in `loop` mode (monthly cycle
+create + create-audit, weekly cycle drop + retention), and
+`deploy/k8s/db-maintenance-cronjob.yml` ships two CronJobs — monthly `0 3 1 * *`
+(`once all`) and weekly `0 3 * * 1` (`once drop` then `once retention`, both
+always run, non-zero exit if either failed). The k8s ConfigMap
+`db-maintenance-scripts` is a **copy** of the repo scripts — changing a script
+means refreshing it. The runner's env names are the ones the scripts actually
+read (`DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD`, plus `CH_*`), not the
+`PG*` names. Runbook and VM verification checklist:
+`docs/operations/OPERATIONS_MANUAL.md`.
 
 ## Frontend (`cognora-aura-web`)
 

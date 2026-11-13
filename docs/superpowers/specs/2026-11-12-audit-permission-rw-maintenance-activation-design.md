@@ -302,6 +302,81 @@
 
 （platform 内：system 33+61、auth 6+19，其余 8 个服务全 0；scm 内：finance 43，其余 4 服务全 0。）
 
+### after（2026-11-13 实测，基线 `07d4edd0` → `4b050a56`）
+
+| 域/服务 | controllers | @AuditLog | 写端点 | @PreAuthorize |
+|---|---|---|---|---|
+| ecom×8 | 19 | 34 | 67 | 61 |
+| lms-tms | 8 | 29 | 29 | 36 |
+| platform×10（有 controller 的） | 50 | 153 | 174 | 265 |
+| scm×5 | 47 | 188 | 191 | 311 |
+| 合计 | 124 | 404 | 461 | 673 |
+
+新增量：**@AuditLog +305、@PreAuthorize +593**。
+
+口径说明：注解两列 before/after 同口径（`git grep` 统计 git 跟踪的 `*Controller.java`，
+before 取自基线 `07d4edd0`，与 before 表的 99 / 80 完全吻合）；controllers 与写端点两列
+after 只统计 git 跟踪的 controller（794 个端点、其中 461 个写端点，来源
+`docs/superpowers/specs/2026-11-12-permission-mapping.json`），before 表的 128 / 483
+是 2026-11-12 的工作区扫描，额外含未跟踪的在建 controller（platform +4 个 controller、
++22 个写端点），因此两列不能逐格相减——注解两列才可以。
+
+**本次新增的 @AuditLog（按服务，共 305 处）**
+
+| 服务 | 新增 | 备注 |
+|---|---|---|
+| ecom/analytics | 19 | |
+| ecom/fulfillment | 7 | |
+| ecom/mall | 1 | |
+| ecom/order-center | 5 | |
+| ecom/payment | 2 | |
+| scm/purchase | 67 | |
+| scm/supplier | 38 | |
+| scm/warehouse | 30 | |
+| scm/order | 10 | |
+| platform/tenant | 26 | |
+| platform/system | 21 | 原有 33 处保留 |
+| platform/product | 16 | |
+| platform/inventory | 16 | |
+| platform/document | 10 | |
+| platform/auth | 7 | 原有 6 处保留 |
+| platform/file | 7 | |
+| platform/approval | 6 | |
+| platform/notify | 5 | |
+| lms/tms | 12 | carrier 4 / delivery-area 3 / route 3 / freight quote 1 / tracking callback 1 |
+| **合计** | **305** | 全量 404（ecom +34、scm +145、platform +114、lms-tms +12） |
+
+**本次新增的 @PreAuthorize（按域，共 593 处）**
+
+| 域 | 新增 | 全量 |
+|---|---|---|
+| ecom | 61 | 61 |
+| scm | 311 | 311 |
+| platform | 185 | 265 |
+| lms-tms | 36 | 36 |
+| **合计** | **593** | **673** |
+
+全量 673 处里有 20 处是 `isAuthenticated()` 形态（全部是既有代码，新增的一律是
+`hasAuthority('<code>')`）；`hasAuthority` 形态共 653 处。
+
+### 其他两项交付的现状（2026-11-13）
+
+- **读写分离（G3）**：7 个服务已激活 —— `platform-product`（group `product`）+ Phase 1 的
+  6 个（`scm-order`/`order`、`platform-inventory`/`inventory`、`scm-warehouse`/`warehouse`、
+  `scm-supplier`/`supplier`、`scm-purchase`/`purchase`、`lms-tms`/`logistics`）。标准形态 =
+  `spring.datasource.dynamic.enabled=false` + `spring.datasource.rw.*`（`default-target: MASTER`）；
+  从库 URL 默认回落主库（`${DB_SLAVE_HOST:${DB_HOST:localhost}}`），接真副本只改
+  `DB_SLAVE_*`；每个服务暴露 `readwrite` actuator 端点，Phase 1 的 6 个服务各有一个静态
+  YAML 测试 `ReadWriteApplicationConfigTest`（CI 不启动 Spring 上下文，它就是唯一的自动化护栏）。
+- **分区维护调度（G4）**：compose `maintenance` profile 的 `db-maintenance` 服务（runner
+  `loop` 模式）+ k8s 两个 CronJob（`0 3 1 * *` → `once all`；`0 3 * * 1` → `once drop`
+  与 `once retention`，两者都跑，任一失败即非 0 退出）。
+- **CI 护栏（G5）**：`scripts/ci/check_permission_annotation_drift.py` 已接入
+  `.github/workflows/maven-build.yml`（当前 `errors=0, warnings=21`，warnings 全部是
+  platform/system 与 platform/auth 上「目录里没有该 (path, method) 绑定」的既有注解），
+  连同两个测试脚本（`test_check_permission_annotation_drift.py`、
+  `test_permission_rules_conformance.py`）一起在 PR 与 push 上跑。
+
 ### 交付顺序（builder 执行顺序）
 
 1. **P1 @AuditLog 扫描**（低风险、纯注解，先交付）：按服务提交，每服务一次提交。
