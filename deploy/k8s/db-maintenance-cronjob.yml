@@ -1,0 +1,802 @@
+# deploy/k8s/db-maintenance-cronjob.yml
+#
+# 分区 / 保留策略的 Kubernetes 调度（Task 18）。
+#
+# 文件是一个 `kind: List`，包含 3 个对象：
+#  - ConfigMap `db-maintenance-scripts`：把 Task 17 的 runner 与 4 个既有维护脚本
+#    （scripts/db/partition/*.sh、scripts/db/retention/apply-retention.sh）原样内嵌。
+#    ConfigMap 的 data key 只能匹配 [-._a-zA-Z0-9]+（不能带 `/`），所以这里用扁平 key，
+#    由容器启动时的 bash 命令把它们还原成 runner 期望的 <root>/partition、<root>/retention 目录结构。
+#    脚本内容逐字节来自仓库文件（仅统一为 LF 行尾），**不要在这里改脚本语义**——
+#    仓库里的那 4 个脚本才是事实源，改脚本要同步改这里。
+#  - CronJob `db-maintenance-monthly`：`0 3 1 * *`，`once all` = create + create-audit + drop + retention。
+#  - CronJob `db-maintenance-weekly`：`0 3 * * 1`，依次执行 `once drop` 与 `once retention`。
+#    runner 的 `once` 一次只接受一个任务，所以这里顺序调用两次；drop 失败也必须继续跑 retention
+#    （因此不用 `&&` 串联），Pod 退出码反映最后一个任务（retention）的结果。
+#
+# 连接参数沿用既有约定：DB_HOST / DB_PORT / DB_USER / DB_PASSWORD（+ CH_*）。
+# 注意脚本读的是 DB_USER，而 Secret `scm-secrets` 里的 key 是 DB_USERNAME，这里做一次映射。
+#
+# 应用：kubectl apply -f deploy/k8s/db-maintenance-cronjob.yml
+apiVersion: v1
+kind: List
+items:
+  # ------------------------------------------------------------------ ConfigMap
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: db-maintenance-scripts
+      namespace: scm-prod
+      labels:
+        app: db-maintenance
+      annotations:
+        # 脚本内容来自仓库，改脚本后必须同步刷新本 ConfigMap。
+        cognora.com/source-scripts: "deploy/maintenance/run-maintenance.sh,scripts/db/partition/,scripts/db/retention/"
+    data:
+      run-maintenance.sh: |
+        #!/bin/bash
+        # deploy/maintenance/run-maintenance.sh
+        #
+        # 分区 / 保留策略的调度 runner。
+        # 本脚本不实现任何 SQL 语义，只负责：定时调用 scripts/db 下既有的 4 个脚本，
+        # 把连接目标打到 stdout（容器日志驱动会收集 stdout），并保证单个任务失败不影响其余任务。
+        #
+        # 用法：
+        #   run-maintenance.sh once <create|create-audit|drop|retention|all>   # 跑一个任务后退出（k8s CronJob 用）
+        #   run-maintenance.sh loop                                           # 常驻循环（compose maintenance profile 用）
+        #
+        # 环境变量（与既有脚本的约定完全一致，缺省值也一致）：
+        #   DB_HOST / DB_PORT / DB_USER / DB_PASSWORD   -> postgres 连接（默认 localhost / 5432 / admin / admin123）
+        #   CH_HOST / CH_PORT / CH_USERNAME / CH_PASSWORD -> clickhouse 连接（默认 localhost / 8123 / default / 空）
+        #   MAINTENANCE_SCRIPTS_DIR   覆盖脚本根目录（内含 partition/ 与 retention/），默认自动探测
+        #   MAINTENANCE_DAY_SECONDS   loop 模式每轮 sleep 秒数（默认 86400，即一天），用于快速冒烟
+        #   MAINTENANCE_MONTHLY_DAYS  月度周期（create + create-audit）的天数，默认 30
+        #   MAINTENANCE_WEEKLY_DAYS   周度周期（drop + retention）的天数，默认 7
+        #   MAINTENANCE_CONNECT_TIMEOUT 连通性校验的超时秒数，默认 5
+        #
+        # 说明：apply-retention.sh 自己带 ClickHouse 探活（curl 缺失或连不上时只跳过 DWH 那一段，
+        # PostgreSQL 侧的保留策略照常执行），本 runner 不去干预这个自保护逻辑。
+
+        set -u
+
+        # ---------------------------------------------------------------- 连接参数
+        # 缺省值与 4 个既有脚本保持一致；导出后子脚本继承同一份配置。
+        DB_HOST="${DB_HOST:-localhost}"
+        DB_PORT="${DB_PORT:-5432}"
+        DB_USER="${DB_USER:-admin}"
+        DB_PASSWORD="${DB_PASSWORD:-admin123}"
+        CH_HOST="${CH_HOST:-localhost}"
+        CH_PORT="${CH_PORT:-8123}"
+        CH_USERNAME="${CH_USERNAME:-default}"
+        CH_PASSWORD="${CH_PASSWORD:-}"
+        export DB_HOST DB_PORT DB_USER DB_PASSWORD CH_HOST CH_PORT CH_USERNAME CH_PASSWORD
+
+        MAINTENANCE_DAY_SECONDS="${MAINTENANCE_DAY_SECONDS:-86400}"
+        MAINTENANCE_MONTHLY_DAYS="${MAINTENANCE_MONTHLY_DAYS:-30}"
+        MAINTENANCE_WEEKLY_DAYS="${MAINTENANCE_WEEKLY_DAYS:-7}"
+        MAINTENANCE_CONNECT_TIMEOUT="${MAINTENANCE_CONNECT_TIMEOUT:-5}"
+
+        # 任务名 -> 相对脚本根目录的脚本路径
+        SCRIPT_CREATE="partition/create-partitions.sh"
+        SCRIPT_CREATE_AUDIT="partition/create-audit-partitions.sh"
+        SCRIPT_DROP="partition/drop-old-partitions.sh"
+        SCRIPT_RETENTION="retention/apply-retention.sh"
+
+        SCRIPT_ROOT=""
+
+        # ---------------------------------------------------------------- 小工具
+        log() {
+            printf '[maintenance] %s\n' "$*"
+        }
+
+        # ISO-8601 时间戳；GNU date 支持 -Iseconds，BSD/macOS 退回到等价格式。
+        now_iso() {
+            date -Iseconds 2>/dev/null || date "+%Y-%m-%dT%H:%M:%S%z"
+        }
+
+        usage() {
+            cat >&2 <<'EOF'
+        Usage:
+          run-maintenance.sh once <create|create-audit|drop|retention|all>
+          run-maintenance.sh loop
+
+        Tasks:
+          create        partition/create-partitions.sh      预建未来 3 个月的分区
+          create-audit  partition/create-audit-partitions.sh  预建审计表的分区
+          drop          partition/drop-old-partitions.sh     清理超过保留期的分区
+          retention     retention/apply-retention.sh         执行数据保留策略
+          all           以上四个，按 create -> create-audit -> drop -> retention 的顺序
+        EOF
+        }
+
+        # ---------------------------------------------------------------- 脚本根目录探测
+        # 顺序：$MAINTENANCE_SCRIPTS_DIR -> runner 自身位置推导出的仓库布局 -> /opt/db（compose 挂载点）
+        resolve_scripts_root() {
+            local candidates=()
+            local runner_dir=""
+            local candidate=""
+
+            if [ -n "${MAINTENANCE_SCRIPTS_DIR:-}" ]; then
+                candidates+=("${MAINTENANCE_SCRIPTS_DIR}")
+            fi
+
+            runner_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+            if [ -n "${runner_dir}" ]; then
+                candidate="$(cd "${runner_dir}/../.." 2>/dev/null && pwd)"
+                if [ -n "${candidate}" ]; then
+                    candidate="${candidate%/}"
+                    candidates+=("${candidate}/scripts/db")
+                fi
+            fi
+
+            candidates+=("/opt/db")
+
+            for candidate in "${candidates[@]}"; do
+                if [ -d "${candidate}" ]; then
+                    candidate="$(cd "${candidate}" 2>/dev/null && pwd)"
+                    if [ -z "${candidate}" ]; then
+                        continue
+                    fi
+                    if [ -f "${candidate}/partition/create-partitions.sh" ]; then
+                        SCRIPT_ROOT="${candidate}"
+                        return 0
+                    fi
+                    # 目录存在但内容不对：留作兜底，缺哪个脚本由每个任务自己报错
+                    if [ -z "${SCRIPT_ROOT}" ]; then
+                        SCRIPT_ROOT="${candidate}"
+                    fi
+                fi
+            done
+
+            [ -n "${SCRIPT_ROOT}" ]
+        }
+
+        # ---------------------------------------------------------------- 连通性校验
+        # create-partitions.sh 用 `|| true` 吞掉了 psql 的失败，脚本本身会退出 0。
+        # 为了不把「数据库根本连不上」报成维护成功，这里在脚本跑完之后补一次连通性校验：
+        #   0 = 连得上，1 = 连不上，2 = psql 不可用
+        pg_reachable() {
+            if ! command -v psql >/dev/null 2>&1; then
+                return 2
+            fi
+            PGCONNECT_TIMEOUT="${MAINTENANCE_CONNECT_TIMEOUT}" PGPASSWORD="${DB_PASSWORD}" \
+                psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d postgres -tAc 'SELECT 1' >/dev/null 2>&1
+        }
+
+        target_of() {
+            case "$1" in
+                retention)
+                    printf '%s:%s user=%s clickhouse=%s:%s' \
+                        "${DB_HOST}" "${DB_PORT}" "${DB_USER}" "${CH_HOST}" "${CH_PORT}"
+                    ;;
+                *)
+                    printf '%s:%s user=%s' "${DB_HOST}" "${DB_PORT}" "${DB_USER}"
+                    ;;
+            esac
+        }
+
+        # ---------------------------------------------------------------- 单个任务
+        # 失败只返回非 0，不中断调用方（循环靠它继续下一个任务）。
+        run_task() {
+            local task="$1"
+            local relative="$2"
+            local absolute=""
+            local directory=""
+            local status=0
+
+            log "${task} start $(now_iso)"
+            log "${task} target $(target_of "${task}")"
+
+            if [ -n "${SCRIPT_ROOT}" ]; then
+                absolute="${SCRIPT_ROOT}/${relative}"
+            else
+                absolute="${relative}"
+            fi
+
+            if [ ! -f "${absolute}" ]; then
+                log "${task} FAILED (exit 1) script not found: ${absolute}"
+                return 1
+            fi
+
+            directory="$(cd "$(dirname "${absolute}")" 2>/dev/null && pwd)"
+            if [ -z "${directory}" ]; then
+                log "${task} FAILED (exit 1) cannot enter script directory: ${absolute}"
+                return 1
+            fi
+
+            # 先 cd 进脚本自己的目录，脚本内部的相对路径才能解析；再以绝对路径调用。
+            ( cd "${directory}" && bash "${absolute}" )
+            status=$?
+
+            if [ "${status}" -ne 0 ]; then
+                log "${task} FAILED (exit ${status})"
+                return "${status}"
+            fi
+
+            # 脚本退出 0 不等于维护真的做过了：补一次连通性校验。
+            pg_reachable
+            status=$?
+            if [ "${status}" -eq 2 ]; then
+                log "${task} FAILED (exit 1) psql not available in PATH - the script could not have reached the database"
+                return 1
+            fi
+            if [ "${status}" -ne 0 ]; then
+                log "${task} FAILED (exit 1) postgres target ${DB_HOST}:${DB_PORT} unreachable - the script exited 0 but no connection was possible"
+                return 1
+            fi
+
+            log "${task} ok"
+            return 0
+        }
+
+        # ---------------------------------------------------------------- 周期
+        monthly_cycle() {
+            log "monthly cycle start $(now_iso)"
+            run_task create "${SCRIPT_CREATE}" || true
+            run_task create-audit "${SCRIPT_CREATE_AUDIT}" || true
+            log "cycle done $(now_iso)"
+        }
+
+        weekly_cycle() {
+            log "weekly cycle start $(now_iso)"
+            run_task drop "${SCRIPT_DROP}" || true
+            run_task retention "${SCRIPT_RETENTION}" || true
+            log "cycle done $(now_iso)"
+        }
+
+        # ---------------------------------------------------------------- once 模式
+        run_once() {
+            local task="${1:-}"
+            local failed=0
+
+            if [ -z "${task}" ]; then
+                usage
+                return 2
+            fi
+
+            case "${task}" in
+                create)
+                    run_task create "${SCRIPT_CREATE}" || failed=1
+                    ;;
+                create-audit)
+                    run_task create-audit "${SCRIPT_CREATE_AUDIT}" || failed=1
+                    ;;
+                drop)
+                    run_task drop "${SCRIPT_DROP}" || failed=1
+                    ;;
+                retention)
+                    run_task retention "${SCRIPT_RETENTION}" || failed=1
+                    ;;
+                all)
+                    run_task create "${SCRIPT_CREATE}" || failed=1
+                    run_task create-audit "${SCRIPT_CREATE_AUDIT}" || failed=1
+                    run_task drop "${SCRIPT_DROP}" || failed=1
+                    run_task retention "${SCRIPT_RETENTION}" || failed=1
+                    log "cycle done $(now_iso)"
+                    ;;
+                *)
+                    usage
+                    return 2
+                    ;;
+            esac
+
+            return "${failed}"
+        }
+
+        # ---------------------------------------------------------------- loop 模式
+        # 月度周期（create + create-audit）启动即跑，之后每 30 天一次；
+        # 周度周期（drop + retention）每 7 天一次。逐日 sleep + 两个计数器，不用 cron。
+        run_loop() {
+            local monthly_days="${MAINTENANCE_MONTHLY_DAYS}"
+            local weekly_days="${MAINTENANCE_WEEKLY_DAYS}"
+            local monthly_left="${MAINTENANCE_MONTHLY_DAYS}"
+            local weekly_left="${MAINTENANCE_WEEKLY_DAYS}"
+            local sleep_pid=""
+
+            # sleep 放后台 + wait：这样 SIGTERM（docker stop / k8s 驱逐）能立刻打断等待，
+            # 否则 bash 会等前台 sleep 结束才跑 trap，容器会等到被 SIGKILL。
+            trap 'if [ -n "${sleep_pid:-}" ]; then kill "${sleep_pid}" 2>/dev/null; fi; log "loop stopping"; exit 0' TERM INT
+
+            log "loop start $(now_iso) monthly=${monthly_days}d weekly=${weekly_days}d day=${MAINTENANCE_DAY_SECONDS}s"
+
+            monthly_cycle
+            monthly_left="${monthly_days}"
+
+            while :; do
+                sleep "${MAINTENANCE_DAY_SECONDS}" &
+                sleep_pid=$!
+                wait "${sleep_pid}" 2>/dev/null || true
+                sleep_pid=""
+                monthly_left=$((monthly_left - 1))
+                weekly_left=$((weekly_left - 1))
+
+                if [ "${monthly_left}" -le 0 ]; then
+                    monthly_cycle
+                    monthly_left="${monthly_days}"
+                fi
+                if [ "${weekly_left}" -le 0 ]; then
+                    weekly_cycle
+                    weekly_left="${weekly_days}"
+                fi
+            done
+        }
+
+        # ---------------------------------------------------------------- 入口
+        main() {
+            local mode=""
+            local task=""
+
+            if [ "$#" -ge 1 ]; then
+                mode="$1"
+            fi
+            if [ "$#" -ge 2 ]; then
+                task="$2"
+            fi
+
+            if ! resolve_scripts_root; then
+                log "ERROR scripts root not found - set MAINTENANCE_SCRIPTS_DIR or mount scripts/db at /opt/db"
+                exit 1
+            fi
+            log "scripts root ${SCRIPT_ROOT}"
+
+            case "${mode}" in
+                once)
+                    run_once "${task}"
+                    exit $?
+                    ;;
+                loop)
+                    run_loop
+                    exit 0
+                    ;;
+                *)
+                    usage
+                    exit 2
+                    ;;
+            esac
+        }
+
+        main "$@"
+      create-partitions.sh: |
+        #!/bin/bash
+        # scripts/db/partition/create-partitions.sh
+        # Auto-create monthly partitions for partitioned tables
+
+        set -e
+
+        DB_HOST="${DB_HOST:-localhost}"
+        DB_PORT="${DB_PORT:-5432}"
+        DB_USER="${DB_USER:-admin}"
+        DB_PASSWORD="${DB_PASSWORD:-admin123}"
+
+        declare -A TABLE_DB_MAP=(
+            ["ord_order"]="db_order"
+            ["inv_reservation"]="db_inventory"
+            # 库存流水：既有分区沿用 <table>_YYYY_MM 命名，脚本新建的为 <table>_pYYYYMM
+            ["inv_log"]="db_inventory"
+            ["sup_purchase_order"]="db_supplier"
+        )
+
+        for TABLE in "${!TABLE_DB_MAP[@]}"; do
+            DB_NAME="${TABLE_DB_MAP[$TABLE]}"
+            echo "Creating partitions for ${TABLE} (database: ${DB_NAME})..."
+
+            for i in $(seq 0 2); do
+                PARTITION_DATE=$(date -d "+${i} months" +%Y-%m 2>/dev/null || date -v+${i}m +%Y-%m)
+                PARTITION_NAME="${TABLE}_p${PARTITION_DATE//-/}"
+
+                NEXT_MONTH=$(date -d "${PARTITION_DATE}-01 +1 month" +%Y-%m 2>/dev/null || date -v+$((i+1))m +%Y-%m)
+                LEGACY_PARTITION_NAME="${TABLE}_${PARTITION_DATE//-/_}"
+
+                # 同一个月份可能已存在两种命名（历史 _YYYY_MM / 本脚本 _pYYYYMM）。
+                # 先查名字再建，避免对已覆盖的月份重复 ATTACH（重复 ATTACH 会报
+                # "partition ... would overlap" 并被下面的容错吞掉，看起来像成功）。
+                PARTITION_EXISTS=$(PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -Atc "
+                    SELECT 1 FROM pg_class
+                    WHERE relname IN ('${PARTITION_NAME}', '${LEGACY_PARTITION_NAME}')
+                    LIMIT 1;
+                " 2>/dev/null || true)
+                if [ -n "${PARTITION_EXISTS}" ]; then
+                    echo "  Partition for ${PARTITION_DATE} already exists; skipped"
+                    continue
+                fi
+
+                PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -c "
+                    CREATE TABLE IF NOT EXISTS ${PARTITION_NAME}
+                    PARTITION OF ${TABLE}
+                    FOR VALUES FROM ('${PARTITION_DATE}-01') TO ('${NEXT_MONTH}-01');
+                " 2>/dev/null || true
+
+                echo "  Partition ${PARTITION_NAME} ensured"
+            done
+        done
+
+        echo "Partition management complete"
+      create-audit-partitions.sh: |
+        #!/bin/bash
+        # scripts/db/partition/create-audit-partitions.sh
+        # Ensure db_audit.sys_audit_log has a monthly partition for every month that
+        # can receive rows: the previous BACKFILL_MONTHS months (default 6, so an
+        # already-running database stops failing on "no partition of relation") and the
+        # next LOOKAHEAD_MONTHS months (default 3).
+        #
+        # sys_audit_log is PARTITION BY RANGE (create_time) and uses the
+        # `<table>_YYYY_MM` naming from scripts/db/microservices/005_db_audit.sql.
+
+        set -e
+
+        DB_HOST="${DB_HOST:-localhost}"
+        DB_PORT="${DB_PORT:-5432}"
+        DB_USER="${DB_USER:-admin}"
+        DB_PASSWORD="${DB_PASSWORD:-admin123}"
+        DB_NAME="${DB_NAME:-db_audit}"
+        BACKFILL_MONTHS="${BACKFILL_MONTHS:-6}"
+        LOOKAHEAD_MONTHS="${LOOKAHEAD_MONTHS:-3}"
+
+        echo "Ensuring audit partitions on ${DB_HOST}:${DB_PORT}/${DB_NAME}..."
+
+        for OFFSET in $(seq $(( -BACKFILL_MONTHS )) "${LOOKAHEAD_MONTHS}"); do
+            if [ "${OFFSET}" -ge 0 ]; then
+                MONTH=$(date -d "+${OFFSET} months" +%Y-%m 2>/dev/null || date -v+${OFFSET}m +%Y-%m)
+            else
+                MONTH=$(date -d "${OFFSET} months" +%Y-%m 2>/dev/null || date -v${OFFSET}m +%Y-%m)
+            fi
+            NEXT_MONTH=$(date -d "${MONTH}-01 +1 month" +%Y-%m 2>/dev/null || date -v+1m +%Y-%m)
+            PARTITION_NAME="sys_audit_log_${MONTH//-/_}"
+
+            PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" \
+                -v ON_ERROR_STOP=1 -c "
+                    CREATE TABLE IF NOT EXISTS ${PARTITION_NAME}
+                    PARTITION OF sys_audit_log
+                    FOR VALUES FROM ('${MONTH}-01') TO ('${NEXT_MONTH}-01');
+                " >/dev/null
+
+            echo "  Partition ${PARTITION_NAME} ensured"
+        done
+
+        echo "Audit partition maintenance complete"
+      drop-old-partitions.sh: |
+        #!/bin/bash
+        # scripts/db/partition/drop-old-partitions.sh
+        # Drop monthly partitions older than the retention period.
+        #
+        # Partitions are discovered through pg_inherits (the catalog source of truth);
+        # the previous implementation queried pg_partitions, which does not exist on a
+        # plain PostgreSQL server, so it silently dropped nothing.
+
+        set -e
+
+        DB_HOST="${DB_HOST:-localhost}"
+        DB_PORT="${DB_PORT:-5432}"
+        DB_USER="${DB_USER:-admin}"
+        DB_PASSWORD="${DB_PASSWORD:-admin123}"
+        RETENTION_MONTHS="${RETENTION_MONTHS:-24}"
+
+        declare -A TABLE_DB_MAP=(
+            ["ord_order"]="db_order"
+            ["inv_reservation"]="db_inventory"
+            ["sup_purchase_order"]="db_supplier"
+            ["sys_audit_log"]="db_audit"
+        )
+
+        CUTOFF_YYYYMM=$(date -d "-${RETENTION_MONTHS} months" +%Y%m 2>/dev/null || date -v-${RETENTION_MONTHS}m +%Y%m)
+
+        for TABLE in "${!TABLE_DB_MAP[@]}"; do
+            DB_NAME="${TABLE_DB_MAP[$TABLE]}"
+            echo "Dropping partitions of ${TABLE} older than ${CUTOFF_YYYYMM} (database: ${DB_NAME})..."
+
+            PARTITIONS=$(PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -t -A -c "
+                SELECT c.relname
+                FROM pg_inherits i
+                JOIN pg_class c ON c.oid = i.inhrelid
+                JOIN pg_class p ON p.oid = i.inhparent
+                WHERE p.relname = '${TABLE}'
+                ORDER BY c.relname;
+            ")
+
+            for PARTITION in ${PARTITIONS}; do
+                # Accept both naming styles: <table>_pYYYYMM and <table>_YYYY_MM
+                SUFFIX="${PARTITION#${TABLE}_}"
+                SUFFIX="${SUFFIX#p}"
+                SUFFIX="${SUFFIX//_/}"
+
+                if [[ "${SUFFIX}" =~ ^[0-9]{6}$ ]] && [ "${SUFFIX}" -lt "${CUTOFF_YYYYMM}" ]; then
+                    PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -c "
+                        DROP TABLE IF EXISTS ${PARTITION};
+                    " >/dev/null
+                    echo "  Dropped ${PARTITION}"
+                fi
+            done
+        done
+
+        echo "Old partition cleanup complete"
+      apply-retention.sh: |
+        #!/bin/bash
+        # scripts/db/retention/apply-retention.sh
+        # Apply data retention policies
+
+        set -e
+
+        DB_HOST="${DB_HOST:-localhost}"
+        DB_PORT="${DB_PORT:-5432}"
+        DB_USER="${DB_USER:-admin}"
+        DB_PASSWORD="${DB_PASSWORD:-admin123}"
+
+        CH_HOST="${CH_HOST:-localhost}"
+        CH_PORT="${CH_PORT:-8123}"
+        CH_USERNAME="${CH_USERNAME:-default}"
+        CH_PASSWORD="${CH_PASSWORD:-}"
+
+        echo "Applying data retention policies..."
+
+        # Audit logs: keep 24 months. Monthly partitions are dropped first (cheap and
+        # partition-aware); the DELETE that follows only catches rows that live outside
+        # a monthly partition, e.g. in a DEFAULT partition.
+        PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d db_audit -c "
+            DO \$\$
+            DECLARE
+                r record;
+                cutoff date := date_trunc('month', NOW()) - INTERVAL '24 months';
+                part_month date;
+            BEGIN
+                FOR r IN
+                    SELECT c.relname AS name
+                    FROM pg_inherits i
+                    JOIN pg_class c ON c.oid = i.inhrelid
+                    JOIN pg_class p ON p.oid = i.inhparent
+                    WHERE p.relname = 'sys_audit_log'
+                LOOP
+                    part_month := to_date(substring(r.name from '(\d{4}_\d{2})\$'), 'YYYY_MM');
+                    IF part_month IS NOT NULL AND part_month < cutoff THEN
+                        EXECUTE format('DROP TABLE %I', r.name);
+                    END IF;
+                END LOOP;
+            END \$\$;
+            DELETE FROM sys_audit_log WHERE create_time < NOW() - INTERVAL '2 years';
+        "
+        echo "  Audit logs: retained 24 months (old monthly partitions dropped)"
+
+        # Login history: keep 1 year
+        PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d db_auth -c "
+            DELETE FROM auth_login_history WHERE create_time < NOW() - INTERVAL '1 year';
+        "
+        echo "  Login history: retained 1 year"
+
+        # API access logs: keep 90 days
+        PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d db_auth -c "
+            DELETE FROM auth_api_access_log WHERE create_time < NOW() - INTERVAL '90 days';
+        "
+        echo "  API access logs: retained 90 days"
+
+        # Notification history: keep 6 months
+        PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d db_notify -c "
+            DELETE FROM notify_history WHERE create_time < NOW() - INTERVAL '6 months';
+        "
+        echo "  Notification history: retained 6 months"
+
+        # Order events: keep 3 years (for audit trail)
+        PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d db_order -c "
+            DELETE FROM ord_order_event WHERE create_time < NOW() - INTERVAL '3 years';
+        "
+        echo "  Order events: retained 3 years"
+
+        # Analytics quality results: keep 1 year
+        PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d db_analytics -c "
+            DELETE FROM analytics_quality_result WHERE create_time < NOW() - INTERVAL '1 year';
+        " 2>/dev/null || echo "  Analytics quality results: db_analytics not initialized (skipped)"
+        echo "  Analytics quality results: retained 1 year"
+
+        # ClickHouse DWH: ODS 1 year, DWD 2 years, DWS/ADS 3 years.
+        # Guarded so a missing ClickHouse instance does not fail the whole retention run.
+        if command -v curl >/dev/null 2>&1; then
+            ch_query() {
+                curl -sS --fail --user "${CH_USERNAME}:${CH_PASSWORD}" \
+                    "http://${CH_HOST}:${CH_PORT}/" --data-binary "$1"
+            }
+            if ch_query "SELECT 1" >/dev/null 2>&1; then
+                ch_query "ALTER TABLE analytics.ods_order DELETE WHERE create_time < now() - INTERVAL 365 DAY SETTINGS mutations_sync = 2" >/dev/null
+                ch_query "ALTER TABLE analytics.ods_inventory DELETE WHERE create_time < now() - INTERVAL 365 DAY SETTINGS mutations_sync = 2" >/dev/null
+                ch_query "ALTER TABLE analytics.dwd_sales_detail DELETE WHERE pay_time < now() - INTERVAL 730 DAY SETTINGS mutations_sync = 2" >/dev/null
+                ch_query "ALTER TABLE analytics.dws_sales_day DELETE WHERE stat_date < today() - 1095 SETTINGS mutations_sync = 2" >/dev/null
+                ch_query "ALTER TABLE analytics.dws_inventory_day DELETE WHERE stat_date < today() - 1095 SETTINGS mutations_sync = 2" >/dev/null
+                ch_query "ALTER TABLE analytics.ads_sales_dashboard DELETE WHERE stat_date < today() - 1095 SETTINGS mutations_sync = 2" >/dev/null
+                ch_query "ALTER TABLE analytics.ads_inventory_health DELETE WHERE stat_date < today() - 1095 SETTINGS mutations_sync = 2" >/dev/null
+                echo "  ClickHouse DWH: ODS 1y / DWD 2y / DWS+ADS 3y"
+            else
+                echo "  ClickHouse not reachable at ${CH_HOST}:${CH_PORT} (skipped)"
+            fi
+        else
+            echo "  curl not available; ClickHouse retention skipped"
+        fi
+
+        echo "Data retention policies applied successfully"
+  # ------------------------------------------------------------ CronJob（每月）
+  - apiVersion: batch/v1
+    kind: CronJob
+    metadata:
+      name: db-maintenance-monthly
+      namespace: scm-prod
+      labels:
+        app: db-maintenance
+        tier: ops
+    spec:
+      # 每月 1 号 03:00 跑全量：create + create-audit + drop + retention（兜底跑一遍完整周期）。
+      schedule: "0 3 1 * *"
+      concurrencyPolicy: Forbid
+      suspend: false
+      successfulJobsHistoryLimit: 1
+      failedJobsHistoryLimit: 3
+      jobTemplate:
+        spec:
+          template:
+            metadata:
+              labels:
+                app: db-maintenance
+            spec:
+              restartPolicy: OnFailure
+              containers:
+                - name: db-maintenance
+                  # postgres:18 自带 psql（脚本用它执行 DDL/DML）与 bash；
+                  # 保留脚本里的 ClickHouse 段需要 curl，镜像里没有 curl 时脚本会自行跳过该段。
+                  image: postgres:18
+                  imagePullPolicy: IfNotPresent
+                  command: ["bash", "-c"]
+                  args:
+                    - |
+                      set -eu
+                      mkdir -p /opt/db/partition /opt/db/retention
+                      cp /opt/db-maintenance/create-partitions.sh /opt/db-maintenance/create-audit-partitions.sh /opt/db-maintenance/drop-old-partitions.sh /opt/db/partition/
+                      cp /opt/db-maintenance/apply-retention.sh /opt/db/retention/
+                      cp /opt/db-maintenance/run-maintenance.sh /opt/run-maintenance.sh
+                      chmod +x /opt/run-maintenance.sh
+                      export MAINTENANCE_SCRIPTS_DIR=/opt/db
+                      exec bash /opt/run-maintenance.sh once all
+                  env:
+                    - name: DB_HOST
+                      valueFrom:
+                        configMapKeyRef:
+                          name: scm-config
+                          key: DB_HOST
+                    - name: DB_PORT
+                      valueFrom:
+                        configMapKeyRef:
+                          name: scm-config
+                          key: DB_PORT
+                    - name: DB_USER
+                      valueFrom:
+                        secretKeyRef:
+                          name: scm-secrets
+                          # 脚本读 DB_USER，Secret 里的 key 是 DB_USERNAME —— 这里做一次映射。
+                          key: DB_USERNAME
+                    - name: DB_PASSWORD
+                      valueFrom:
+                        secretKeyRef:
+                          name: scm-secrets
+                          key: DB_PASSWORD
+                    # deploy/k8s 下没有 ClickHouse 的 Service（只有 deploy/clickhouse/ 下的服务端配置），
+                    # 所以 CH_HOST 指向本 Pod 自己的 localhost —— 保留脚本探活失败时会打印
+                    # "ClickHouse not reachable at localhost:8123 (skipped)" 并只跳过 DWH 那一段，
+                    # PostgreSQL 侧的保留策略照常执行。将来真接了 ClickHouse，再改成它的 Service 名。
+                    - name: CH_HOST
+                      value: "localhost"
+                    - name: CH_PORT
+                      value: "8123"
+                    - name: CH_USERNAME
+                      value: "default"
+                    - name: CH_PASSWORD
+                      value: ""
+                  resources:
+                    requests:
+                      cpu: "50m"
+                      memory: "128Mi"
+                    limits:
+                      cpu: "500m"
+                      memory: "512Mi"
+                  volumeMounts:
+                    - name: maintenance-scripts
+                      mountPath: /opt/db-maintenance
+                      readOnly: true
+                    - name: maintenance-scratch
+                      mountPath: /opt/db
+              volumes:
+                - name: maintenance-scripts
+                  configMap:
+                    name: db-maintenance-scripts
+                - name: maintenance-scratch
+                  emptyDir: {}
+  # ------------------------------------------------------------ CronJob（每周）
+  - apiVersion: batch/v1
+    kind: CronJob
+    metadata:
+      name: db-maintenance-weekly
+      namespace: scm-prod
+      labels:
+        app: db-maintenance
+        tier: ops
+    spec:
+      # 每周一 03:00 跑 drop + retention。
+      schedule: "0 3 * * 1"
+      concurrencyPolicy: Forbid
+      suspend: false
+      successfulJobsHistoryLimit: 1
+      failedJobsHistoryLimit: 3
+      jobTemplate:
+        spec:
+          template:
+            metadata:
+              labels:
+                app: db-maintenance
+            spec:
+              restartPolicy: OnFailure
+              containers:
+                - name: db-maintenance
+                  # postgres:18 自带 psql（脚本用它执行 DDL/DML）与 bash；
+                  # 保留脚本里的 ClickHouse 段需要 curl，镜像里没有 curl 时脚本会自行跳过该段。
+                  image: postgres:18
+                  imagePullPolicy: IfNotPresent
+                  command: ["bash", "-c"]
+                  args:
+                    - |
+                      set -u
+                      mkdir -p /opt/db/partition /opt/db/retention || exit 1
+                      cp /opt/db-maintenance/create-partitions.sh /opt/db-maintenance/create-audit-partitions.sh /opt/db-maintenance/drop-old-partitions.sh /opt/db/partition/ || exit 1
+                      cp /opt/db-maintenance/apply-retention.sh /opt/db/retention/ || exit 1
+                      cp /opt/db-maintenance/run-maintenance.sh /opt/run-maintenance.sh || exit 1
+                      chmod +x /opt/run-maintenance.sh
+                      export MAINTENANCE_SCRIPTS_DIR=/opt/db
+                      # runner 的 once 一次只接一个任务，所以这里顺序调用两次。
+                      # 不用 `&&` 串联：drop 失败也必须继续跑 retention；退出码取最后一个任务（retention）的结果。
+                      bash /opt/run-maintenance.sh once drop
+                      bash /opt/run-maintenance.sh once retention
+                  env:
+                    - name: DB_HOST
+                      valueFrom:
+                        configMapKeyRef:
+                          name: scm-config
+                          key: DB_HOST
+                    - name: DB_PORT
+                      valueFrom:
+                        configMapKeyRef:
+                          name: scm-config
+                          key: DB_PORT
+                    - name: DB_USER
+                      valueFrom:
+                        secretKeyRef:
+                          name: scm-secrets
+                          # 脚本读 DB_USER，Secret 里的 key 是 DB_USERNAME —— 这里做一次映射。
+                          key: DB_USERNAME
+                    - name: DB_PASSWORD
+                      valueFrom:
+                        secretKeyRef:
+                          name: scm-secrets
+                          key: DB_PASSWORD
+                    # deploy/k8s 下没有 ClickHouse 的 Service（只有 deploy/clickhouse/ 下的服务端配置），
+                    # 所以 CH_HOST 指向本 Pod 自己的 localhost —— 保留脚本探活失败时会打印
+                    # "ClickHouse not reachable at localhost:8123 (skipped)" 并只跳过 DWH 那一段，
+                    # PostgreSQL 侧的保留策略照常执行。将来真接了 ClickHouse，再改成它的 Service 名。
+                    - name: CH_HOST
+                      value: "localhost"
+                    - name: CH_PORT
+                      value: "8123"
+                    - name: CH_USERNAME
+                      value: "default"
+                    - name: CH_PASSWORD
+                      value: ""
+                  resources:
+                    requests:
+                      cpu: "50m"
+                      memory: "128Mi"
+                    limits:
+                      cpu: "500m"
+                      memory: "512Mi"
+                  volumeMounts:
+                    - name: maintenance-scripts
+                      mountPath: /opt/db-maintenance
+                      readOnly: true
+                    - name: maintenance-scratch
+                      mountPath: /opt/db
+              volumes:
+                - name: maintenance-scripts
+                  configMap:
+                    name: db-maintenance-scripts
+                - name: maintenance-scratch
+                  emptyDir: {}
