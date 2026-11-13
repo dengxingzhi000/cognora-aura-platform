@@ -1,6 +1,7 @@
 package com.cognora.lms.logistics.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +60,7 @@ public class TmsCarrierController {
 
     @Operation(summary = "新增承运商", description = "创建新的承运商档案并返回保存后的承运商信息。")
     @PostMapping
+    @AuditLog(operation = "新增承运商", businessType = "LOGISTICS", riskLevel = 3)
     public ApiResponse<TmsCarrier> create(@RequestBody TmsCarrier carrier) {
         TmsCarrier created = carrierService.createCarrier(carrier);
         return ApiResponse.success(created);
@@ -66,6 +68,7 @@ public class TmsCarrierController {
 
     @Operation(summary = "更新承运商", description = "根据主键 ID 更新承运商信息并返回更新后的数据。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新承运商", businessType = "LOGISTICS", riskLevel = 3)
     public ApiResponse<TmsCarrier> update(@Parameter(description = "承运商主键 ID") @PathVariable String id,
                                           @RequestBody TmsCarrier carrier) {
         TmsCarrier updated = carrierService.updateCarrier(id, carrier);
@@ -74,6 +77,7 @@ public class TmsCarrierController {
 
     @Operation(summary = "删除承运商", description = "根据主键 ID 逻辑删除指定承运商。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除承运商", businessType = "LOGISTICS", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "承运商主键 ID") @PathVariable String id) {
         carrierService.deleteCarrier(id);
         return ApiResponse.success();
@@ -81,6 +85,7 @@ public class TmsCarrierController {
 
     @Operation(summary = "启用或停用承运商", description = "根据传入的启用标识切换指定承运商的启用状态。")
     @PutMapping("/{id}/enable")
+    @AuditLog(operation = "启停承运商", businessType = "LOGISTICS", riskLevel = 3)
     public ApiResponse<Void> toggleEnabled(@Parameter(description = "承运商主键 ID") @PathVariable String id,
                                            @Parameter(description = "是否启用，true 为启用、false 为停用") @RequestParam boolean enabled) {
         carrierService.toggleEnabled(id, enabled);

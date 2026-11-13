@@ -1,6 +1,7 @@
 package com.cognora.lms.logistics.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,6 +64,7 @@ public class TmsDeliveryAreaController {
 
     @Operation(summary = "新增配送区域", description = "创建新的配送区域并返回保存后的区域信息。")
     @PostMapping
+    @AuditLog(operation = "新增配送区域", businessType = "LOGISTICS", riskLevel = 3)
     public ApiResponse<TmsDeliveryArea> create(@RequestBody TmsDeliveryArea area) {
         TmsDeliveryArea created = deliveryAreaService.createArea(area);
         return ApiResponse.success(created);
@@ -70,6 +72,7 @@ public class TmsDeliveryAreaController {
 
     @Operation(summary = "更新配送区域", description = "根据主键 ID 更新配送区域信息并返回更新后的数据。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新配送区域", businessType = "LOGISTICS", riskLevel = 3)
     public ApiResponse<TmsDeliveryArea> update(@Parameter(description = "配送区域主键 ID") @PathVariable String id, @RequestBody TmsDeliveryArea area) {
         TmsDeliveryArea updated = deliveryAreaService.updateArea(id, area);
         return ApiResponse.success(updated);
@@ -77,6 +80,7 @@ public class TmsDeliveryAreaController {
 
     @Operation(summary = "删除配送区域", description = "根据主键 ID 逻辑删除指定配送区域。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除配送区域", businessType = "LOGISTICS", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "配送区域主键 ID") @PathVariable String id) {
         deliveryAreaService.deleteArea(id);
         return ApiResponse.success();

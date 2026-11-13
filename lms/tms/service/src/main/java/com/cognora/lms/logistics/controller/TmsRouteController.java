@@ -1,6 +1,7 @@
 package com.cognora.lms.logistics.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +63,7 @@ public class TmsRouteController {
 
     @Operation(summary = "新增路线", description = "创建新的运输路线并返回保存后的路线信息。")
     @PostMapping
+    @AuditLog(operation = "新增运输路线", businessType = "LOGISTICS", riskLevel = 3)
     public ApiResponse<TmsRoute> create(@RequestBody TmsRoute route) {
         TmsRoute created = routeService.createRoute(route);
         return ApiResponse.success(created);
@@ -69,6 +71,7 @@ public class TmsRouteController {
 
     @Operation(summary = "更新路线", description = "根据主键 ID 更新运输路线信息并返回更新后的数据。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新运输路线", businessType = "LOGISTICS", riskLevel = 3)
     public ApiResponse<TmsRoute> update(@Parameter(description = "路线主键 ID") @PathVariable String id, @RequestBody TmsRoute route) {
         TmsRoute updated = routeService.updateRoute(id, route);
         return ApiResponse.success(updated);
@@ -76,6 +79,7 @@ public class TmsRouteController {
 
     @Operation(summary = "删除路线", description = "根据主键 ID 删除指定运输路线。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除运输路线", businessType = "LOGISTICS", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "路线主键 ID") @PathVariable String id) {
         log.info("Delete route: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         routeService.removeById(id);
