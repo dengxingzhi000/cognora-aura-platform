@@ -304,6 +304,33 @@ no service overrides them.
   `@TableField(exist = false)`: `db_audit` has no such columns, and mapping them
   broke every read of that table.
 
+### 权限解析（短 Token 之后）与生产密钥守卫
+
+- **访问令牌不再内嵌权限清单**（一个租户管理员有数百条权限码，token 会涨到约
+  26KB，超过浏览器单 cookie 的 ~4KB 上限）。`JwtAuthenticationFilter` 逐请求调用
+  `PermissionService.findAllPermissionsByUserId` 解析，成功后挂到请求属性
+  `cognora.security.permissions-resolved`，`ApiAccessControlFilter` 复用它
+  （`security.access.permissions.reused`），每请求一次查询而不是两次。
+- **失败语义是「拒绝」，写进了契约**：需要权限的路由在权限服务不可用时返回
+  `503 PERMISSION_SERVICE_UNAVAILABLE`（不是静默降级为「仅角色」，也不是 403）；
+  只有明确不需要权限的路由（`whitelist` / `exemptPaths` / 已验签的服务间通道，
+  例如登出、会话自助、改密、支付回调）才继续。完整契约见
+  `docs/security/PERMISSION_RESOLUTION_CONTRACT.md`。
+- **旧 token** 仍带 `permissions` 声明，命中即用，但**不**标记为已解析，端点级校验
+  仍会自己做一次权威查询——撤销的权限不会因为 token 未过期而继续生效。
+- **启动守卫**（`platform/common/web` 的 `StartupSecretValidator`，网关的
+  `SecurityConfigurationValidator`）拒绝用仓库里公开的占位密钥启动：生产类 profile
+  （`prod*`/`staging`/`uat`/**`kubernetes`**/`k8s`）下 `jwt.secret` 是占位符或短于
+  64 字节即启动失败；非生产下只有打包在 `application.yaml` 里的那个 dev 默认值允许
+  （打 WARN），k8s 清单 / `.env.example` 的值仍然拒绝。`cognora.security.secrets.strict`
+  可显式收紧或放宽。k8s 清单与 docker-compose 的 ecom 服务都会注入 `JWT_SECRET` 与
+  `API_SECRET_INTERNAL_SERVICE`。
+- **订单中心置「已支付」只有一条路**：`POST /api/v1/orders/{orderNo}/pay` 现在只认服务间
+  HMAC 签名（`internalSignaturePaths`，唯一合法调用方是 ecom-payment 在渠道验签之后），
+  且必须带 `paidAmount`（要与订单 `payableAmount` 相等）与 `transactionId`；不带金额/
+  交易号的旧口径已删除（`OrderCenterPaymentContractTest` 会失败）。**目前 ecom-payment
+  尚未回调该端点**，闭环属 `architecture-review.md` P1-1（订单真值源收敛）的后续工作。
+
 ### Datasource routing (`@DS`)
 
 `@DS("user"|"org"|"permission"|"approval"|"audit"|"notify")` (baomidou
@@ -849,6 +876,12 @@ check, `continue-on-error`), and `docker-build` → `deploy-dev`/`deploy-prod`.
   `scripts/db/migrations/<svc>_NNN_<topic>.sql`.
 - Do not rename `com.cognora.*` packages or the `cognora.*` config prefixes
   without a repo-wide sweep.
+- Do not put the permission list back into the access token
+  (`JwtUtilsTokenSizeTest` fails past 4KB), and do not let a permission-lookup
+  failure continue as "roles only" — see
+  `docs/security/PERMISSION_RESOLUTION_CONTRACT.md`.
+- Do not authorise a service-to-service endpoint by adding it to
+  `exempt-paths`; add it to `internal-signature-paths` so the HMAC is required.
 - Do not try to "repair" the mojibake in Chinese comments/strings — 247 files
   carry unrecoverable UTF-8 corruption (`docs/mojibake-report.md` lists them).
   Leave those lines alone unless you are rewriting the comment anyway.

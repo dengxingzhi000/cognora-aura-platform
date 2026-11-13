@@ -36,7 +36,44 @@ class SecurityConfigurationValidatorTest {
         ReflectionTestUtils.setField(validator, "webAppSecret", "test-web-app-secret-32-chars-long");
         ReflectionTestUtils.setField(validator, "internalServiceSecret", "test-internal-service-secret-32-chars");
         ReflectionTestUtils.setField(validator, "identitySignatureSecret", "test-identity-signature-secret-64-chars-long-for-hmac-sha256-algorithm");
+        // The gateway verifies every access token with this key, so the validator now rejects a
+        // placeholder or a sub-512-bit value outside development. Tests that are about a different
+        // check must therefore start from a usable secret.
+        ReflectionTestUtils.setField(validator, "jwtSecret",
+                "5f4dcc3b5aa765d61d8327deb882cf995f4dcc3b5aa765d61d8327deb882cf99");
         ReflectionTestUtils.setField(validator, "activeProfile", "dev");
+    }
+
+    @Test
+    void placeholderJwtSecret_ProductionMode_ShouldFail() {
+        ReflectionTestUtils.setField(validator, "activeProfile", "production");
+        ReflectionTestUtils.setField(validator, "jwtSecret",
+                "CHANGE-ME-dev-only-secret-key-0123456789abcdef0123456789abcdef0123456789abcdef0123456789ab");
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> validator.validateSecurityConfiguration());
+        assertTrue(failure.getMessage().contains("jwt.secret"));
+    }
+
+    @Test
+    void placeholderJwtSecret_KubernetesProfile_ShouldFail() {
+        // The k8s manifests set SPRING_PROFILES_ACTIVE=kubernetes; that must count as production.
+        ReflectionTestUtils.setField(validator, "activeProfile", "kubernetes");
+        ReflectionTestUtils.setField(validator, "jwtSecret",
+                "scm-jwt-secret-key-2026");
+
+        assertThrows(IllegalStateException.class, () -> validator.validateSecurityConfiguration());
+    }
+
+    @Test
+    void placeholderJwtSecret_DevMode_ShouldOnlyWarn() {
+        ReflectionTestUtils.setField(validator, "activeProfile", "dev");
+        ReflectionTestUtils.setField(validator, "jwtSecret", "changeit");
+
+        org.mockito.Mockito.when(signatureProperties.getNonceTtl()).thenReturn(Duration.ofMinutes(5));
+        org.mockito.Mockito.when(signatureProperties.getAllowedClockSkew()).thenReturn(Duration.ofMinutes(5));
+
+        assertDoesNotThrow(() -> validator.validateSecurityConfiguration());
     }
 
     @Test

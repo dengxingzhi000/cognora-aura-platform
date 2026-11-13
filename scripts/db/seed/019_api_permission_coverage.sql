@@ -10,7 +10,9 @@
 --   覆盖管理端与混合端（管理端/用户自助共用）路由。
 --
 -- 范围与计数：
---   管理端 + 混合端合计 553 条：literal 203 条，templated 350 条。
+--   管理端 + 混合端合计 552 条：literal 203 条，templated 349 条。
+--   （order-center 的 /api/v1/orders/{orderNo}/pay 已从本清单移除：该路由现在只走服务间
+--     HMAC 签名通道，由 ecom-payment 在渠道验签通过后调用，不再属于权限目录。）
 --   - 第 1 段（literal）：当前 ApiAccessControlFilter + SysPermissionMapper.findPermissionsByUrl
 --     使用 api_path 精确匹配，可直接生效。
 --   - 第 2 段（templated）：api_path 含 {var} 占位符，需先把 findPermissionsByUrl 升级为
@@ -413,7 +415,6 @@ FROM (VALUES
     ('order-center:order:confirm-order', '订单中心-确认订单', 'menu:order', '/api/v1/orders/{orderNo}/confirm', 'POST', 104, 3),
     ('order-center:order:deliver-order', '订单中心-签收', 'menu:order', '/api/v1/orders/{orderNo}/deliver', 'POST', 105, 3),
     ('order-center:order:get-order', '订单中心-查看订单', 'menu:order', '/api/v1/orders/{orderNo}', 'GET', 106, 1),
-    ('order-center:order:pay-order', '订单中心-支付订单', 'menu:order', '/api/v1/orders/{orderNo}/pay', 'POST', 107, 3),
     ('order-center:order:ship-order', '订单中心-发货', 'menu:order', '/api/v1/orders/{orderNo}/ship', 'POST', 108, 3),
     ('order:order-item:view', '订单明细-查看', 'menu:order:list', '/api/v1/order-items/{id}', 'GET', 102, 1),
     ('order:order:get-items', '订单-查看明细', 'menu:order:list', '/api/v1/orders/{id}/items', 'GET', 103, 1),

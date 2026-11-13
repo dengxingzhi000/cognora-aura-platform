@@ -9,6 +9,7 @@ import com.cognora.platform.common.response.ResultCode;
 import com.cognora.platform.inventory.dto.InventoryAdjustRequest;
 import com.cognora.platform.inventory.dto.InventoryQueryRequest;
 import com.cognora.platform.inventory.dto.InventoryResponse;
+import com.cognora.platform.inventory.dto.InventorySafetyStockRequest;
 import com.cognora.platform.inventory.dto.InventoryStatsResponse;
 import com.cognora.platform.inventory.dto.InventoryTransferRequest;
 import com.cognora.platform.inventory.service.command.InvInventoryCommandService;
@@ -27,6 +28,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -175,6 +177,27 @@ public class InvInventoryController {
   @SentinelResource("inventory.stats")
   public ApiResponse<InventoryStatsResponse> getInventoryStats() {
     return ApiResponse.success(queryService.getInventoryStats());
+  }
+
+  /**
+   * 设置安全库存与最大库存阈值
+   */
+  @Operation(summary = "设置安全库存",
+      description = "为指定 SKU 与仓库设置安全库存阈值（告警与水位判定的唯一来源），可选同时设置最大库存上限。")
+  @PutMapping("/safety-stock")
+  @Idempotent(key = "#skuId + ':' + #warehouseId + ':' + #request.safetyStock", ttl = 1, unit = TimeUnit.MINUTES,
+              errorMessage = "重复的安全库存设置请求，请勿重复提交")
+  @SentinelResource("inventory.safetyStock")
+  public ApiResponse<InventoryResponse> updateSafetyStock(
+      @RequestParam @NotBlank(message = "SKU ID 不能为空") String skuId,
+      @RequestParam @NotBlank(message = "仓库 ID 不能为空") String warehouseId,
+      @RequestBody @Valid InventorySafetyStockRequest request) {
+
+    LogUtils.business("inventory.safetyStock", "start",
+        new Object[]{skuId, warehouseId, request.getSafetyStock(), request.getMaxStock()});
+    InventoryResponse response = commandService.updateSafetyStock(skuId, warehouseId, request);
+    LogUtils.business("inventory.safetyStock", "success", response);
+    return ApiResponse.success(response);
   }
 
   /**

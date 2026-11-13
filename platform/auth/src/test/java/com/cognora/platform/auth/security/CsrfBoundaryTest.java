@@ -236,8 +236,12 @@ class CsrfBoundaryTest {
         }
 
         @Bean
-        JwtAuthenticationFilter jwtAuthenticationFilter(JwtUtils utils, SecurityMetrics metrics) {
-            return new JwtAuthenticationFilter(utils, new HttpServletRequestUtils(new JwtProperties()), metrics);
+        JwtAuthenticationFilter jwtAuthenticationFilter(JwtUtils utils, SecurityMetrics metrics,
+                                                        org.springframework.beans.factory.ObjectProvider<
+                                                                com.cognora.platform.common.security.PermissionService> permissionServices) {
+            return new JwtAuthenticationFilter(utils, new HttpServletRequestUtils(new JwtProperties()), metrics,
+                    permissionServices,
+                    new com.cognora.platform.common.security.config.ApiAccessControlProperties());
         }
 
         @Bean

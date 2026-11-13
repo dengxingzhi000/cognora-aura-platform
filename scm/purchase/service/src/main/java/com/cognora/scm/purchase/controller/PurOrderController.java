@@ -2,6 +2,7 @@ package com.cognora.scm.purchase.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.platform.common.response.ApiResponse;
+import com.cognora.scm.purchase.domain.dto.PurchaseInTransitRow;
 import com.cognora.scm.purchase.domain.entity.PurOrder;
 import com.cognora.scm.purchase.domain.entity.PurOrderItem;
 import com.cognora.scm.purchase.service.IPurOrderItemService;
@@ -55,5 +56,23 @@ public class PurOrderController {
     @GetMapping("/{id}/items")
     public ApiResponse<List<PurOrderItem>> listItems(@Parameter(description = "采购订单 ID") @PathVariable String id) {
         return ApiResponse.success(purOrderItemService.listByOrderId(id));
+    }
+
+    /**
+     * 采购在途量（服务间只读）。
+     *
+     * <p>platform-inventory 的补货计算用它做「在途去重」：available + inTransit
+     * 才决定是否触发补货，漏掉这一项会让同一批货在到货前被反复建议。
+     *
+     * <p>路径固定为 {@code /api/v1/pur-order/in-transit}，由
+     * {@code cognora.security.api-filter.internal-signature-paths} 要求服务间 HMAC 签名，
+     * 不登记用户权限码（它是内部通道，不是管理端功能）。
+     */
+    @Operation(summary = "采购在途量",
+            description = "按 SKU×仓 汇总已下单未收完的数量，供库存补货的在途去重使用。服务间内部端点。")
+    @GetMapping("/in-transit")
+    public ApiResponse<List<PurchaseInTransitRow>> inTransit(
+            @Parameter(description = "仓库 ID；为空表示全部仓库") @RequestParam(required = false) String warehouseId) {
+        return ApiResponse.success(purOrderQueryService.sumUnreceivedInTransit(warehouseId));
     }
 }

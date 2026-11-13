@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 class PaymentOrderServiceImplTest {
 
     @Mock private PaymentOrderMapper paymentOrderMapper;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     private PaymentOrderServiceImpl paymentService;
 
@@ -40,7 +41,7 @@ class PaymentOrderServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentOrderServiceImpl();
+        paymentService = new PaymentOrderServiceImpl(eventPublisher);
         ReflectionTestUtils.setField(paymentService, "baseMapper", paymentOrderMapper);
     }
 
@@ -85,6 +86,44 @@ class PaymentOrderServiceImplTest {
         assertEquals(2, pending.getStatus());
         assertEquals("TXN-1", pending.getTransactionId());
         verify(paymentOrderMapper).updateById(eq(pending));
+    }
+
+    /**
+     * The paid transition must publish the event that advances the order. The event is the only
+     * link between "the money arrived" and "the order says paid"; without it the order stays in
+     * status 1 forever while the payment is settled.
+     */
+    @Test
+    void verifiedCallbackPublishesOrderPaidEventWithVerifiedValues() {
+        PaymentOrder pending = pendingPayment();
+        when(paymentOrderMapper.selectOne(any(Wrapper.class), eq(true))).thenReturn(pending);
+        when(paymentOrderMapper.updateById(any(PaymentOrder.class))).thenReturn(1);
+
+        paymentService.handleVerifiedPaymentCallback(
+                "PAY-1", "TXN-1", new BigDecimal("10.00"), "alipay");
+
+        org.mockito.ArgumentCaptor<com.cognora.ecom.payment.service.notify.PaymentPaidEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(
+                        com.cognora.ecom.payment.service.notify.PaymentPaidEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+
+        com.cognora.ecom.payment.service.notify.PaymentPaidEvent event = captor.getValue();
+        assertEquals("ORD-1", event.orderNo());
+        assertEquals("PAY-1", event.paymentNo());
+        // The amount that was verified against the payment record, not a caller-supplied one.
+        assertEquals(new BigDecimal("10.00"), event.paidAmount());
+        assertEquals("TXN-1", event.transactionId());
+    }
+
+    @Test
+    void rejectedCallbackPublishesNoEvent() {
+        when(paymentOrderMapper.selectOne(any(Wrapper.class), eq(true))).thenReturn(pendingPayment());
+
+        assertThrows(PaymentCallbackException.class, () -> paymentService.handleVerifiedPaymentCallback(
+                "PAY-1", "TXN-1", new BigDecimal("9.99"), "alipay"));
+
+        // An order must never be advanced by a callback that failed verification.
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test

@@ -80,6 +80,7 @@ for %%s in (
     "db_tenant:microservices\016_db_tenant.sql"
     "db_finance:microservices\017_db_finance.sql"
     "db_purchase:microservices\018_db_purchase.sql"
+    "db_purchase:migrations\purchase_001_plan_executing_status.sql"
 ) do (
     for /f "tokens=1,2 delims=:" %%a in (%%s) do (
         echo 初始化 %%a...

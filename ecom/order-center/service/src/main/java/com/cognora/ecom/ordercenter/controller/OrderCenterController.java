@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -20,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -65,11 +67,18 @@ public class OrderCenterController {
         return true;
     }
 
-    @Operation(summary = "订单支付", description = "按订单号记录支付结果并完成订单支付状态流转。")
+    @Operation(summary = "订单支付（内部通道）",
+            description = "仅供 ecom-payment 在支付渠道验签通过后回写支付结果。"
+                    + "该端点属于服务间签名通道（cognora.security.api-filter.internal-signature-paths），"
+                    + "浏览器与任意登录用户都会被 403 拒绝：没有任何途径可以把未验签的支付标成已付。")
     @PostMapping("/{orderNo}/pay")
-    public boolean payOrder(@Parameter(description = "订单号") @PathVariable String orderNo, @Valid @RequestBody PayRequest request) {
-        log.info("[API] Pay order: orderNo={}, paymentNo={}", (orderNo + "").replace("\r", "_").replace("\n", "_"), (request.getPaymentNo() + "").replace("\r", "_").replace("\n", "_"));
-        orderService.payOrder(orderNo, request.getPaymentNo());
+    public boolean applyVerifiedPayment(@Parameter(description = "订单号") @PathVariable String orderNo,
+                                        @Valid @RequestBody VerifiedPaymentRequest request) {
+        log.info("[API] Apply verified payment: orderNo={}, paymentNo={}",
+                (orderNo + "").replace("\r", "_").replace("\n", "_"),
+                (request.getPaymentNo() + "").replace("\r", "_").replace("\n", "_"));
+        orderService.applyVerifiedPayment(orderNo, request.getPaymentNo(),
+                request.getPaidAmount(), request.getTransactionId());
         return true;
     }
 
@@ -115,9 +124,16 @@ public class OrderCenterController {
     }
 
     @Data
-    public static class PayRequest {
+    public static class VerifiedPaymentRequest {
         @NotBlank(message = "支付单号不能为空")
         private String paymentNo;
+
+        @NotNull(message = "实付金额不能为空")
+        @DecimalMin(value = "0.01", message = "实付金额必须大于 0")
+        private BigDecimal paidAmount;
+
+        @NotBlank(message = "渠道交易号不能为空")
+        private String transactionId;
     }
 
     @Data

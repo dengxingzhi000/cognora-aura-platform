@@ -13,6 +13,11 @@ DECLARE
         'prod_category', 'prod_brand', 'prod_spu', 'prod_sku', 'prod_attribute_template',
         -- Inventory
         'inv_inventory', 'inv_reservation', 'inv_log', 'inv_snapshot', 'inv_alert', 'inv_tcc_reservation',
+        -- Inventory 智能补货（V2__replenishment.sql，per-service Flyway）
+        -- 注意：这四张表由 db/migration 创建，init-all-databases 不建；表不存在时
+        -- 上面的 LEFT JOIN 不返回行，因此本条不会让 CI 失败，只在表存在时校验列。
+        'inv_replenishment_policy', 'inv_demand_forecast',
+        'inv_replenishment_suggestion', 'inv_replenishment_suggestion_item',
         -- Order
         'ord_order', 'ord_order_item', 'ord_status_history', 'ord_payment', 'ord_refund', 'ord_order_event',
         -- Warehouse

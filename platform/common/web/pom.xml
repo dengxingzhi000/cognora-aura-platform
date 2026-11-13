@@ -32,9 +32,9 @@
                         <testExclude>**/access/FeignPermissionAccessTest.java</testExclude>
                         <!-- Api changed: JwtUtils.testValidate/parseToken no longer exist -->
                         <testExclude>**/security/util/JwtUtilsTest.java</testExclude>
-                        <!-- Stale expectations: 5/13 cases pin the pre-refactor snapshot
-                             and fail-open behaviour; needs its own rewrite -->
-                        <testExclude>**/security/filter/SecurityFiltersTest.java</testExclude>
+                        <!-- SecurityFiltersTest is back in the build: it now targets
+                             PermissionService and the fail-closed contract instead of the
+                             pre-refactor PermissionAccessPort and circuit-breaker bypass. -->
                     </testExcludes>
                 </configuration>
             </plugin>

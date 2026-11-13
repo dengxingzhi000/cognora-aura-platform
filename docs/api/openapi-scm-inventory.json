@@ -47,6 +47,481 @@
     }
   ],
   "paths": {
+    "/api/v1/inventory/replenishment/suggestions/generate": {
+      "post": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "触发补货计算",
+        "description": "按仓/范围计算 ROP 与补货量并生成 DRAFT 建议单；同周期重复触发返回已有单据。dryRun=true 只算不落库。",
+        "operationId": "generateReplenishment",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseReplenishmentComputeResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/replenishment/suggestions/query": {
+      "post": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "分页查询建议单",
+        "description": "按仓库、状态、周期与单号分页查询建议单据头（不含明细）。",
+        "operationId": "queryReplenishmentSuggestions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageReplenishmentSuggestionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/replenishment/suggestions/{id}": {
+      "get": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "建议单详情",
+        "description": "返回建议单据头与全部明细（含决策快照）。",
+        "operationId": "detail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "建议单 ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseReplenishmentSuggestionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/replenishment/suggestions/{id}/items": {
+      "get": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "建议单明细",
+        "description": "单独读取建议明细，便于大单据按需加载。",
+        "operationId": "items",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "建议单 ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReplenishmentSuggestionItemResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/replenishment/suggestions/{id}/items/{itemId}": {
+      "put": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "人审改量/换供应商",
+        "description": "仅草稿状态可改；改量后以采纳量作为转出数量。",
+        "operationId": "adjustItem",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "建议单 ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "description": "建议明细 ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseReplenishmentSuggestionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/replenishment/suggestions/{id}/adopt": {
+      "put": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "采纳建议单",
+        "description": "DRAFT → ADOPTED。未改量的明细自动按建议量采纳。",
+        "operationId": "adopt",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "建议单 ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseReplenishmentSuggestionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/replenishment/suggestions/{id}/reject": {
+      "put": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "驳回建议单",
+        "description": "DRAFT → REJECTED，必须填写原因（用于反馈闭环）。",
+        "operationId": "reject",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "建议单 ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseReplenishmentSuggestionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/replenishment/suggestions/{id}/cancel": {
+      "put": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "取消建议单",
+        "description": "DRAFT/ADOPTED → CANCELLED。",
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "建议单 ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseReplenishmentSuggestionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/replenishment/suggestions/{id}/convert": {
+      "post": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "转采购计划",
+        "description": "ADOPTED → CONVERTED：同事务写 outbox 事件，由 scm-purchase 消费建 PurPlan(DRAFT)。SKU→material 映射缺失时失败并回写「待补映射」，单据保持 ADOPTED 可重试。",
+        "operationId": "convert",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "建议单 ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseReplenishmentSuggestionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/replenishment/policies": {
+      "post": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "新增/更新补货策略",
+        "description": "upsert 语义：同 SKU×仓 已存在则更新。",
+        "operationId": "savePolicy",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseReplenishmentPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/replenishment/policies/query": {
+      "get": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "分页查询补货策略",
+        "description": "按仓库与 SKU 分页查询策略。",
+        "operationId": "queryPolicies",
+        "parameters": [
+          {
+            "name": "warehouseId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "skuId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageReplenishmentPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/replenishment/policies/{id}": {
+      "get": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "补货策略详情",
+        "description": "按 ID 查询单条策略。",
+        "operationId": "getPolicy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "策略 ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseReplenishmentPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "删除补货策略",
+        "description": "逻辑删除单条补货策略。",
+        "operationId": "deletePolicy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "策略 ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBoolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/replenishment/forecasts/{skuId}": {
+      "get": {
+        "tags": [
+          "智能补货"
+        ],
+        "summary": "查询需求预测",
+        "description": "返回某 SKU×仓 最新一版预测（μ/σ/置信度/方法），用于解释补货建议的来源。",
+        "operationId": "forecast",
+        "parameters": [
+          {
+            "name": "skuId",
+            "in": "path",
+            "description": "SKU ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "warehouseId",
+            "in": "query",
+            "description": "仓库 ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseInvDemandForecast"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/inventory/reservation/confirm/{businessKey}": {
       "put": {
         "tags": [
@@ -2666,10 +3141,1101 @@
           }
         }
       }
+    },
+    "/api/v1/inventory/safety-stock": {
+      "put": {
+        "tags": [
+          "库存管理"
+        ],
+        "summary": "设置安全库存",
+        "description": "为指定 SKU 与仓库设置安全库存阈值（告警与水位判定的唯一来源），可选同时设置最大库存上限。",
+        "operationId": "updateSafetyStock",
+        "parameters": [
+          {
+            "name": "skuId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "SKU ID"
+          },
+          {
+            "name": "warehouseId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "仓库 ID"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventorySafetyStockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseInventoryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/batches/query": {
+      "post": {
+        "tags": [
+          "库存批次"
+        ],
+        "summary": "分页查询批次",
+        "description": "按 SKU、仓库、批次号、质量状态、批次状态与效期区间分页查询批次，附剩余天数与剩余金额。",
+        "operationId": "queryBatch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvBatchQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageInvBatchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/batches/stats": {
+      "post": {
+        "tags": [
+          "库存批次"
+        ],
+        "summary": "批次效期汇总",
+        "description": "汇总同一筛选条件下的过期/临期/耗尽批次数量与剩余金额，用于报表 KPI。",
+        "operationId": "batchStats",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvBatchQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseInvBatchStatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/valuation/query": {
+      "post": {
+        "tags": [
+          "库存估值"
+        ],
+        "summary": "分页查询库存估值",
+        "description": "按 SKU、仓库、库位与库存状态分页查询，返回数量、金额与呆滞天数。",
+        "operationId": "queryValuation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryValuationQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageInventoryValuationRow"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/valuation/stats": {
+      "post": {
+        "tags": [
+          "库存估值"
+        ],
+        "summary": "库存估值汇总",
+        "description": "汇总同一筛选条件下的数量与金额，可选按呆滞天数统计呆滞占用。",
+        "operationId": "valuationStats",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryValuationQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseInventoryValuationStats"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/valuation/export": {
+      "post": {
+        "tags": [
+          "库存估值"
+        ],
+        "summary": "导出库存估值 CSV",
+        "description": "按筛选条件导出 CSV（UTF-8 BOM），单次最多 20000 行。",
+        "operationId": "exportValuation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryValuationQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/stocktakes": {
+      "post": {
+        "tags": [
+          "库存盘点"
+        ],
+        "summary": "创建盘点单",
+        "description": "按仓库/库位/SKU 范围创建盘点单，并冻结创建时点的账面数量。",
+        "operationId": "createStocktake",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StocktakeCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseStocktakeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/stocktakes/query": {
+      "post": {
+        "tags": [
+          "库存盘点"
+        ],
+        "summary": "分页查询盘点单",
+        "description": "按仓库、状态与单号分页查询盘点单据头。",
+        "operationId": "queryStocktakes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StocktakeQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageStocktakeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/stocktakes/{id}": {
+      "get": {
+        "tags": [
+          "库存盘点"
+        ],
+        "summary": "盘点单详情",
+        "description": "返回盘点单据头与全部明细。",
+        "operationId": "stocktakeDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "盘点单 ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseStocktakeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/stocktakes/{id}/items": {
+      "get": {
+        "tags": [
+          "库存盘点"
+        ],
+        "summary": "盘点单明细",
+        "description": "单独读取盘点明细，便于大单据分页展示。",
+        "operationId": "stocktakeItems",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "盘点单 ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListStocktakeItemResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/stocktakes/{id}/count": {
+      "put": {
+        "tags": [
+          "库存盘点"
+        ],
+        "summary": "录入实盘数量",
+        "description": "仅草稿状态可录入，录入后自动计算差异。",
+        "operationId": "countStocktake",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "盘点单 ID"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StocktakeCountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseStocktakeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/stocktakes/{id}/submit": {
+      "put": {
+        "tags": [
+          "库存盘点"
+        ],
+        "summary": "提交盘点单",
+        "description": "全部明细录入完成后提交，进入待审批。",
+        "operationId": "submitStocktake",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "盘点单 ID"
+          },
+          {
+            "name": "operatorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "操作人 ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseStocktakeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/stocktakes/{id}/approve": {
+      "put": {
+        "tags": [
+          "库存盘点"
+        ],
+        "summary": "审批通过",
+        "description": "审批已提交的盘点单，通过后允许落账。",
+        "operationId": "approveStocktake",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "盘点单 ID"
+          },
+          {
+            "name": "operatorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "操作人 ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseStocktakeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/stocktakes/{id}/reject": {
+      "put": {
+        "tags": [
+          "库存盘点"
+        ],
+        "summary": "驳回盘点单",
+        "description": "驳回已提交的盘点单，单据进入终态 REJECTED。",
+        "operationId": "rejectStocktake",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "盘点单 ID"
+          },
+          {
+            "name": "operatorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "操作人 ID"
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "驳回原因"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseStocktakeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/stocktakes/{id}/cancel": {
+      "put": {
+        "tags": [
+          "库存盘点"
+        ],
+        "summary": "取消盘点单",
+        "description": "取消尚未落账的盘点单。",
+        "operationId": "cancelStocktake",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "盘点单 ID"
+          },
+          {
+            "name": "operatorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "操作人 ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseStocktakeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/stocktakes/{id}/post": {
+      "put": {
+        "tags": [
+          "库存盘点"
+        ],
+        "summary": "盘点差异落账",
+        "description": "仅已审批单据可落账：按差异逐条写库存调整与流水，成功后单据进入 POSTED。",
+        "operationId": "postStocktake",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "盘点单 ID"
+          },
+          {
+            "name": "operatorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "操作人 ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseStocktakeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ReplenishmentComputeResult": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string"
+          },
+          "scannedInventories": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "triggeredItems": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skippedItems": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "needsManualItems": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalSuggestedQty": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "businessKey": {
+            "type": "string"
+          },
+          "existingSuggestionId": {
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReplenishmentComputeResultLine"
+            }
+          }
+        }
+      },
+      "ReplenishmentComputeResultLine": {
+        "type": "object",
+        "properties": {
+          "skuId": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string"
+          },
+          "availableStock": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "inTransitQty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reorderPoint": {
+            "type": "number"
+          },
+          "safetyStock": {
+            "type": "number"
+          },
+          "targetStock": {
+            "type": "number"
+          },
+          "suggestedQty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "flags": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponseReplenishmentComputeResult": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ReplenishmentComputeResult"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ReplenishmentSuggestionItemResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "skuId": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string"
+          },
+          "availableStock": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "inTransitQty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reorderPoint": {
+            "type": "number"
+          },
+          "safetyStock": {
+            "type": "number"
+          },
+          "targetStock": {
+            "type": "number"
+          },
+          "suggestedQty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "adoptedQty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "supplierId": {
+            "type": "string"
+          },
+          "flags": {
+            "type": "string"
+          },
+          "reasonSnapshot": {
+            "type": "string"
+          },
+          "effectiveQty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "adjusted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ReplenishmentSuggestionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "suggestionNo": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string"
+          },
+          "period": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "businessKey": {
+            "type": "string"
+          },
+          "itemCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalSuggestedQty": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalAdoptedQty": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "purPlanId": {
+            "type": "string"
+          },
+          "purPlanNo": {
+            "type": "string"
+          },
+          "convertError": {
+            "type": "string"
+          },
+          "rejectReason": {
+            "type": "string"
+          },
+          "remark": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "adoptedBy": {
+            "type": "string"
+          },
+          "adoptedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "convertedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updateTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReplenishmentSuggestionItemResponse"
+            }
+          }
+        }
+      },
+      "ApiResponseReplenishmentSuggestionResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ReplenishmentSuggestionResponse"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PageReplenishmentSuggestionResponse": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReplenishmentSuggestionResponse"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "current": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponsePageReplenishmentSuggestionResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageReplenishmentSuggestionResponse"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ReplenishmentPolicyResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "skuId": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string"
+          },
+          "abcClass": {
+            "type": "string"
+          },
+          "serviceLevel": {
+            "type": "number"
+          },
+          "leadTimeDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reviewPeriodDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "safetyDays": {
+            "type": "number"
+          },
+          "minOrderQty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "packMultiple": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "supplierId": {
+            "type": "string"
+          },
+          "manualOverride": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "remark": {
+            "type": "string"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updateTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseReplenishmentPolicyResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ReplenishmentPolicyResponse"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PageReplenishmentPolicyResponse": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReplenishmentPolicyResponse"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "current": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponsePageReplenishmentPolicyResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageReplenishmentPolicyResponse"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "InvDemandForecast": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "skuId": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string"
+          },
+          "forecastDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "dailyDemand": {
+            "type": "number"
+          },
+          "demandStdDev": {
+            "type": "number"
+          },
+          "mape": {
+            "type": "number"
+          },
+          "method": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "string"
+          },
+          "sampleDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseInvDemandForecast": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/InvDemandForecast"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "ApiResponseVoid": {
         "type": "object",
         "properties": {
@@ -4122,6 +5688,718 @@
             "type": "integer",
             "format": "int64"
           }
+        }
+      },
+      "InventorySafetyStockRequest": {
+        "type": "object",
+        "properties": {
+          "safetyStock": {
+            "type": "integer",
+            "format": "int32",
+            "description": "安全库存阈值，必须 >= 0"
+          },
+          "maxStock": {
+            "type": "integer",
+            "format": "int32",
+            "description": "最大库存，可选；为空表示不修改"
+          },
+          "operatorId": {
+            "type": "string"
+          },
+          "remark": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "safetyStock"
+        ]
+      },
+      "InvBatchQueryRequest": {
+        "type": "object",
+        "properties": {
+          "skuId": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string"
+          },
+          "batchCode": {
+            "type": "string",
+            "description": "批次号，支持模糊匹配"
+          },
+          "qualityStatus": {
+            "type": "integer",
+            "format": "int32",
+            "description": "1-合格 2-待检 3-不合格 4-隔离"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "0-已耗尽 1-正常 2-临期 3-已过期"
+          },
+          "expiryFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "expiryTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "withinDays": {
+            "type": "integer",
+            "format": "int32",
+            "description": "今天起 N 天内到期；expiryTo 未指定时生效"
+          },
+          "hasAvailable": {
+            "type": "boolean"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 500
+          }
+        }
+      },
+      "InvBatchResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "batchCode": {
+            "type": "string"
+          },
+          "skuId": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string"
+          },
+          "locationCode": {
+            "type": "string"
+          },
+          "productionDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "expiryDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "shelfLifeDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "qualityStatus": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalQuantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "availableQuantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lockedQuantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "damagedQuantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitCost": {
+            "type": "number"
+          },
+          "daysToExpiry": {
+            "type": "integer",
+            "format": "int64",
+            "description": "负数表示已过期，null 表示无有效期"
+          },
+          "remainingValue": {
+            "type": "number"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updateTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PageInvBatchResponse": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvBatchResponse"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "current": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponsePageInvBatchResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageInvBatchResponse"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "InvBatchStatsResponse": {
+        "type": "object",
+        "properties": {
+          "totalBatches": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "expiredBatches": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nearExpiryBatches": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "depletedBatches": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "availableQuantity": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "availableValue": {
+            "type": "number"
+          },
+          "expiredQuantity": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "expiredValue": {
+            "type": "number"
+          }
+        }
+      },
+      "ApiResponseInvBatchStatsResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/InvBatchStatsResponse"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "InventoryValuationQueryRequest": {
+        "type": "object",
+        "properties": {
+          "skuId": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string"
+          },
+          "locationCode": {
+            "type": "string"
+          },
+          "stockStatus": {
+            "type": "string",
+            "description": "NORMAL / LOW_STOCK / OUT_OF_STOCK"
+          },
+          "agingDays": {
+            "type": "integer",
+            "format": "int32",
+            "description": "呆滞阈值（天）"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 500
+          }
+        }
+      },
+      "InventoryValuationRow": {
+        "type": "object",
+        "properties": {
+          "skuId": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string"
+          },
+          "locationCode": {
+            "type": "string"
+          },
+          "totalStock": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "availableStock": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lockedStock": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "damagedStock": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "safetyStock": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "averageCost": {
+            "type": "number"
+          },
+          "stockValue": {
+            "type": "number"
+          },
+          "agingDays": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stockStatus": {
+            "type": "string"
+          }
+        }
+      },
+      "PageInventoryValuationRow": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InventoryValuationRow"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "current": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponsePageInventoryValuationRow": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageInventoryValuationRow"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "InventoryValuationStats": {
+        "type": "object",
+        "properties": {
+          "rowCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalStockQuantity": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "availableStockQuantity": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lockedStockQuantity": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "damagedStockQuantity": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalStockValue": {
+            "type": "number"
+          },
+          "slowMovingCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "slowMovingValue": {
+            "type": "number"
+          }
+        }
+      },
+      "ApiResponseInventoryValuationStats": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/InventoryValuationStats"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "StocktakeCreateRequest": {
+        "type": "object",
+        "properties": {
+          "warehouseId": {
+            "type": "string"
+          },
+          "locationCode": {
+            "type": "string"
+          },
+          "skuIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "operatorId": {
+            "type": "string"
+          },
+          "remark": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "warehouseId"
+        ]
+      },
+      "StocktakeCountRequest": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StocktakeCountItem"
+            }
+          },
+          "operatorId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "StocktakeCountItem": {
+        "type": "object",
+        "properties": {
+          "skuId": {
+            "type": "string"
+          },
+          "countedQuantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "remark": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "skuId",
+          "countedQuantity"
+        ]
+      },
+      "StocktakeQueryRequest": {
+        "type": "object",
+        "properties": {
+          "warehouseId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "DRAFT/SUBMITTED/APPROVED/POSTED/REJECTED/CANCELLED"
+          },
+          "stocktakeNo": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 500
+          }
+        }
+      },
+      "StocktakeItemResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "skuId": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string"
+          },
+          "locationCode": {
+            "type": "string"
+          },
+          "bookTotal": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bookAvailable": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bookLocked": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "countedQuantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "diffQuantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "remark": {
+            "type": "string"
+          }
+        }
+      },
+      "StocktakeResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "stocktakeNo": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string"
+          },
+          "locationCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "snapshotAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "itemCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "diffCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "diffQuantity": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "remark": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "submittedBy": {
+            "type": "string"
+          },
+          "approvedBy": {
+            "type": "string"
+          },
+          "postedBy": {
+            "type": "string"
+          },
+          "submitTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "approveTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "postTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StocktakeItemResponse"
+            }
+          }
+        }
+      },
+      "PageStocktakeResponse": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StocktakeResponse"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "current": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponsePageStocktakeResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageStocktakeResponse"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponseStocktakeResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/StocktakeResponse"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponseListStocktakeItemResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ListStocktakeItemResponse"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ListStocktakeItemResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/StocktakeItemResponse"
         }
       }
     },
