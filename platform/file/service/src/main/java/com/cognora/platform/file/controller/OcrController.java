@@ -1,12 +1,12 @@
 package com.cognora.platform.file.controller;
 
+import com.cognora.platform.common.log.annotation.AuditLog;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.file.service.ocr.OcrService;
 import com.cognora.platform.file.service.ocr.OcrService.ContractInfo;

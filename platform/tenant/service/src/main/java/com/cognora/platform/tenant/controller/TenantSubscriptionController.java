@@ -1,10 +1,10 @@
 package com.cognora.platform.tenant.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.tenant.domain.entity.TenantSubscription;
 import com.cognora.platform.tenant.service.ITenantSubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,7 +54,7 @@ public class TenantSubscriptionController {
 
     @Operation(summary = "订阅租户套餐", description = "为指定租户开通指定套餐的订阅。")
     @PostMapping("/subscribe")
-    @AuditLog(operation = "订阅租户套餐", businessType = "TENANT", riskLevel = 3)
+    @AuditLog(operation = "订阅租户套餐", businessType = "TENANT", riskLevel = 4)
     public boolean subscribe(
             @Parameter(description = "租户ID") @RequestParam String tenantId,
             @Parameter(description = "套餐ID") @RequestParam String packageId) {
@@ -64,7 +64,7 @@ public class TenantSubscriptionController {
 
     @Operation(summary = "取消租户订阅", description = "根据订阅 ID 取消指定租户的套餐订阅。")
     @PostMapping("/{id}/unsubscribe")
-    @AuditLog(operation = "取消租户订阅", businessType = "TENANT", riskLevel = 3)
+    @AuditLog(operation = "取消租户订阅", businessType = "TENANT", riskLevel = 4)
     public boolean unsubscribe(@Parameter(description = "订阅ID") @PathVariable String id) {
         log.info("[API] 取消租户订阅: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantSubscriptionService.unsubscribe(id);

@@ -1,10 +1,10 @@
 package com.cognora.platform.tenant.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.tenant.domain.entity.TenantResourceQuota;
 import com.cognora.platform.tenant.service.ITenantResourceQuotaService;
 import io.swagger.v3.oas.annotations.Operation;
