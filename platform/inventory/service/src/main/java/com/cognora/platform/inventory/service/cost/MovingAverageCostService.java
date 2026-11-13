@@ -80,7 +80,6 @@ public class MovingAverageCostService {
    *
    * @param balanceBefore 变更前结存数量；为空时（Redis 路径）只记金额不记结存
    */
-  @Master(reason = "出库计价属于写链路，必须走主库")
   public static CostMovement outboundMovement(BigDecimal averageCost, Integer balanceBefore,
                                               int quantity) {
     if (quantity < 0) {
