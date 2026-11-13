@@ -3,6 +3,7 @@ package com.cognora.scm.purchase.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurRfqItem;
 import com.cognora.scm.purchase.service.IPurRfqItemService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,24 +35,28 @@ public class PurRfqItemController {
 
     @Operation(summary = "新增询价明细", description = "创建一条新的询价明细记录。")
     @PostMapping
+    @AuditLog(operation = "新增询价明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurRfqItem purRfqItem) {
         return purRfqItemService.save(purRfqItem);
     }
 
     @Operation(summary = "修改询价明细", description = "按主键更新已有的询价明细记录。")
     @PutMapping
+    @AuditLog(operation = "修改询价明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurRfqItem purRfqItem) {
         return purRfqItemService.updateById(purRfqItem);
     }
 
     @Operation(summary = "删除询价明细", description = "按明细主键删除单条询价明细记录。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除询价明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "询价明细主键 ID") @PathVariable String id) {
         return purRfqItemService.removeById(id);
     }
 
     @Operation(summary = "按询价单删除明细", description = "删除指定询价单下的全部明细行。")
     @DeleteMapping("/rfq/{rfqId}")
+    @AuditLog(operation = "按询价单删除明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean deleteByRfqId(@Parameter(description = "询价单 ID") @PathVariable String rfqId) {
         return purRfqItemService.deleteByRfqId(rfqId);
     }

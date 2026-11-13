@@ -1,6 +1,7 @@
 package com.cognora.scm.purchase.controller;
 
 import com.cognora.platform.common.exception.ServiceException;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurRequest;
 import com.cognora.scm.purchase.domain.entity.PurRequestItem;
 import com.cognora.scm.purchase.service.IPurRequestItemService;
@@ -47,6 +48,7 @@ public class PurRequestItemController {
 
     @Operation(summary = "新增申请明细", description = "向草稿或已驳回的采购申请追加一条明细行。")
     @PostMapping
+    @AuditLog(operation = "新增申请明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurRequestItem purRequestItem) {
         if (purRequestItem == null) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "明细内容不能为空");
@@ -58,6 +60,7 @@ public class PurRequestItemController {
 
     @Operation(summary = "修改申请明细", description = "仅草稿或已驳回的采购申请可以修改明细。")
     @PutMapping
+    @AuditLog(operation = "修改申请明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurRequestItem purRequestItem) {
         if (purRequestItem == null) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "明细内容不能为空");
@@ -72,6 +75,7 @@ public class PurRequestItemController {
 
     @Operation(summary = "删除申请明细", description = "仅草稿或已驳回的采购申请可以删除明细。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除申请明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "申请明细主键 ID") @PathVariable String id) {
         PurRequestItem existing = requireItem(id);
         requireEditable(existing.getRequestId());
@@ -80,6 +84,7 @@ public class PurRequestItemController {
 
     @Operation(summary = "按申请单删除明细", description = "仅草稿或已驳回的采购申请可以清空明细。")
     @DeleteMapping("/request/{requestId}")
+    @AuditLog(operation = "按采购申请删除明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean deleteByRequestId(@Parameter(description = "采购申请单 ID") @PathVariable String requestId) {
         requireEditable(requestId);
         return purRequestItemService.deleteByRequestId(requestId);

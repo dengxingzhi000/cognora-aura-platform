@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurReceipt;
 import com.cognora.scm.purchase.service.IPurReceiptService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,24 +54,28 @@ public class PurReceiptController {
 
     @Operation(summary = "新增收货单", description = "创建一张新的采购收货单。")
     @PostMapping
+    @AuditLog(operation = "新增收货单", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurReceipt purReceipt) {
         return purReceiptService.save(purReceipt);
     }
 
     @Operation(summary = "修改收货单", description = "按主键更新已有的采购收货单。")
     @PutMapping
+    @AuditLog(operation = "修改收货单", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurReceipt purReceipt) {
         return purReceiptService.updateById(purReceipt);
     }
 
     @Operation(summary = "删除收货单", description = "按主键删除采购收货单。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除收货单", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "收货单主键 ID") @PathVariable String id) {
         return purReceiptService.removeById(id);
     }
 
     @Operation(summary = "确认收货", description = "登记收货人和收货人名称，将收货单推进至已收货状态。")
     @PostMapping("/{id}/receive")
+    @AuditLog(operation = "确认收货", businessType = "PURCHASE", riskLevel = 3)
     public boolean receive(
             @Parameter(description = "收货单主键 ID") @PathVariable String id,
             @Parameter(description = "收货人用户 ID") @RequestParam String receiverId,
@@ -80,6 +85,7 @@ public class PurReceiptController {
 
     @Operation(summary = "收货质检", description = "记录质检人、质检结果与备注，完成收货单的质量检验。")
     @PostMapping("/{id}/quality-inspect")
+    @AuditLog(operation = "收货质检", businessType = "PURCHASE", riskLevel = 3)
     public boolean qualityInspect(
             @Parameter(description = "收货单主键 ID") @PathVariable String id,
             @Parameter(description = "质检人用户 ID") @RequestParam String inspectorId,
@@ -91,6 +97,7 @@ public class PurReceiptController {
 
     @Operation(summary = "收货上架", description = "记录上架操作人，将质检合格的货物上架入库。")
     @PostMapping("/{id}/shelve")
+    @AuditLog(operation = "收货上架", businessType = "PURCHASE", riskLevel = 3)
     public boolean shelve(
             @Parameter(description = "收货单主键 ID") @PathVariable String id,
             @Parameter(description = "上架操作人用户 ID") @RequestParam String shelvedBy,

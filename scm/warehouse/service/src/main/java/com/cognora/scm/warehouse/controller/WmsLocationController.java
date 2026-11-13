@@ -1,6 +1,7 @@
 package com.cognora.scm.warehouse.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class WmsLocationController {
 
     @Operation(summary = "创建库位", description = "在指定仓库下新建库位，库位编码需保持唯一。")
     @PostMapping
+    @AuditLog(operation = "创建库位", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsLocation> create(@RequestBody WmsLocation location) {
         log.info("[API] 创建库位: warehouseId={}, code={}", (location.getWarehouseId() + "").replace("\r", "_").replace("\n", "_"), (location.getLocationCode() + "").replace("\r", "_").replace("\n", "_"));
         try {
@@ -39,6 +41,7 @@ public class WmsLocationController {
 
     @Operation(summary = "更新库位", description = "按主键更新库位的基础信息与状态。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新库位", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsLocation> update(@Parameter(description = "库位主键 ID") @PathVariable String id, @RequestBody WmsLocation location) {
         log.info("[API] 更新库位: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         location.setId(id);
@@ -51,6 +54,7 @@ public class WmsLocationController {
 
     @Operation(summary = "删除库位", description = "按主键逻辑删除库位，已删除的库位不再参与上架分配。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除库位", businessType = "WAREHOUSE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "库位主键 ID") @PathVariable String id) {
         log.info("[API] 删除库位: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         boolean success = locationCommandService.softDeleteById(id);

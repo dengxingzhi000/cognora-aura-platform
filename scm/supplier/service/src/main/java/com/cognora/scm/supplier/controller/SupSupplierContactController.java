@@ -1,5 +1,6 @@
 package com.cognora.scm.supplier.controller;
 
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.scm.supplier.domain.entity.SupSupplierContact;
@@ -38,6 +39,7 @@ public class SupSupplierContactController {
 
     @Operation(summary = "新增联系人", description = "新增供应商联系人；首个联系人自动成为主联系人。")
     @PostMapping
+    @AuditLog(operation = "新增供应商联系人", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSupplierContact> create(
             @Parameter(description = "供应商ID") @PathVariable String supplierId,
             @RequestBody SupSupplierContact contact) {
@@ -47,6 +49,7 @@ public class SupSupplierContactController {
 
     @Operation(summary = "更新联系人", description = "更新联系人信息；设为主联系人时会自动取消其他主联系人。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新供应商联系人", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSupplierContact> update(
             @Parameter(description = "联系人ID") @PathVariable String id,
             @RequestBody SupSupplierContact contact) {
@@ -56,6 +59,7 @@ public class SupSupplierContactController {
 
     @Operation(summary = "删除联系人", description = "删除联系人；若为主联系人则自动提升下一位联系人。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除供应商联系人", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> delete(
             @Parameter(description = "联系人ID") @PathVariable String id) {
         log.info("[API] 删除供应商联系人 id={}", LogUtils.sanitizeForLog(id));
@@ -65,6 +69,7 @@ public class SupSupplierContactController {
 
     @Operation(summary = "设置主联系人", description = "将指定联系人设为主联系人，同步供应商档案联系方式。")
     @PutMapping("/{id}/primary")
+    @AuditLog(operation = "设置主联系人", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<Void> setPrimary(
             @Parameter(description = "联系人ID") @PathVariable String id) {
         contactService.setPrimary(id);

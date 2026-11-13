@@ -1,6 +1,7 @@
 package com.cognora.scm.supplier.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class SupSupplierEvaluationController {
 
     @Operation(summary = "创建供应商评价", description = "新增供应商评价，按质量/交付/服务/价格加权计算总分并回写供应商绩效。")
     @PostMapping
+    @AuditLog(operation = "创建供应商评价", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSupplierEvaluation> create(@RequestBody SupSupplierEvaluation evaluation) {
         log.info("[API] 创建供应商评价 supplierId={}", LogUtils.sanitizeForLog(evaluation.getSupplierId()));
         return ApiResponse.success(evaluationService.createEvaluation(evaluation));
@@ -44,6 +46,7 @@ public class SupSupplierEvaluationController {
 
     @Operation(summary = "更新评价", description = "根据评价ID更新供应商评价并重新计算总分、回写供应商绩效。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新供应商评价", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSupplierEvaluation> update(@Parameter(description = "评价ID") @PathVariable String id,
                                                      @RequestBody SupSupplierEvaluation evaluation) {
         log.info("[API] 更新评价: id={}", LogUtils.sanitizeForLog(id));
@@ -52,6 +55,7 @@ public class SupSupplierEvaluationController {
 
     @Operation(summary = "删除评价", description = "根据评价ID删除供应商评价并重新回写供应商绩效。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除供应商评价", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "评价ID") @PathVariable String id) {
         log.info("[API] 删除评价: id={}", LogUtils.sanitizeForLog(id));
         boolean success = evaluationService.deleteEvaluation(id);

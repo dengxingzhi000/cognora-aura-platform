@@ -3,6 +3,7 @@ package com.cognora.scm.purchase.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurPlanItem;
 import com.cognora.scm.purchase.service.IPurPlanItemService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,24 +35,28 @@ public class PurPlanItemController {
 
     @Operation(summary = "新增计划明细", description = "为采购计划新增一条明细行。")
     @PostMapping
+    @AuditLog(operation = "新增采购计划明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurPlanItem purPlanItem) {
         return purPlanItemService.save(purPlanItem);
     }
 
     @Operation(summary = "更新计划明细", description = "按主键更新采购计划明细信息。")
     @PutMapping
+    @AuditLog(operation = "更新采购计划明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurPlanItem purPlanItem) {
         return purPlanItemService.updateById(purPlanItem);
     }
 
     @Operation(summary = "删除计划明细", description = "按主键删除单条采购计划明细。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除采购计划明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "采购计划明细 ID") @PathVariable String id) {
         return purPlanItemService.removeById(id);
     }
 
     @Operation(summary = "按计划删除明细", description = "删除指定采购计划下的全部明细行。")
     @DeleteMapping("/plan/{planId}")
+    @AuditLog(operation = "按采购计划删除明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean deleteByPlanId(@Parameter(description = "采购计划 ID") @PathVariable String planId) {
         return purPlanItemService.deleteByPlanId(planId);
     }

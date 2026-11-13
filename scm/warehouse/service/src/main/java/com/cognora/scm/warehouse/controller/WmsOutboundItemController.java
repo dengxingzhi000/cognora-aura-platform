@@ -1,5 +1,6 @@
 package com.cognora.scm.warehouse.controller;
 
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class WmsOutboundItemController {
 
     @Operation(summary = "创建出库明细", description = "为指定出库单新增一条商品明细行。")
     @PostMapping
+    @AuditLog(operation = "创建出库明细", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsOutboundItem> create(@RequestBody WmsOutboundItem item) {
         log.info("[API] 创建出库明细: outboundId={}, skuId={}", (item.getOutboundId() + "").replace("\r", "_").replace("\n", "_"), (item.getSkuId() + "").replace("\r", "_").replace("\n", "_"));
         WmsOutboundItem created = outboundItemCommandService.create(item);
@@ -34,6 +36,7 @@ public class WmsOutboundItemController {
 
     @Operation(summary = "更新出库明细", description = "按主键更新出库明细的数量、库位等信息。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新出库明细", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsOutboundItem> update(@Parameter(description = "出库明细主键 ID") @PathVariable String id, @RequestBody WmsOutboundItem item) {
         log.info("[API] 更新出库明细: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         item.setId(id);
@@ -46,6 +49,7 @@ public class WmsOutboundItemController {
 
     @Operation(summary = "删除出库明细", description = "按主键逻辑删除出库明细行。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除出库明细", businessType = "WAREHOUSE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "出库明细主键 ID") @PathVariable String id) {
         log.info("[API] 删除出库明细: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         boolean success = outboundItemCommandService.softDeleteById(id);

@@ -1,6 +1,7 @@
 package com.cognora.scm.order.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.scm.order.dto.RefundApproveRequest;
 import com.cognora.scm.order.dto.RefundCreateRequest;
@@ -86,6 +87,7 @@ public class OrdRefundController {
      */
     @Operation(summary = "分页查询退款单", description = "按条件分页查询退款单，支持退款单号、订单、用户、状态及时间区间过滤。")
     @PostMapping("/query")
+    @AuditLog(operation = "分页查询退款单", businessType = "ORDER", riskLevel = 2)
     public ApiResponse<Page<RefundResponse>> query(@RequestBody @Valid RefundQueryRequest request) {
         log.info("[API] Query refunds: {}", (request + "").replace("\r", "_").replace("\n", "_"));
 
@@ -108,6 +110,7 @@ public class OrdRefundController {
      */
     @Operation(summary = "审核通过退款", description = "审核通过退款申请并记录处理人信息。")
     @PutMapping("/{id}/approve")
+    @AuditLog(operation = "审批通过退款", businessType = "ORDER", riskLevel = 4)
     public ApiResponse<RefundResponse> approve(
             @Parameter(description = "退款单 ID") @PathVariable UUID id,
             @RequestBody @Valid RefundApproveRequest request) {
@@ -121,6 +124,7 @@ public class OrdRefundController {
      */
     @Operation(summary = "拒绝退款", description = "拒绝退款申请并记录处理人信息。")
     @PutMapping("/{id}/reject")
+    @AuditLog(operation = "驳回退款申请", businessType = "ORDER", riskLevel = 4)
     public ApiResponse<RefundResponse> reject(
             @Parameter(description = "退款单 ID") @PathVariable UUID id,
             @RequestBody @Valid RefundRejectRequest request) {
@@ -134,6 +138,7 @@ public class OrdRefundController {
      */
     @Operation(summary = "完成退款", description = "标记退款单已完成，用于线下退款成功后的回调。")
     @PutMapping("/{id}/complete")
+    @AuditLog(operation = "完成退款", businessType = "ORDER", riskLevel = 4)
     public ApiResponse<RefundResponse> complete(@Parameter(description = "退款单 ID") @PathVariable UUID id) {
         log.info("[API] Complete refund: id={}", id);
         commandService.completeRefund(id);

@@ -3,6 +3,7 @@ package com.cognora.scm.purchase.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurPriceComparisonItem;
 import com.cognora.scm.purchase.service.IPurPriceComparisonItemService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,24 +35,28 @@ public class PurPriceComparisonItemController {
 
     @Operation(summary = "新增比价明细", description = "为比价单新增一条供应商报价明细。")
     @PostMapping
+    @AuditLog(operation = "新增比价明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurPriceComparisonItem purPriceComparisonItem) {
         return purPriceComparisonItemService.save(purPriceComparisonItem);
     }
 
     @Operation(summary = "更新比价明细", description = "按主键更新比价明细信息。")
     @PutMapping
+    @AuditLog(operation = "更新比价明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurPriceComparisonItem purPriceComparisonItem) {
         return purPriceComparisonItemService.updateById(purPriceComparisonItem);
     }
 
     @Operation(summary = "删除比价明细", description = "按主键删除单条比价明细。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除比价明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "比价明细 ID") @PathVariable String id) {
         return purPriceComparisonItemService.removeById(id);
     }
 
     @Operation(summary = "按比价单删除明细", description = "删除指定比价单下的全部比价明细。")
     @DeleteMapping("/comparison/{comparisonId}")
+    @AuditLog(operation = "按比价单删除明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean deleteByComparisonId(@Parameter(description = "比价单 ID") @PathVariable String comparisonId) {
         return purPriceComparisonItemService.deleteByComparisonId(comparisonId);
     }

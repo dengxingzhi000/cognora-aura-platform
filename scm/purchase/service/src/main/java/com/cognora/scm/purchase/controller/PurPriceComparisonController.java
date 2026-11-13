@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurPriceComparison;
 import com.cognora.scm.purchase.service.IPurPriceComparisonService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,24 +52,28 @@ public class PurPriceComparisonController {
 
     @Operation(summary = "新增比价单", description = "创建一份新的供应商比价单。")
     @PostMapping
+    @AuditLog(operation = "新增比价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurPriceComparison purPriceComparison) {
         return purPriceComparisonService.save(purPriceComparison);
     }
 
     @Operation(summary = "更新比价单", description = "按主键更新比价单信息。")
     @PutMapping
+    @AuditLog(operation = "更新比价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurPriceComparison purPriceComparison) {
         return purPriceComparisonService.updateById(purPriceComparison);
     }
 
     @Operation(summary = "删除比价单", description = "按主键删除比价单。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除比价单", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "比价单 ID") @PathVariable String id) {
         return purPriceComparisonService.removeById(id);
     }
 
     @Operation(summary = "审批比价单", description = "记录审批人信息并通过比价单审批。")
     @PostMapping("/{id}/approve")
+    @AuditLog(operation = "审批比价单", businessType = "PURCHASE", riskLevel = 4)
     public boolean approve(
             @Parameter(description = "比价单 ID") @PathVariable String id,
             @Parameter(description = "审批人 ID") @RequestParam String approverId,

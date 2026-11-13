@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurRfq;
 import com.cognora.scm.purchase.service.IPurRfqService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,30 +53,35 @@ public class PurRfqController {
 
     @Operation(summary = "新增询价单", description = "创建一张新的采购询价单。")
     @PostMapping
+    @AuditLog(operation = "新增询价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurRfq purRfq) {
         return purRfqService.save(purRfq);
     }
 
     @Operation(summary = "修改询价单", description = "按主键更新已有的采购询价单。")
     @PutMapping
+    @AuditLog(operation = "修改询价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurRfq purRfq) {
         return purRfqService.updateById(purRfq);
     }
 
     @Operation(summary = "删除询价单", description = "按主键删除采购询价单。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除询价单", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "询价单主键 ID") @PathVariable String id) {
         return purRfqService.removeById(id);
     }
 
     @Operation(summary = "发布询价单", description = "将询价单发布给供应商，进入报价阶段。")
     @PostMapping("/{id}/publish")
+    @AuditLog(operation = "发布询价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean publish(@Parameter(description = "询价单主键 ID") @PathVariable String id) {
         return purRfqService.publish(id);
     }
 
     @Operation(summary = "关闭询价单", description = "关闭采购询价单，停止接收新的供应商报价。")
     @PostMapping("/{id}/close")
+    @AuditLog(operation = "关闭询价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean close(@Parameter(description = "询价单主键 ID") @PathVariable String id) {
         return purRfqService.close(id);
     }

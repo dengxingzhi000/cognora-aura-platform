@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurContract;
 import com.cognora.scm.purchase.service.IPurContractService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -59,24 +60,28 @@ public class PurContractController {
 
     @Operation(summary = "新增合同", description = "创建一份新的采购合同记录。")
     @PostMapping
+    @AuditLog(operation = "新增采购合同", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurContract purContract) {
         return purContractService.save(purContract);
     }
 
     @Operation(summary = "更新合同", description = "按主键更新采购合同信息。")
     @PutMapping
+    @AuditLog(operation = "更新采购合同", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurContract purContract) {
         return purContractService.updateById(purContract);
     }
 
     @Operation(summary = "删除合同", description = "按主键删除采购合同。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除采购合同", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "采购合同 ID") @PathVariable String id) {
         return purContractService.removeById(id);
     }
 
     @Operation(summary = "签订合同", description = "记录合同签订人与签订时间并推进合同状态。")
     @PostMapping("/{id}/sign")
+    @AuditLog(operation = "签订采购合同", businessType = "PURCHASE", riskLevel = 3)
     public boolean sign(
             @Parameter(description = "采购合同 ID") @PathVariable String id,
             @Parameter(description = "签订人 ID") @RequestParam String signedBy,
@@ -86,6 +91,7 @@ public class PurContractController {
 
     @Operation(summary = "终止合同", description = "终止指定采购合同并更新其状态。")
     @PostMapping("/{id}/terminate")
+    @AuditLog(operation = "终止采购合同", businessType = "PURCHASE", riskLevel = 3)
     public boolean terminate(@Parameter(description = "采购合同 ID") @PathVariable String id) {
         return purContractService.terminate(id);
     }

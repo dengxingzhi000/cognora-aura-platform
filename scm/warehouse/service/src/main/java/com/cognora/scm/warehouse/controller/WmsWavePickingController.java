@@ -1,6 +1,7 @@
 package com.cognora.scm.warehouse.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "创建波次拣货单", description = "按仓库与订单数量新建波次拣货单并生成波次号。")
     @PostMapping
+    @AuditLog(operation = "创建波次拣货单", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsWavePicking> create(@RequestBody WmsWavePicking wave) {
         log.info("[API] 创建波次拣货单 warehouseId={}, orderCount={}", (wave.getWarehouseId() + "").replace("\r", "_").replace("\n", "_"), (wave.getOrderCount() + "").replace("\r", "_").replace("\n", "_"));
         WmsWavePicking created = wavePickingCommandService.create(wave);
@@ -33,6 +35,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "更新波次拣货单", description = "按主键更新波次拣货单信息，仅未开始拣货的波次允许修改。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新波次拣货单", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsWavePicking> update(@Parameter(description = "波次拣货单主键 ID") @PathVariable String id, @RequestBody WmsWavePicking wave) {
         log.info("[API] 更新波次拣货单 id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         wave.setId(id);
@@ -49,6 +52,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "删除波次拣货单", description = "按主键删除波次拣货单，删除后不再参与拣货作业。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除波次拣货单", businessType = "WAREHOUSE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "波次拣货单主键 ID") @PathVariable String id) {
         log.info("[API] 删除波次拣货单 id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         boolean success = wavePickingCommandService.removeById(id);
@@ -77,6 +81,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "开始拣货", description = "指派拣货员并开始执行指定波次拣货单。")
     @PutMapping("/{id}/start")
+    @AuditLog(operation = "开始拣货", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<Void> start(
             @Parameter(description = "波次拣货单主键 ID") @PathVariable String id,
             @Parameter(description = "拣货员用户 ID") @RequestParam String pickerId,
@@ -92,6 +97,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "完成拣货", description = "将指定波次拣货单标记为拣货完成并记录操作人。")
     @PutMapping("/{id}/complete")
+    @AuditLog(operation = "完成拣货", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<Void> complete(
             @Parameter(description = "波次拣货单主键 ID") @PathVariable String id,
             @Parameter(description = "操作人用户 ID") @RequestParam String operatorId) {
@@ -106,6 +112,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "取消波次拣货单", description = "取消指定波次拣货单并记录操作人，已完成拣货的波次不允许取消。")
     @PutMapping("/{id}/cancel")
+    @AuditLog(operation = "取消波次拣货单", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<Void> cancel(
             @Parameter(description = "波次拣货单主键 ID") @PathVariable String id,
             @Parameter(description = "操作人用户 ID") @RequestParam String operatorId) {

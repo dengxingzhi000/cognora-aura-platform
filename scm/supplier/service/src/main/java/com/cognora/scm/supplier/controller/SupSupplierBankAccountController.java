@@ -1,5 +1,6 @@
 package com.cognora.scm.supplier.controller;
 
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.scm.supplier.domain.entity.SupSupplierBankAccount;
@@ -38,6 +39,7 @@ public class SupSupplierBankAccountController {
 
     @Operation(summary = "新增银行账户", description = "新增供应商银行账户；首个账户自动成为默认账户。")
     @PostMapping
+    @AuditLog(operation = "新增供应商银行账户", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<SupSupplierBankAccount> create(
             @Parameter(description = "供应商ID") @PathVariable String supplierId,
             @RequestBody SupSupplierBankAccount account) {
@@ -47,6 +49,7 @@ public class SupSupplierBankAccountController {
 
     @Operation(summary = "更新银行账户", description = "更新银行账户；设为默认时会自动取消其他默认账户。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新供应商银行账户", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<SupSupplierBankAccount> update(
             @Parameter(description = "银行账户ID") @PathVariable String id,
             @RequestBody SupSupplierBankAccount account) {
@@ -55,6 +58,7 @@ public class SupSupplierBankAccountController {
 
     @Operation(summary = "删除银行账户", description = "删除银行账户；若为默认账户则自动提升下一位账户。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除供应商银行账户", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> delete(
             @Parameter(description = "银行账户ID") @PathVariable String id) {
         boolean success = bankAccountService.delete(id);
@@ -63,6 +67,7 @@ public class SupSupplierBankAccountController {
 
     @Operation(summary = "设置默认账户", description = "将指定账户设为默认结算账户，同步供应商档案银行信息。")
     @PutMapping("/{id}/default")
+    @AuditLog(operation = "设置默认结算账户", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> setDefault(
             @Parameter(description = "银行账户ID") @PathVariable String id) {
         bankAccountService.setDefault(id);

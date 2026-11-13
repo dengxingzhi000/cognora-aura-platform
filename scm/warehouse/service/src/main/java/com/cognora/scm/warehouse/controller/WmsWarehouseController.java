@@ -1,6 +1,7 @@
 package com.cognora.scm.warehouse.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class WmsWarehouseController {
 
     @Operation(summary = "创建仓库", description = "新建仓库档案，仓库编码需保持唯一。")
     @PostMapping
+    @AuditLog(operation = "创建仓库", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsWarehouse> create(@RequestBody WmsWarehouse warehouse) {
         log.info("[API] 创建仓库: code={}, name={}", (warehouse.getWarehouseCode() + "").replace("\r", "_").replace("\n", "_"), (warehouse.getWarehouseName() + "").replace("\r", "_").replace("\n", "_"));
         try {
@@ -39,6 +41,7 @@ public class WmsWarehouseController {
 
     @Operation(summary = "更新仓库", description = "按主键更新仓库的基础信息与联系人信息。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新仓库", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsWarehouse> update(@Parameter(description = "仓库主键 ID") @PathVariable String id, @RequestBody WmsWarehouse warehouse) {
         log.info("[API] 更新仓库: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         warehouse.setId(id);
@@ -51,6 +54,7 @@ public class WmsWarehouseController {
 
     @Operation(summary = "删除仓库", description = "按主键逻辑删除仓库，已删除的仓库不再参与出入库作业。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除仓库", businessType = "WAREHOUSE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "仓库主键 ID") @PathVariable String id) {
         log.info("[API] 删除仓库: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         boolean success = warehouseCommandService.softDeleteById(id);
@@ -86,6 +90,7 @@ public class WmsWarehouseController {
 
     @Operation(summary = "启用仓库", description = "将指定仓库置为启用状态，启用后可参与出入库作业。")
     @PutMapping("/{id}/enable")
+    @AuditLog(operation = "启用仓库", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<Void> enable(@Parameter(description = "仓库主键 ID") @PathVariable String id) {
         log.info("[API] 启用仓库: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         boolean success = warehouseCommandService.enable(id);
@@ -94,6 +99,7 @@ public class WmsWarehouseController {
 
     @Operation(summary = "停用仓库", description = "将指定仓库置为停用状态，停用后不再接收新的出入库作业。")
     @PutMapping("/{id}/disable")
+    @AuditLog(operation = "停用仓库", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<Void> disable(@Parameter(description = "仓库主键 ID") @PathVariable String id) {
         log.info("[API] 停用仓库: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         boolean success = warehouseCommandService.disable(id);

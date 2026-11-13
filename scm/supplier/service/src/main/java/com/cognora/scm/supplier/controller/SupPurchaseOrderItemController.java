@@ -1,6 +1,7 @@
 package com.cognora.scm.supplier.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ public class SupPurchaseOrderItemController {
 
     @Operation(summary = "创建采购单明细", description = "新增采购订单明细，未填写小计时按单价与数量自动计算。")
     @PostMapping
+    @AuditLog(operation = "创建采购单明细", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupPurchaseOrderItem> create(@RequestBody SupPurchaseOrderItem item) {
         SupPurchaseOrderItem created = purchaseOrderItemService.createItem(item);
         return ApiResponse.success(created);
@@ -43,6 +45,7 @@ public class SupPurchaseOrderItemController {
 
     @Operation(summary = "更新采购单明细", description = "根据明细ID更新采购订单明细，并重新计算小计金额。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新采购单明细", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupPurchaseOrderItem> update(@Parameter(description = "采购单明细ID") @PathVariable UUID id,
                                                     @RequestBody SupPurchaseOrderItem item) {
         SupPurchaseOrderItem updated = purchaseOrderItemService.updateItem(id, item);
@@ -54,6 +57,7 @@ public class SupPurchaseOrderItemController {
 
     @Operation(summary = "删除采购单明细", description = "根据明细ID删除采购订单明细。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除采购单明细", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "采购单明细ID") @PathVariable UUID id) {
         log.info("[API] 删除采购单明细 id={}", id);
         boolean success = purchaseOrderItemService.removeById(id);

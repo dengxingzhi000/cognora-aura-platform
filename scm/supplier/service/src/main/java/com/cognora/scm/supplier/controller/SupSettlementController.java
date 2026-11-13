@@ -1,6 +1,7 @@
 package com.cognora.scm.supplier.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class SupSettlementController {
 
     @Operation(summary = "创建对账单", description = "新建供应商对账单并初始化为草稿状态。")
     @PostMapping
+    @AuditLog(operation = "创建对账单", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSettlement> create(@RequestBody SupSettlement settlement) {
         SupSettlement created = settlementService.createSettlement(settlement);
         return ApiResponse.success(created);
@@ -42,6 +44,7 @@ public class SupSettlementController {
 
     @Operation(summary = "更新对账单", description = "根据对账单ID更新对账单信息并校验状态变更是否合法。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新对账单", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSettlement> update(@Parameter(description = "对账单ID") @PathVariable String id, @RequestBody SupSettlement settlement) {
         SupSettlement updated = settlementService.updateSettlement(id, settlement);
         if (updated == null) {
@@ -52,6 +55,7 @@ public class SupSettlementController {
 
     @Operation(summary = "删除对账单", description = "对指定对账单执行逻辑删除。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除对账单", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "对账单ID") @PathVariable String id) {
         boolean success = settlementService.deleteSettlement(id);
         return success ? ApiResponse.success() : ApiResponse.fail(404, "对账单不存在");
@@ -79,6 +83,7 @@ public class SupSettlementController {
 
     @Operation(summary = "确认对账单", description = "确认供应商对账单并记录审核人信息。")
     @PutMapping("/{id}/confirm")
+    @AuditLog(operation = "确认对账单", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<Void> confirm(@Parameter(description = "对账单ID") @PathVariable String id,
                                      @Parameter(description = "审核人ID") @RequestParam String approverId,
                                      @Parameter(description = "审核人姓名") @RequestParam String approverName) {
@@ -89,6 +94,7 @@ public class SupSettlementController {
 
     @Operation(summary = "标记对账单已付款", description = "将对账单标记为已付款并记录更新人。")
     @PutMapping("/{id}/pay")
+    @AuditLog(operation = "标记对账单已付款", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> markAsPaid(@Parameter(description = "对账单ID") @PathVariable String id, @Parameter(description = "更新人") @RequestParam String updateBy) {
         log.info("[API] 标记对账单已付款: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         boolean success = settlementService.markAsPaid(id, updateBy);

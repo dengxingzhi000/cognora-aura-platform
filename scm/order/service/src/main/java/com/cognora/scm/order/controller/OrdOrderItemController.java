@@ -1,6 +1,7 @@
 package com.cognora.scm.order.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.scm.order.dto.OrderItemResponse;
 import com.cognora.scm.order.dto.OrdOrderItemQueryRequest;
@@ -54,6 +55,7 @@ public class OrdOrderItemController {
      */
     @Operation(summary = "分页查询订单明细", description = "按订单 ID 分页查询该订单的明细项。")
     @PostMapping("/query")
+    @AuditLog(operation = "分页查询订单明细", businessType = "ORDER", riskLevel = 2)
     public ApiResponse<Page<OrderItemResponse>> queryByOrderId(@RequestBody @Valid OrdOrderItemQueryRequest request) {
         log.info("[API] Query order items: orderId={}, page={}/{}",
                 request.getOrderId(), request.getPageNum(), request.getPageSize());

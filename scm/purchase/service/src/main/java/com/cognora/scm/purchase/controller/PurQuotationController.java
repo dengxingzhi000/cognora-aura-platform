@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurQuotation;
 import com.cognora.scm.purchase.service.IPurQuotationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,30 +59,35 @@ public class PurQuotationController {
 
     @Operation(summary = "新增报价单", description = "创建一份新的供应商报价单。")
     @PostMapping
+    @AuditLog(operation = "新增报价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurQuotation purQuotation) {
         return purQuotationService.save(purQuotation);
     }
 
     @Operation(summary = "更新报价单", description = "按主键更新供应商报价单信息。")
     @PutMapping
+    @AuditLog(operation = "更新报价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurQuotation purQuotation) {
         return purQuotationService.updateById(purQuotation);
     }
 
     @Operation(summary = "删除报价单", description = "按主键删除供应商报价单。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除报价单", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "报价单 ID") @PathVariable String id) {
         return purQuotationService.removeById(id);
     }
 
     @Operation(summary = "提交报价单", description = "将供应商报价单提交，推进到待评审状态。")
     @PostMapping("/{id}/submit")
+    @AuditLog(operation = "提交报价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean submit(@Parameter(description = "报价单 ID") @PathVariable String id) {
         return purQuotationService.submit(id);
     }
 
     @Operation(summary = "选用报价单", description = "记录选用人信息并将该报价单标记为已选用。")
     @PostMapping("/{id}/select")
+    @AuditLog(operation = "选用报价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean select(
             @Parameter(description = "报价单 ID") @PathVariable String id,
             @Parameter(description = "选用人 ID") @RequestParam String selectedBy,

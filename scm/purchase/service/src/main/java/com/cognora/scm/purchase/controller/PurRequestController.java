@@ -2,6 +2,7 @@ package com.cognora.scm.purchase.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.platform.common.exception.ServiceException;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.web.domain.SecurityUser;
 import com.cognora.platform.common.web.util.SecurityUtils;
@@ -90,6 +91,7 @@ public class PurRequestController {
 
     @Operation(summary = "创建采购申请草稿", description = "在同一事务内创建申请单头与全部明细，单号与申请人由服务端补齐。")
     @PostMapping("/full")
+    @AuditLog(operation = "创建采购申请草稿", businessType = "PURCHASE", riskLevel = 3)
     public ApiResponse<PurRequest> create(
             @Parameter(description = "申请单头与明细行") @RequestBody PurRequestUpsertDTO payload) {
         PurRequestUpsertDTO body = requirePayload(payload);
@@ -100,6 +102,7 @@ public class PurRequestController {
 
     @Operation(summary = "更新采购申请草稿", description = "仅草稿或已驳回的申请可编辑，明细整体替换。")
     @PutMapping("/{id}/full")
+    @AuditLog(operation = "更新采购申请草稿", businessType = "PURCHASE", riskLevel = 3)
     public ApiResponse<PurRequest> update(
             @Parameter(description = "采购申请单主键 ID") @PathVariable String id,
             @Parameter(description = "申请单头与明细行") @RequestBody PurRequestUpsertDTO payload) {
@@ -110,18 +113,21 @@ public class PurRequestController {
 
     @Operation(summary = "删除采购申请", description = "仅草稿或已驳回的申请可以删除，明细一并清理。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除采购申请", businessType = "PURCHASE", riskLevel = 4)
     public ApiResponse<Boolean> delete(@Parameter(description = "采购申请单主键 ID") @PathVariable String id) {
         return ApiResponse.success(purRequestCommandService.delete(id));
     }
 
     @Operation(summary = "提交采购申请", description = "将草稿或已驳回的申请提交进入审批流程。")
     @PostMapping("/{id}/submit")
+    @AuditLog(operation = "提交采购申请", businessType = "PURCHASE", riskLevel = 3)
     public ApiResponse<Boolean> submit(@Parameter(description = "采购申请单主键 ID") @PathVariable String id) {
         return ApiResponse.success(purRequestCommandService.submit(id));
     }
 
     @Operation(summary = "审批通过采购申请", description = "审批人取自登录态，将申请单置为已审批。")
     @PostMapping("/{id}/approve")
+    @AuditLog(operation = "审批通过采购申请", businessType = "PURCHASE", riskLevel = 4)
     public ApiResponse<Boolean> approve(@Parameter(description = "采购申请单主键 ID") @PathVariable String id) {
         Operator operator = currentOperator();
         return ApiResponse.success(purRequestCommandService.approve(id, operator.id(), operator.name()));
@@ -129,6 +135,7 @@ public class PurRequestController {
 
     @Operation(summary = "驳回采购申请", description = "审批人取自登录态，驳回原因必填。")
     @PostMapping("/{id}/reject")
+    @AuditLog(operation = "驳回采购申请", businessType = "PURCHASE", riskLevel = 4)
     public ApiResponse<Boolean> reject(
             @Parameter(description = "采购申请单主键 ID") @PathVariable String id,
             @Parameter(description = "驳回原因") @RequestParam String reason) {
@@ -139,12 +146,14 @@ public class PurRequestController {
 
     @Operation(summary = "关闭采购申请", description = "关闭未转单的采购申请，已转单的申请不能关闭。")
     @PostMapping("/{id}/close")
+    @AuditLog(operation = "关闭采购申请", businessType = "PURCHASE", riskLevel = 3)
     public ApiResponse<Boolean> close(@Parameter(description = "采购申请单主键 ID") @PathVariable String id) {
         return ApiResponse.success(purRequestCommandService.close(id));
     }
 
     @Operation(summary = "采购申请转采购单", description = "原子生成采购订单与明细，并回写申请单的转单状态。")
     @PostMapping("/{id}/convert")
+    @AuditLog(operation = "采购申请转采购单", businessType = "PURCHASE", riskLevel = 3)
     public ApiResponse<PurOrder> convert(
             @Parameter(description = "采购申请单主键 ID") @PathVariable String id,
             @Parameter(description = "供应商、仓库、价格与到货信息") @RequestBody PurRequestConvertDTO payload) {

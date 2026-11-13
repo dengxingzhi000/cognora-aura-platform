@@ -1,6 +1,7 @@
 package com.cognora.scm.order.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.response.ResultCode;
 import com.cognora.scm.order.dto.PaymentCreateRequest;
@@ -101,6 +102,7 @@ public class OrdPaymentController {
      */
     @Operation(summary = "更新支付状态", description = "按状态流转规则更新支付记录状态并记录变更原因。")
     @PutMapping("/{id}/status")
+    @AuditLog(operation = "更新支付状态", businessType = "ORDER", riskLevel = 4)
     public ApiResponse<PaymentResponse> updateStatus(
             @Parameter(description = "支付记录 ID") @PathVariable UUID id,
             @RequestBody @Valid PaymentStatusUpdateRequest request) {

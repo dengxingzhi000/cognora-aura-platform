@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurPlan;
 import com.cognora.scm.purchase.service.IPurPlanService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,30 +53,35 @@ public class PurPlanController {
 
     @Operation(summary = "新增计划", description = "创建一份新的采购计划。")
     @PostMapping
+    @AuditLog(operation = "新增采购计划", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurPlan purPlan) {
         return purPlanService.save(purPlan);
     }
 
     @Operation(summary = "更新计划", description = "按主键更新采购计划信息。")
     @PutMapping
+    @AuditLog(operation = "更新采购计划", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurPlan purPlan) {
         return purPlanService.updateById(purPlan);
     }
 
     @Operation(summary = "删除计划", description = "按主键删除采购计划。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除采购计划", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "采购计划 ID") @PathVariable String id) {
         return purPlanService.removeById(id);
     }
 
     @Operation(summary = "提交计划", description = "将采购计划提交审批，推进到待审批状态。")
     @PostMapping("/{id}/submit")
+    @AuditLog(operation = "提交采购计划", businessType = "PURCHASE", riskLevel = 3)
     public boolean submit(@Parameter(description = "采购计划 ID") @PathVariable String id) {
         return purPlanService.submit(id);
     }
 
     @Operation(summary = "审批计划", description = "记录审批人信息并通过采购计划审批。")
     @PostMapping("/{id}/approve")
+    @AuditLog(operation = "审批采购计划", businessType = "PURCHASE", riskLevel = 4)
     public boolean approve(
             @Parameter(description = "采购计划 ID") @PathVariable String id,
             @Parameter(description = "审批人 ID") @RequestParam String approverId,
@@ -85,6 +91,7 @@ public class PurPlanController {
 
     @Operation(summary = "完结计划", description = "将采购计划标记为已完成并结束执行。")
     @PostMapping("/{id}/complete")
+    @AuditLog(operation = "完结采购计划", businessType = "PURCHASE", riskLevel = 3)
     public boolean complete(@Parameter(description = "采购计划 ID") @PathVariable String id) {
         return purPlanService.complete(id);
     }

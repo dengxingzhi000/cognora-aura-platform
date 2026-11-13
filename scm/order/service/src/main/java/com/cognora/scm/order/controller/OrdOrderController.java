@@ -1,6 +1,7 @@
 package com.cognora.scm.order.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.scm.order.dto.OrderCancelRequest;
 import com.cognora.scm.order.dto.OrderCreateRequest;
@@ -88,6 +89,7 @@ public class OrdOrderController {
      */
     @Operation(summary = "分页查询订单", description = "按条件分页查询订单，支持订单号、用户、状态、来源及时间区间过滤。")
     @PostMapping("/query")
+    @AuditLog(operation = "分页查询订单", businessType = "ORDER", riskLevel = 2)
     public ApiResponse<Page<OrderResponse>> query(@RequestBody @Valid OrderQueryRequest request) {
         log.info("[API] 分页查询订单: {}", (request + "").replace("\r", "_").replace("\n", "_"));
 
@@ -125,6 +127,7 @@ public class OrdOrderController {
      */
     @Operation(summary = "创建订单", description = "创建新订单并同时写入订单明细。")
     @PostMapping
+    @AuditLog(operation = "创建订单", businessType = "ORDER", riskLevel = 3)
     public ApiResponse<OrderResponse> createOrder(@RequestBody @Valid OrderCreateRequest request) {
         log.info("[API] 创建订单: orderNo={}, userId={}", (request.getOrderNo() + "").replace("\r", "_").replace("\n", "_"), (request.getUserId() + "").replace("\r", "_").replace("\n", "_"));
 
@@ -139,6 +142,7 @@ public class OrdOrderController {
      */
     @Operation(summary = "订单状态流转", description = "按状态机规则更新订单状态，非法流转将被拒绝。")
     @PutMapping("/{id}/status")
+    @AuditLog(operation = "更新订单状态", businessType = "ORDER", riskLevel = 3)
     public ApiResponse<OrderResponse> updateStatus(@Parameter(description = "订单 ID") @PathVariable UUID id,
                                                    @RequestBody @Valid OrderStatusUpdateRequest request) {
         log.info("[API] 更新订单状态: id={}, target={}", id, request.getTargetStatus());
@@ -159,6 +163,7 @@ public class OrdOrderController {
      */
     @Operation(summary = "取消订单", description = "取消待支付或已支付的订单并记录取消原因。")
     @PutMapping("/{id}/cancel")
+    @AuditLog(operation = "取消订单", businessType = "ORDER", riskLevel = 3)
     public ApiResponse<OrderResponse> cancel(@Parameter(description = "订单 ID") @PathVariable UUID id,
                                              @RequestBody @Valid OrderCancelRequest request) {
         log.info("[API] 取消订单: id={}, reason={}", (id + "").replace("\r", "_").replace("\n", "_"), (request.getReason() + "").replace("\r", "_").replace("\n", "_"));
