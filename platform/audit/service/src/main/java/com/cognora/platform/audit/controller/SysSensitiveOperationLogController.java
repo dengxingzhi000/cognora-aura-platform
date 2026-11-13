@@ -3,6 +3,7 @@ package com.cognora.platform.audit.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.audit.domain.entity.SysSensitiveOperationLog;
 import com.cognora.platform.audit.service.ISysSensitiveOperationLogService;
@@ -23,6 +24,7 @@ public class SysSensitiveOperationLogController {
 
     @Operation(summary = "查询敏感操作日志", description = "根据日志 ID 查询敏感操作日志详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('audit:sensitive:view')")
     public SysSensitiveOperationLog getById(@Parameter(description = "敏感操作日志 ID") @PathVariable String id) {
         log.info("[API] 查询敏感操作日志: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return sensitiveOperationLogService.getById(id);
@@ -30,6 +32,7 @@ public class SysSensitiveOperationLogController {
 
     @Operation(summary = "按用户查询敏感操作日志", description = "查询指定用户产生的全部敏感操作日志。")
     @GetMapping("/user/{userId}")
+    @PreAuthorize("hasAuthority('audit:sensitive:list-by-user-id')")
     public List<SysSensitiveOperationLog> listByUserId(@Parameter(description = "用户 ID") @PathVariable String userId) {
         log.info("[API] 查询用户敏感操作日志: userId={}", (userId + "").replace("\r", "_").replace("\n", "_"));
         return sensitiveOperationLogService.listByUserId(userId);
@@ -37,6 +40,7 @@ public class SysSensitiveOperationLogController {
 
     @Operation(summary = "按风险等级查询敏感操作日志", description = "查询指定风险分值的敏感操作日志。")
     @GetMapping("/risk-level/{riskScore}")
+    @PreAuthorize("hasAuthority('audit:sensitive:list-by-risk-level')")
     public List<SysSensitiveOperationLog> listByRiskLevel(@Parameter(description = "风险分值") @PathVariable Integer riskScore) {
         log.info("[API] 查询风险等级敏感操作日志: riskScore={}", riskScore);
         return sensitiveOperationLogService.listByRiskLevel(riskScore);
@@ -44,6 +48,7 @@ public class SysSensitiveOperationLogController {
 
     @Operation(summary = "分页查询敏感操作日志", description = "按用户、操作类型和风险分值分页查询敏感操作日志。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('audit:sensitive:page')")
     public Page<SysSensitiveOperationLog> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

@@ -113,6 +113,7 @@ public class SysStatusDictController {
 
     @Operation(summary = "执行状态流转", description = "按业务类型、当前状态与动作编码执行一次状态流转并返回流转结果。")
     @PostMapping("/transition")
+    @PreAuthorize("hasAuthority('system:status:execute-transition')")
     @AuditLog(operation = "执行业务状态流转", businessType = "STATUS_TRANSITION", riskLevel = 3)
     public ApiResponse<TransitionResult> executeTransition(
             @Parameter(description = "业务类型，如 ORDER、PURCHASE、APPROVAL") @RequestParam String bizType,

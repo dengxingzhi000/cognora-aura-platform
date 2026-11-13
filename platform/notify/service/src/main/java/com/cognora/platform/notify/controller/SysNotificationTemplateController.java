@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.platform.common.log.annotation.AuditLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.notify.domain.entity.SysNotificationTemplate;
 import com.cognora.platform.notify.service.ISysNotificationTemplateService;
@@ -24,6 +25,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "创建通知模板", description = "创建通知模板并指定模板编码与通知渠道。")
     @PostMapping
+    @PreAuthorize("hasAuthority('notify:template:create')")
     @AuditLog(operation = "创建通知模板", businessType = "NOTIFY", riskLevel = 3)
     public SysNotificationTemplate create(@RequestBody SysNotificationTemplate entity) {
         log.info("[API] 创建通知模板: templateCode={}, channel={}", (entity.getTemplateCode() + "").replace("\r", "_").replace("\n", "_"), (entity.getChannel() + "").replace("\r", "_").replace("\n", "_"));
@@ -32,6 +34,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "查询通知模板", description = "根据模板ID查询通知模板详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('notify:template:view')")
     public SysNotificationTemplate getById(@Parameter(description = "模板ID") @PathVariable String id) {
         log.info("[API] 查询通知模板: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return notificationTemplateService.getById(id);
@@ -39,6 +42,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "更新通知模板", description = "更新通知模板的内容与渠道配置。")
     @PutMapping
+    @PreAuthorize("hasAuthority('notify:template:update')")
     @AuditLog(operation = "更新通知模板", businessType = "NOTIFY", riskLevel = 3)
     public SysNotificationTemplate update(@RequestBody SysNotificationTemplate entity) {
         log.info("[API] 更新通知模板: id={}", (entity.getId() + "").replace("\r", "_").replace("\n", "_"));
@@ -47,6 +51,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "删除通知模板", description = "根据模板ID删除通知模板。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('notify:template:delete')")
     @AuditLog(operation = "删除通知模板", businessType = "NOTIFY", riskLevel = 4)
     public boolean deleteById(@Parameter(description = "模板ID") @PathVariable String id) {
         log.info("[API] 删除通知模板: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -55,6 +60,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "查询渠道通知模板", description = "按通知渠道查询可用的模板列表。")
     @GetMapping("/channel/{channel}")
+    @PreAuthorize("hasAuthority('notify:template:list-by-channel')")
     public List<SysNotificationTemplate> listByChannel(@Parameter(description = "通知渠道") @PathVariable String channel) {
         log.info("[API] 查询渠道通知模板: channel={}", (channel + "").replace("\r", "_").replace("\n", "_"));
         return notificationTemplateService.listByType(channel);
@@ -62,6 +68,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "启用通知模板", description = "将指定通知模板状态置为启用。")
     @PutMapping("/{id}/enable")
+    @PreAuthorize("hasAuthority('notify:template:enable')")
     @AuditLog(operation = "启用通知模板", businessType = "NOTIFY", riskLevel = 3)
     public boolean enable(@Parameter(description = "模板ID") @PathVariable String id) {
         log.info("[API] 启用通知模板: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -70,6 +77,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "禁用通知模板", description = "将指定通知模板状态置为禁用。")
     @PutMapping("/{id}/disable")
+    @PreAuthorize("hasAuthority('notify:template:disable')")
     @AuditLog(operation = "禁用通知模板", businessType = "NOTIFY", riskLevel = 3)
     public boolean disable(@Parameter(description = "模板ID") @PathVariable String id) {
         log.info("[API] 禁用通知模板: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -78,6 +86,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "分页查询通知模板", description = "按渠道、模板编码与状态分页查询通知模板。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('notify:template:page')")
     public Page<SysNotificationTemplate> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

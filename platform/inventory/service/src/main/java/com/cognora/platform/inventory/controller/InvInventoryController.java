@@ -26,6 +26,7 @@ import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -70,6 +71,7 @@ public class InvInventoryController {
    */
   @Operation(summary = "查询单仓库存", description = "查询指定SKU在指定仓库中的当前库存信息。")
   @GetMapping
+  @PreAuthorize("hasAuthority('inventory:inventory:get-inventory')")
   @Cacheable(value = "inventory",
              key = "T(com.cognora.platform.common.tenant.TenantCacheKeys).inventoryDetail(#skuId, #warehouseId)",
              unless = "#result == null || #result.data() == null")
@@ -89,6 +91,7 @@ public class InvInventoryController {
    */
   @Operation(summary = "批量查询库存", description = "根据SKU列表批量查询库存，可限定仓库，单次最多查询100个SKU。")
   @PostMapping("/batch")
+  @PreAuthorize("hasAuthority('inventory:inventory:batch-get-inventory')")
   @Cacheable(value = "inventory",
              key = "T(com.cognora.platform.common.tenant.TenantCacheKeys).inventoryBatch(#warehouseId, #skuIds)",
              unless = "#result == null")
@@ -109,6 +112,7 @@ public class InvInventoryController {
    */
   @Operation(summary = "分页查询库存", description = "按请求中的多种过滤条件分页查询库存记录。")
   @PostMapping("/query")
+  @PreAuthorize("hasAuthority('inventory:inventory:query-inventory')")
   @SentinelResource("inventory.query")
   @AuditLog(operation = "分页查询库存", businessType = "INVENTORY", riskLevel = 2)
   public ApiResponse<Page<InventoryResponse>> queryInventory(
@@ -123,6 +127,7 @@ public class InvInventoryController {
    */
   @Operation(summary = "调整库存", description = "对库存执行入库、出库或盘点调整，请求按业务单号做幂等保护。")
   @PostMapping("/adjust")
+  @PreAuthorize("hasAuthority('inventory:inventory:adjust-inventory')")
   @Idempotent(key = "#request.referenceNo", ttl = 24, unit = TimeUnit.HOURS,
               errorMessage = "重复的库存调整请求，请勿重复提交")
   @SentinelResource("inventory.adjust")
@@ -141,6 +146,7 @@ public class InvInventoryController {
    */
   @Operation(summary = "库存调拨", description = "将库存从一个仓库调拨到另一个仓库，请求按调拨单号做幂等保护。")
   @PostMapping("/transfer")
+  @PreAuthorize("hasAuthority('inventory:inventory:transfer-inventory')")
   @Idempotent(key = "#request.transferNo", ttl = 24, unit = TimeUnit.HOURS,
               errorMessage = "重复的库存调拨请求，请勿重复提交")
   @SentinelResource("inventory.transfer")
@@ -159,6 +165,7 @@ public class InvInventoryController {
    */
   @Operation(summary = "检查库存是否充足", description = "判断指定SKU在指定仓库的可用库存是否满足所需数量。")
   @GetMapping("/check")
+  @PreAuthorize("hasAuthority('inventory:inventory:check-stock-available')")
   @Cacheable(value = "inventory",
              key = "T(com.cognora.platform.common.tenant.TenantCacheKeys).inventoryCheck(#skuId, #warehouseId, #quantity)",
              unless = "#result == null")
@@ -177,6 +184,7 @@ public class InvInventoryController {
    */
   @Operation(summary = "查询库存统计", description = "获取全局库存统计信息，用于总览与监控。")
   @GetMapping("/stats")
+  @PreAuthorize("hasAuthority('inventory:inventory:get-inventory-stats')")
   @Cacheable(value = "inventoryStats",
       key = "T(com.cognora.platform.common.tenant.TenantCacheKeys).global('inventoryStats')")
   @SentinelResource("inventory.stats")
@@ -211,6 +219,7 @@ public class InvInventoryController {
    */
   @Operation(summary = "初始化库存", description = "为指定SKU和仓库初始化库存记录，可指定初始库存数量，重复请求会被幂等拦截。")
   @PostMapping("/init")
+  @PreAuthorize("hasAuthority('inventory:inventory:init-inventory')")
   @Idempotent(key = "#skuId + ':' + #warehouseId", ttl = 24, unit = TimeUnit.HOURS,
               errorMessage = "重复的库存初始化请求，请勿重复提交")
   @SentinelResource("inventory.init")

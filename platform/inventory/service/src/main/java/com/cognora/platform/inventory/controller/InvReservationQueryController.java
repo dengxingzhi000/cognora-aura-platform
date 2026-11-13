@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,6 +46,7 @@ public class InvReservationQueryController {
   @Operation(summary = "分页查询预占",
       description = "按业务键、SKU、仓库、状态与创建时间范围分页查询预占记录。")
   @PostMapping("/query")
+  @PreAuthorize("hasAuthority('inventory:reservation:view')")
   @AuditLog(operation = "分页查询库存预占", businessType = "INVENTORY", riskLevel = 2)
   public ApiResponse<Page<InvReservationResponse>> query(
       @RequestBody @Valid InvReservationQueryRequest request) {
@@ -54,6 +56,7 @@ public class InvReservationQueryController {
   @Operation(summary = "按业务键查询预占",
       description = "返回该业务键下唯一的预占记录及状态时间线。")
   @GetMapping("/{businessKey}")
+  @PreAuthorize("hasAuthority('inventory:reservation:get')")
   public ApiResponse<InvReservationResponse> get(
       @Parameter(description = "业务键（订单号等）")
       @PathVariable @NotBlank(message = "业务键不能为空") String businessKey) {

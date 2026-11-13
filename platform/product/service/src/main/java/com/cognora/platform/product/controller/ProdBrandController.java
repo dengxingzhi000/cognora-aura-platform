@@ -6,6 +6,7 @@ import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.product.domain.entity.ProdBrand;
 import com.cognora.platform.product.service.IProdBrandService;
@@ -25,6 +26,7 @@ public class ProdBrandController {
 
     @Operation(summary = "分页查询品牌", description = "按品牌名称模糊筛选并分页查询未删除的品牌，结果按排序号升序排列。")
     @GetMapping
+    @PreAuthorize("hasAuthority('product:brand:list')")
     public ApiResponse<PageResult<ProdBrand>> list(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
@@ -37,6 +39,7 @@ public class ProdBrandController {
 
     @Operation(summary = "查询品牌详情", description = "根据品牌ID查询品牌的详细信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('product:brand:view')")
     public ApiResponse<ProdBrand> getById(@Parameter(description = "品牌ID") @PathVariable String id) {
         ProdBrand brand = brandService.getBrand(id);
         return ApiResponse.success(brand);
@@ -44,6 +47,7 @@ public class ProdBrandController {
 
     @Operation(summary = "搜索品牌", description = "根据品牌名称模糊搜索品牌列表。")
     @GetMapping("/search")
+    @PreAuthorize("hasAuthority('product:brand:search')")
     public ApiResponse<List<ProdBrand>> search(
             @Parameter(description = "品牌名称关键字，可选，支持模糊匹配")
             @RequestParam(required = false) String name) {
@@ -53,6 +57,7 @@ public class ProdBrandController {
 
     @Operation(summary = "查询推荐品牌", description = "查询已设置为推荐的全部品牌列表。")
     @GetMapping("/featured")
+    @PreAuthorize("hasAuthority('product:brand:list-featured')")
     public ApiResponse<List<ProdBrand>> listFeatured() {
         List<ProdBrand> result = brandService.listFeatured();
         return ApiResponse.success(result);
@@ -60,6 +65,7 @@ public class ProdBrandController {
 
     @Operation(summary = "创建品牌", description = "新增品牌，自动生成ID并初始化创建与更新时间。")
     @PostMapping
+    @PreAuthorize("hasAuthority('product:brand:create')")
     @AuditLog(operation = "创建品牌", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> create(@RequestBody ProdBrand brand) {
         brandService.createBrand(brand);
@@ -68,6 +74,7 @@ public class ProdBrandController {
 
     @Operation(summary = "更新品牌", description = "根据品牌ID更新品牌信息并刷新更新时间。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('product:brand:update')")
     @AuditLog(operation = "修改品牌", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> update(@Parameter(description = "品牌ID") @PathVariable String id, @RequestBody ProdBrand brand) {
         brandService.updateBrand(id, brand);
@@ -76,6 +83,7 @@ public class ProdBrandController {
 
     @Operation(summary = "删除品牌", description = "根据品牌ID逻辑删除品牌。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('product:brand:delete')")
     @AuditLog(operation = "删除品牌", businessType = "PRODUCT", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "品牌ID") @PathVariable String id) {
         brandService.deleteBrand(id);

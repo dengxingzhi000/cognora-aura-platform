@@ -6,6 +6,7 @@ import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.product.domain.entity.ProdSpu;
 import com.cognora.platform.product.service.IProdSpuService;
@@ -25,6 +26,7 @@ public class ProdSpuController {
 
     @Operation(summary = "分页查询 SPU", description = "按关键词、分类、品牌与状态组合条件分页搜索商品SPU。")
     @GetMapping
+    @PreAuthorize("hasAuthority('product:spu:list')")
     public ApiResponse<PageResult<ProdSpu>> list(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
@@ -43,6 +45,7 @@ public class ProdSpuController {
 
     @Operation(summary = "查询 SPU 详情", description = "根据SPU ID查询商品SPU的详细信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('product:spu:view')")
     public ApiResponse<ProdSpu> getById(@Parameter(description = "SPU ID") @PathVariable String id) {
         ProdSpu spu = spuService.getById(id);
         return ApiResponse.success(spu);
@@ -50,6 +53,7 @@ public class ProdSpuController {
 
     @Operation(summary = "按分类查询 SPU", description = "查询指定商品分类下的全部SPU列表。")
     @GetMapping("/category/{categoryId}")
+    @PreAuthorize("hasAuthority('product:spu:list-by-category-id')")
     public ApiResponse<List<ProdSpu>> listByCategoryId(@Parameter(description = "商品分类ID") @PathVariable String categoryId) {
         List<ProdSpu> result = spuService.listByCategoryId(categoryId);
         return ApiResponse.success(result);
@@ -57,6 +61,7 @@ public class ProdSpuController {
 
     @Operation(summary = "按品牌查询 SPU", description = "查询指定品牌下的全部SPU列表。")
     @GetMapping("/brand/{brandId}")
+    @PreAuthorize("hasAuthority('product:spu:list-by-brand-id')")
     public ApiResponse<List<ProdSpu>> listByBrandId(@Parameter(description = "品牌ID") @PathVariable String brandId) {
         List<ProdSpu> result = spuService.listByBrandId(brandId);
         return ApiResponse.success(result);
@@ -64,6 +69,7 @@ public class ProdSpuController {
 
     @Operation(summary = "创建 SPU", description = "新增商品SPU，自动生成ID与时间字段，未指定状态时默认为草稿。")
     @PostMapping
+    @PreAuthorize("hasAuthority('product:spu:create')")
     @AuditLog(operation = "创建 SPU", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> create(@RequestBody ProdSpu spu) {
         spuService.createSpu(spu);
@@ -72,6 +78,7 @@ public class ProdSpuController {
 
     @Operation(summary = "更新 SPU", description = "根据SPU ID更新商品SPU信息并刷新更新时间。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('product:spu:update')")
     @AuditLog(operation = "修改 SPU", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> update(@Parameter(description = "SPU ID") @PathVariable String id, @RequestBody ProdSpu spu) {
         spuService.updateSpu(id, spu);
@@ -80,6 +87,7 @@ public class ProdSpuController {
 
     @Operation(summary = "删除 SPU", description = "根据SPU ID逻辑删除商品SPU并将其状态置为删除。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('product:spu:delete')")
     @AuditLog(operation = "删除 SPU", businessType = "PRODUCT", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "SPU ID") @PathVariable String id) {
         spuService.deleteSpu(id);

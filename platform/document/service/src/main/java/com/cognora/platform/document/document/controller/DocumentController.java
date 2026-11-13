@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +29,7 @@ public class DocumentController {
 
     @Operation(summary = "分页查询文档", description = "按名称/编码关键字、业务类型和状态分页查询文档。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('document:document:page')")
     public ApiResponse<Page<DocDocument>> page(
             @Parameter(description = "页码，默认 1") @RequestParam(required = false) Integer page,
             @Parameter(description = "每页数量，默认 20") @RequestParam(required = false) Integer size,
@@ -40,6 +42,7 @@ public class DocumentController {
 
     @Operation(summary = "查询文档", description = "根据文档 ID 查询当前租户的文档详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('document:document:view')")
     public ApiResponse<DocDocument> getById(@Parameter(description = "文档 ID") @PathVariable String id) {
         return documentService.findCurrentTenant(id)
                 .<ApiResponse<DocDocument>>map(ApiResponse::success)
@@ -48,6 +51,7 @@ public class DocumentController {
 
     @Operation(summary = "创建文档", description = "手工登记一份文档，初始状态为已生成。")
     @PostMapping
+    @PreAuthorize("hasAuthority('document:document:create')")
     @AuditLog(operation = "创建文档", businessType = "DOCUMENT", riskLevel = 3)
     public ApiResponse<DocDocument> create(@RequestBody DocDocument document) {
         return ApiResponse.success(documentService.createDocument(document));
@@ -55,18 +59,21 @@ public class DocumentController {
 
     @Operation(summary = "查询文档版本", description = "根据文档 ID 查询全部渲染版本，按版本号倒序。")
     @GetMapping("/{id}/versions")
+    @PreAuthorize("hasAuthority('document:document:list-versions')")
     public ApiResponse<List<DocDocumentVersion>> listVersions(@Parameter(description = "文档 ID") @PathVariable String id) {
         return ApiResponse.success(documentService.listVersions(id));
     }
 
     @Operation(summary = "查询文档审计轨迹", description = "根据文档 ID 查询生成、渲染、签署、归档等操作记录。")
     @GetMapping("/{id}/audits")
+    @PreAuthorize("hasAuthority('document:document:list-audits')")
     public ApiResponse<List<DocDocumentAudit>> listAudits(@Parameter(description = "文档 ID") @PathVariable String id) {
         return ApiResponse.success(documentService.listAudits(id));
     }
 
     @Operation(summary = "变更文档状态", description = "签署（SIGNED）或归档（ARCHIVED），并写入审计轨迹。")
     @PostMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('document:document:change-status')")
     @AuditLog(operation = "变更文档状态", businessType = "DOCUMENT", riskLevel = 3)
     public ApiResponse<DocDocument> changeStatus(@Parameter(description = "文档 ID") @PathVariable String id,
                                                  @RequestBody DocumentStatusChangeRequest request) {

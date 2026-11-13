@@ -5,6 +5,7 @@ import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.product.search.dto.ProductSearchRequest;
 import com.cognora.platform.product.search.dto.ProductSearchResponse;
@@ -48,6 +49,7 @@ public class ProductSearchController {
      */
     @Operation(summary = "综合搜索商品", description = "支持关键词、分类、品牌、价格区间与排序条件的商品分页搜索。")
     @PostMapping
+    @PreAuthorize("hasAuthority('product:search:search')")
     @AuditLog(operation = "搜索商品", businessType = "PRODUCT", riskLevel = 2)
     public ApiResponse<Page<ProductSearchResponse>> search(
             @RequestBody ProductSearchRequest request) {
@@ -69,6 +71,7 @@ public class ProductSearchController {
      */
     @Operation(summary = "查询热门商品", description = "按销量倒序分页查询热门商品列表。")
     @GetMapping("/hot")
+    @PreAuthorize("hasAuthority('product:search:get-hot-products')")
     public ApiResponse<Page<ProductSearchResponse>> getHotProducts(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer size) {
@@ -89,6 +92,7 @@ public class ProductSearchController {
      */
     @Operation(summary = "查询最新商品", description = "按发布时间倒序分页查询最新商品列表。")
     @GetMapping("/latest")
+    @PreAuthorize("hasAuthority('product:search:get-latest-products')")
     public ApiResponse<Page<ProductSearchResponse>> getLatestProducts(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer size) {
@@ -109,6 +113,7 @@ public class ProductSearchController {
      */
     @Operation(summary = "按分类查询商品", description = "分页查询指定商品分类下的商品，结果按销量排序。")
     @GetMapping("/category/{categoryId}")
+    @PreAuthorize("hasAuthority('product:search:find-by-category')")
     public ApiResponse<Page<ProductSearchResponse>> findByCategory(
             @Parameter(description = "商品分类ID") @PathVariable String categoryId,
             @RequestParam(defaultValue = "1") Integer page,
@@ -130,6 +135,7 @@ public class ProductSearchController {
      */
     @Operation(summary = "按品牌查询商品", description = "分页查询指定品牌下的商品，结果按销量排序。")
     @GetMapping("/brand/{brandId}")
+    @PreAuthorize("hasAuthority('product:search:find-by-brand')")
     public ApiResponse<Page<ProductSearchResponse>> findByBrand(
             @Parameter(description = "品牌ID") @PathVariable String brandId,
             @RequestParam(defaultValue = "1") Integer page,
@@ -151,6 +157,7 @@ public class ProductSearchController {
      */
     @Operation(summary = "快速搜索商品", description = "以 GET 方式按关键词快速搜索商品，适用于简单查询场景。")
     @GetMapping
+    @PreAuthorize("hasAuthority('product:search:quick-search')")
     public ApiResponse<Page<ProductSearchResponse>> quickSearch(
             @Parameter(description = "搜索关键词，可选")
             @RequestParam(required = false) String keyword,

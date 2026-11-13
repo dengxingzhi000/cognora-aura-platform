@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.platform.common.log.annotation.AuditLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.tenant.domain.entity.TenantSubscription;
 import com.cognora.platform.tenant.service.ITenantSubscriptionService;
@@ -23,6 +24,7 @@ public class TenantSubscriptionController {
 
     @Operation(summary = "创建租户订阅", description = "新增一条租户套餐订阅记录并返回创建结果。")
     @PostMapping
+    @PreAuthorize("hasAuthority('tenant:subscription:create')")
     @AuditLog(operation = "创建租户订阅", businessType = "TENANT", riskLevel = 3)
     public TenantSubscription create(@RequestBody TenantSubscription entity) {
         log.info("[API] 创建租户订阅: tenantId={}, packageId={}", (entity.getTenantId() + "").replace("\r", "_").replace("\n", "_"), (entity.getPackageId() + "").replace("\r", "_").replace("\n", "_"));
@@ -31,6 +33,7 @@ public class TenantSubscriptionController {
 
     @Operation(summary = "查询订阅详情", description = "根据订阅 ID 查询租户订阅详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('tenant:subscription:view')")
     public TenantSubscription getById(@Parameter(description = "订阅ID") @PathVariable String id) {
         log.info("[API] 查询租户订阅: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantSubscriptionService.getById(id);
@@ -38,6 +41,7 @@ public class TenantSubscriptionController {
 
     @Operation(summary = "更新租户订阅", description = "根据订阅 ID 更新订阅套餐、有效期等订阅信息。")
     @PutMapping
+    @PreAuthorize("hasAuthority('tenant:subscription:update')")
     @AuditLog(operation = "更新租户订阅", businessType = "TENANT", riskLevel = 3)
     public TenantSubscription update(@RequestBody TenantSubscription entity) {
         log.info("[API] 更新租户订阅: id={}", (entity.getId() + "").replace("\r", "_").replace("\n", "_"));
@@ -46,6 +50,7 @@ public class TenantSubscriptionController {
 
     @Operation(summary = "删除租户订阅", description = "根据订阅 ID 删除指定的租户订阅记录。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('tenant:subscription:delete')")
     @AuditLog(operation = "删除租户订阅", businessType = "TENANT", riskLevel = 4)
     public boolean deleteById(@Parameter(description = "订阅ID") @PathVariable String id) {
         log.info("[API] 删除租户订阅: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -54,6 +59,7 @@ public class TenantSubscriptionController {
 
     @Operation(summary = "订阅租户套餐", description = "为指定租户开通指定套餐的订阅。")
     @PostMapping("/subscribe")
+    @PreAuthorize("hasAuthority('tenant:subscription:subscribe')")
     @AuditLog(operation = "订阅租户套餐", businessType = "TENANT", riskLevel = 4)
     public boolean subscribe(
             @Parameter(description = "租户ID") @RequestParam String tenantId,
@@ -64,6 +70,7 @@ public class TenantSubscriptionController {
 
     @Operation(summary = "取消租户订阅", description = "根据订阅 ID 取消指定租户的套餐订阅。")
     @PostMapping("/{id}/unsubscribe")
+    @PreAuthorize("hasAuthority('tenant:subscription:unsubscribe')")
     @AuditLog(operation = "取消租户订阅", businessType = "TENANT", riskLevel = 4)
     public boolean unsubscribe(@Parameter(description = "订阅ID") @PathVariable String id) {
         log.info("[API] 取消租户订阅: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -72,6 +79,7 @@ public class TenantSubscriptionController {
 
     @Operation(summary = "查询租户订阅列表", description = "查询指定租户的全部订阅记录。")
     @GetMapping("/tenant/{tenantId}")
+    @PreAuthorize("hasAuthority('tenant:subscription:list-by-tenant-id')")
     public List<TenantSubscription> listByTenantId(@Parameter(description = "租户ID") @PathVariable String tenantId) {
         log.info("[API] 查询租户订阅: tenantId={}", (tenantId + "").replace("\r", "_").replace("\n", "_"));
         return tenantSubscriptionService.listByTenantId(tenantId);
@@ -79,6 +87,7 @@ public class TenantSubscriptionController {
 
     @Operation(summary = "分页查询租户订阅", description = "按租户和订阅状态分页查询租户订阅列表。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('tenant:subscription:page')")
     public Page<TenantSubscription> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
