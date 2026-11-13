@@ -1,6 +1,6 @@
 # 权限目录缺口报告（D1）
 
-> 生成：`py -3 scripts/tools/permission_annotation_map.py`（2026-11-13）  
+> 生成：`py -3 scripts/tools/permission_annotation_map.py`  
 > 机器可读映射：`docs/superpowers/specs/2026-11-12-permission-mapping.json`  
 > 输入：`platform|scm|ecom|lms` 四域 `*Controller.java` + `scripts/db/seed/*.sql`
 
@@ -9,7 +9,7 @@
 - 端点 = 控制器类级 `@RequestMapping` 与方法级 `@(Get|Post|Put|Delete|Patch)Mapping` 拼出的（HTTP 方法, 路径）。
 - `code` 来自 seed 目录行（`scripts/db/seed/*.sql` 中同时含 URL 与 HTTP 方法的行）。`{var}` 占位符按结构匹配：目录 `{id}` 与控制器 `{orderNo}` 等价；目录里的 `*` / `**` 按 Ant 语义匹配。
 - 先判豁免，顺序与 `ApiAccessControlFilter` 一致：`whitelist` → `exemptPaths`（先扣 `exemptPathExclusions`）→ `internalSignaturePaths` → `signatureOrPermissionPaths`。
-- **缺口 = 未豁免且目录里没有匹配行的端点。** 这类端点当前就会被 `ApiAccessControlFilter` 以 `API_NOT_REGISTERED` 403（`unregistered-endpoint-policy` 默认 `DENY`），本轮不为它们补 `@PreAuthorize`。
+- **缺口 = 未豁免且目录里没有匹配行的端点。** 已登录用户的请求命中这类端点时，当前会被 `ApiAccessControlFilter` 以 `API_NOT_REGISTERED` 403（`unregistered-endpoint-policy` 默认 `DENY`）；未解析出用户的请求会直接放行（过滤器在无用户上下文时跳过端点登记校验）。本轮不为它们补 `@PreAuthorize`。
 
 ## 总览
 

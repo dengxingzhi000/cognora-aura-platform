@@ -19,11 +19,13 @@
     internal-signature-paths / signature-or-permission-paths（Ant 匹配）；
   * 缺口 = `code is None and exempt is False`。
 
+CI 护栏 `scripts/ci/check_permission_annotation_drift.py` 用同一套目录/controller/豁免
+规则校验 `@PreAuthorize`；两个脚本代码各自独立、常量必须同步。
+
 仅使用标准库。
 """
 from __future__ import annotations
 
-import datetime
 import json
 import re
 import sys
@@ -554,13 +556,15 @@ def _segment_score(pattern: str, endpoint: str) -> int | None:
 
 
 def exemption(path: str) -> str | None:
-    """返回豁免原因；不在任何豁免清单里返回 None（与 ApiAccessControlFilter 顺序一致）。"""
+    """返回豁免原因；不在任何豁免清单里返回 None（与 ApiAccessControlFilter 顺序一致）。
+
+    `exemptPathExclusions` 只作用于 `exemptPaths` 分支：命中排除项时仍要继续检查
+    `internalSignaturePaths` / `signatureOrPermissionPaths`（排除项不是「整个豁免短路」）。
+    """
     probe = _placeholder_probe_path(path)
     if matches_any(probe, WHITELIST):
         return EXEMPT_REASON_WHITELIST
-    if matches_any(probe, EXEMPT_PATH_EXCLUSIONS):
-        return None
-    if matches_any(probe, EXEMPT_PATHS):
+    if not matches_any(probe, EXEMPT_PATH_EXCLUSIONS) and matches_any(probe, EXEMPT_PATHS):
         return EXEMPT_REASON_EXEMPT_PATHS
     if matches_any(probe, INTERNAL_SIGNATURE_PATHS):
         return EXEMPT_REASON_INTERNAL_SIGNATURE
@@ -657,8 +661,7 @@ def render_report(mapping: dict, catalog_notes: list[str], catalog_stats: dict[s
     lines.append("# 权限目录缺口报告（D1）")
     lines.append("")
     lines.append(
-        "> 生成：`py -3 scripts/tools/permission_annotation_map.py`"
-        f"（{datetime.date.today().isoformat()}）  "
+        "> 生成：`py -3 scripts/tools/permission_annotation_map.py`  "
     )
     lines.append(
         "> 机器可读映射：`docs/superpowers/specs/2026-11-12-permission-mapping.json`  "
@@ -684,9 +687,10 @@ def render_report(mapping: dict, catalog_notes: list[str], catalog_stats: dict[s
         "`signatureOrPermissionPaths`。"
     )
     lines.append(
-        "- **缺口 = 未豁免且目录里没有匹配行的端点。** 这类端点当前就会被 "
-        "`ApiAccessControlFilter` 以 `API_NOT_REGISTERED` 403（"
-        "`unregistered-endpoint-policy` 默认 `DENY`），本轮不为它们补 `@PreAuthorize`。"
+        "- **缺口 = 未豁免且目录里没有匹配行的端点。** 已登录用户的请求命中这类端点时，"
+        "当前会被 `ApiAccessControlFilter` 以 `API_NOT_REGISTERED` 403"
+        "（`unregistered-endpoint-policy` 默认 `DENY`）；未解析出用户的请求会直接放行"
+        "（过滤器在无用户上下文时跳过端点登记校验）。本轮不为它们补 `@PreAuthorize`。"
     )
     lines.append("")
     lines.append("## 总览")
