@@ -1,6 +1,8 @@
 package com.cognora.scm.supplier.service.impl;
 
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.scm.supplier.domain.entity.SupSupplierChangeLog;
 import com.cognora.scm.supplier.mapper.SupSupplierChangeLogMapper;
 import com.cognora.scm.supplier.service.ISupSupplierChangeLogService;
@@ -18,6 +20,7 @@ public class SupSupplierChangeLogServiceImpl
         implements ISupSupplierChangeLogService {
 
     @Override
+    @Master(reason = "记录供应商变更日志")
     public void record(String supplierId, String changeType, String changeContent,
                        String reason, String operatorId, String operatorName) {
         SupSupplierChangeLog changeLog = new SupSupplierChangeLog()
@@ -33,6 +36,7 @@ public class SupSupplierChangeLogServiceImpl
     }
 
     @Override
+    @Slave
     public List<SupSupplierChangeLog> listBySupplierId(String supplierId, int limit) {
         int bounded = Math.max(1, Math.min(limit, 100));
         return lambdaQuery()

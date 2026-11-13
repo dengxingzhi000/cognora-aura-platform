@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.exception.ServiceException;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.scm.supplier.domain.entity.SupSupplier;
@@ -37,6 +39,7 @@ public class SupSupplierEvaluationServiceImpl
     private final SupSupplierMapper supplierMapper;
 
     @Override
+    @Slave
     public Page<SupSupplierEvaluation> pageList(int page, int size, String supplierId,
                                                 String evaluationPeriod) {
         log.debug("分页查询供应商评价 page={}, size={}, supplierId={}",
@@ -57,6 +60,7 @@ public class SupSupplierEvaluationServiceImpl
     }
 
     @Override
+    @Slave
     public List<SupSupplierEvaluation> listBySupplierId(String supplierId) {
         if (!StringUtils.hasText(supplierId)) {
             return List.of();
@@ -68,6 +72,7 @@ public class SupSupplierEvaluationServiceImpl
     }
 
     @Override
+    @Slave
     public BigDecimal calculateAverageScore(String supplierId) {
         if (!StringUtils.hasText(supplierId)) {
             return BigDecimal.ZERO;
@@ -84,6 +89,7 @@ public class SupSupplierEvaluationServiceImpl
     }
 
     @Override
+    @Master(reason = "创建供应商评价")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierEvaluation createEvaluation(SupSupplierEvaluation evaluation) {
         requireSupplier(evaluation.getSupplierId());
@@ -114,6 +120,7 @@ public class SupSupplierEvaluationServiceImpl
     }
 
     @Override
+    @Master(reason = "更新供应商评价")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierEvaluation updateEvaluation(String id, SupSupplierEvaluation evaluation) {
         SupSupplierEvaluation existing = getById(id);
@@ -158,6 +165,7 @@ public class SupSupplierEvaluationServiceImpl
     }
 
     @Override
+    @Master(reason = "删除供应商评价")
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteEvaluation(String id) {
         SupSupplierEvaluation existing = getById(id);
@@ -170,6 +178,7 @@ public class SupSupplierEvaluationServiceImpl
     }
 
     @Override
+    @Master(reason = "回写供应商绩效评分")
     @Transactional(rollbackFor = Exception.class)
     public void refreshSupplierScorecard(String supplierId) {
         if (!StringUtils.hasText(supplierId)) {

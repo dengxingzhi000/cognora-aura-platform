@@ -3,6 +3,8 @@ package com.cognora.scm.supplier.service.impl;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.exception.ServiceException;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.scm.supplier.domain.entity.SupSupplier;
@@ -34,6 +36,7 @@ public class SupSupplierContactServiceImpl
     private final SupSupplierMapper supplierMapper;
 
     @Override
+    @Slave
     public List<SupSupplierContact> listBySupplierId(String supplierId) {
         requireSupplier(supplierId);
         return lambdaQuery()
@@ -45,6 +48,7 @@ public class SupSupplierContactServiceImpl
     }
 
     @Override
+    @Master(reason = "新增供应商联系人")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierContact create(String supplierId, SupSupplierContact contact) {
         requireSupplier(supplierId);
@@ -85,6 +89,7 @@ public class SupSupplierContactServiceImpl
     }
 
     @Override
+    @Master(reason = "更新供应商联系人")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierContact update(String id, SupSupplierContact contact) {
         SupSupplierContact existing = getById(id);
@@ -109,6 +114,7 @@ public class SupSupplierContactServiceImpl
     }
 
     @Override
+    @Master(reason = "删除供应商联系人")
     @Transactional(rollbackFor = Exception.class)
     public boolean delete(String id) {
         SupSupplierContact existing = getById(id);
@@ -121,6 +127,7 @@ public class SupSupplierContactServiceImpl
     }
 
     @Override
+    @Master(reason = "设置主联系人")
     @Transactional(rollbackFor = Exception.class)
     public boolean setPrimary(String id) {
         SupSupplierContact existing = getById(id);
