@@ -1,6 +1,7 @@
 package com.cognora.scm.order.service.impl;
 
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
 import com.cognora.platform.common.status.StatusValidator;
 import com.cognora.scm.order.domain.entity.OrdPayment;
 import com.cognora.scm.order.domain.entity.PaymentStatus;
@@ -22,6 +23,7 @@ public class OrdPaymentServiceImpl extends ServiceImpl<OrdPaymentMapper, OrdPaym
     private StatusValidator statusValidator;
 
     @Override
+    @Master(reason = "创建支付记录")
     @Transactional(rollbackFor = Exception.class)
     public OrdPayment createPayment(OrdPayment payment) {
         log.info("创建支付记录: orderNo={}, amount={}", payment.getOrderNo(), payment.getPaymentAmount());
@@ -41,6 +43,7 @@ public class OrdPaymentServiceImpl extends ServiceImpl<OrdPaymentMapper, OrdPaym
     }
 
     @Override
+    @Master(reason = "更新支付状态")
     @Transactional(rollbackFor = Exception.class)
     public boolean updatePaymentStatus(UUID paymentId, Integer status) {
         PaymentStatus target = PaymentStatus.fromCode(status);

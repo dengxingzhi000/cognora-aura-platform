@@ -3,6 +3,8 @@ package com.cognora.scm.order.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.status.StatusValidator;
 import com.cognora.scm.order.domain.entity.OrdRefund;
 import com.cognora.scm.order.domain.entity.OrdRefundItem;
@@ -30,6 +32,7 @@ public class OrdRefundServiceImpl extends ServiceImpl<OrdRefundMapper, OrdRefund
     private OrdRefundItemCommandService ordRefundItemCommandService;
 
     @Override
+    @Master(reason = "创建退款记录")
     @Transactional(rollbackFor = Exception.class)
     public OrdRefund createRefund(OrdRefund refund) {
         log.info("创建退款记录 orderNo={}, refundAmount={}", refund.getOrderNo(), refund.getRefundAmount());
@@ -59,6 +62,7 @@ public class OrdRefundServiceImpl extends ServiceImpl<OrdRefundMapper, OrdRefund
     }
 
     @Override
+    @Slave
     public List<OrdRefund> listByOrderId(UUID orderId) {
         log.debug("查询订单退款记录 orderId={}", orderId);
         LambdaQueryWrapper<OrdRefund> wrapper = Wrappers.lambdaQuery();
