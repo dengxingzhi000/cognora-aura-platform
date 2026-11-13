@@ -141,6 +141,24 @@ class PermissionRulesConformanceTest(unittest.TestCase):
             "两个脚本的默认 seed 目录不一致",
         )
 
+    def test_method_lookup_window_is_identical(self) -> None:
+        """方法声明查找窗口必须一致。
+
+        窗口不同 → 同一份源码在两个脚本里会解析出不同数量的端点（一个跳过、一个报错），
+        因此这里直接比对常量本身，而不只是比对最终结论。
+        """
+        self.assertTrue(
+            hasattr(self.mapping, "METHOD_LOOKUP_WINDOW"), "映射工具缺少 METHOD_LOOKUP_WINDOW"
+        )
+        self.assertTrue(
+            hasattr(self.checker, "METHOD_LOOKUP_WINDOW"), "检查器缺少 METHOD_LOOKUP_WINDOW"
+        )
+        self.assertEqual(
+            self.mapping.METHOD_LOOKUP_WINDOW,
+            self.checker.METHOD_LOOKUP_WINDOW,
+            "两个脚本的 METHOD_LOOKUP_WINDOW 不一致",
+        )
+
     def test_catalog_index_is_identical(self) -> None:
         """同一份 seed 解析出的 (url, method) → 权限码必须完全一致。"""
         map_rows, _map_notes = quiet(self.mapping.parse_catalog)

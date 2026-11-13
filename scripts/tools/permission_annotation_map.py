@@ -49,6 +49,12 @@ SEED_DIR = ROOT / "scripts/db/seed"
 OUT_JSON = ROOT / "docs/superpowers/specs/2026-11-12-permission-mapping.json"
 OUT_MD = ROOT / "docs/superpowers/specs/2026-11-12-permission-catalog-gaps.md"
 
+# mapping 注解之后向前找方法声明的窗口（字符数）。javadoc / 注解块很长时容易超出，
+# 窗口不足会误判「找不到方法声明」；仍然找不到就跳过该端点并告警，而不是中断整轮映射。
+# 与 scripts/ci/check_permission_annotation_drift.py 的同名常量必须一致
+# （一致性由 scripts/ci/test_permission_rules_conformance.py 钉住）。
+METHOD_LOOKUP_WINDOW = 8000
+
 # ---------------------------------------------------------------------------
 # 豁免清单：逐条抄自
 # platform/common/web/src/main/java/com/cognora/platform/common/security/config/ApiAccessControlProperties.java
@@ -383,9 +389,15 @@ def parse_controller(path: Path) -> tuple[str, list[dict]]:
         http_method = match.group(1).upper()
         args, ann_end = annotation_arguments(source, match.end())
         sub_path = mapping_path_from_args(args, f"{rel} @{http_method}Mapping")
-        declaration = JAVA_METHOD_DECL.search(source, ann_end, ann_end + 2000)
+        declaration = JAVA_METHOD_DECL.search(source, ann_end, ann_end + METHOD_LOOKUP_WINDOW)
         if not declaration:
-            raise ParseError(f"{rel}: @{http_method}Mapping({sub_path}) 之后找不到方法声明")
+            # 方法声明可能落在很长的 javadoc / 注解块之后：跳过这个端点并告警，
+            # 而不是让整轮映射失败（与 CI 护栏同一套处理）。
+            warn(
+                f"{rel}: @{http_method}Mapping({sub_path}) 之后 "
+                f"{METHOD_LOOKUP_WINDOW} 字符内找不到方法声明，跳过该端点"
+            )
+            continue
         endpoints.append(
             {
                 "file": rel,

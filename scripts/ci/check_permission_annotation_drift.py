@@ -193,13 +193,12 @@ MAPPING_ANNOTATION = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping\b")
 CLASS_REQUEST_MAPPING = re.compile(r"@RequestMapping\b")
 PRE_AUTHORIZE = re.compile(r"@PreAuthorize\b")
 HAS_AUTHORITY = re.compile(r"^hasAuthority\(\s*'([^']*)'\s*\)$")
-# `isAuthenticated()` 与其它 SpEL 形态一律忽略：这个常量只用于说明「已识别的第二种形态」，
-# 不参与判定（见 evaluate()）。
-IS_AUTHENTICATED = re.compile(r"^isAuthenticated\(\s*\)$")
 
 # mapping 注解之后向前找方法声明的窗口（字符数）。javadoc / 注解块很长时容易超出，
 # 窗口不足会误判「找不到方法声明」，因此放宽；仍然找不到就跳过该端点而不是中断整轮检查。
-_METHOD_LOOKUP_WINDOW = 8000
+# 与 scripts/tools/permission_annotation_map.py 的同名常量必须一致
+# （一致性由 scripts/ci/test_permission_rules_conformance.py 钉住）。
+METHOD_LOOKUP_WINDOW = 8000
 
 SEVERITY_ERROR = "error"
 SEVERITY_WARNING = "warning"
@@ -210,9 +209,14 @@ class ParseError(RuntimeError):
     """源码/目录结构与预期不符：宁可失败，也不产出错误的检查结论。"""
 
 
+# 解析阶段（跳过端点等）的告警：先收集，最后与诊断一起打印，并计入摘要里的
+# warnings 计数 —— 保证「摘要里的 warnings 数 == 打印出来的 WARNING 行数」。
+_PARSE_WARNINGS: list[str] = []
+
+
 def warn(message: str) -> None:
-    """告警行（不改变退出码）。"""
-    print(f"WARNING {message}")
+    """记录一条告警（不改变退出码；计入摘要的 warnings 计数）。"""
+    _PARSE_WARNINGS.append(message)
 
 
 # ---------------------------------------------------------------------------
@@ -463,13 +467,13 @@ def parse_controller(path: Path, root: Path) -> tuple[list[dict], list[dict]]:
         http_method = match.group(1).upper()
         args, ann_end = annotation_arguments(source, match.end())
         sub_path = mapping_path_from_args(args, f"{rel} @{http_method}Mapping")
-        declaration = JAVA_METHOD_DECL.search(source, ann_end, ann_end + _METHOD_LOOKUP_WINDOW)
+        declaration = JAVA_METHOD_DECL.search(source, ann_end, ann_end + METHOD_LOOKUP_WINDOW)
         if not declaration:
             # 方法声明可能落在很长的 javadoc / 注解块之后：跳过这个端点并告警，
             # 而不是让整轮检查失败（该端点的注解会因绑定不到端点而报 CONCERN）。
             warn(
                 f"{rel}: @{http_method}Mapping({sub_path}) 之后 "
-                f"{_METHOD_LOOKUP_WINDOW} 字符内找不到方法声明，跳过该端点"
+                f"{METHOD_LOOKUP_WINDOW} 字符内找不到方法声明，跳过该端点"
             )
             continue
         endpoint = {
@@ -492,7 +496,7 @@ def parse_controller(path: Path, root: Path) -> tuple[list[dict], list[dict]]:
             if len(spel) >= 2 and spel[0] == '"' and spel[-1] == '"':
                 spel = spel[1:-1].strip()
         endpoint = None
-        declaration = JAVA_METHOD_DECL.search(source, ann_end, ann_end + _METHOD_LOOKUP_WINDOW)
+        declaration = JAVA_METHOD_DECL.search(source, ann_end, ann_end + METHOD_LOOKUP_WINDOW)
         if declaration and not _member_boundary(source, ann_end, declaration.start()):
             endpoint = endpoint_by_declaration.get(declaration.start())
         annotations.append(
@@ -569,6 +573,12 @@ def parse_catalog(
                 code = match.group(code_group)
                 url = normalize_path(match.group(url_group))
                 method = match.group(method_group).upper()
+                if ":" not in code:
+                    # 目录行的码必须像权限码（domain:resource:action）。不像就不是目录行
+                    # （多半是 seed 的列顺序变了，或匹配到了别的形状）：整行跳过并计数，
+                    # 不让它进码集合、也不让它成为 (url, method) 的绑定。
+                    skipped_literals += 1
+                    continue
                 if not url.startswith("/"):
                     raise ParseError(
                         f"{sql_path.name}: {code} 的 url 不是绝对路径（{url}），"
@@ -789,6 +799,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         _self_check_exempt_lists()
+        _PARSE_WARNINGS.clear()
         index, codes, catalog_notes, catalog_rows, skipped_literals = parse_catalog(catalog_dir)
         annotations: list[dict] = []
         endpoint_count = 0
@@ -823,9 +834,11 @@ def main(argv: list[str] | None = None) -> int:
 
     diagnostics.sort(key=lambda item: (item[1].split(":", 1)[0], item[2], item[1]))
     errors = [message for severity, message, _line in diagnostics if severity == SEVERITY_ERROR]
+    # 解析阶段的告警（跳过端点等）也算 warning：摘要里的 warnings 数必须等于
+    # 实际打印出来的 WARNING 行数。
     warnings = [
         message for severity, message, _line in diagnostics if severity == SEVERITY_WARNING
-    ]
+    ] + list(_PARSE_WARNINGS)
     concerns = [
         message for severity, message, _line in diagnostics if severity == SEVERITY_CONCERN
     ]

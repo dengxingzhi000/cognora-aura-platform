@@ -89,7 +89,9 @@ class DriftCheckerFixtureTest(unittest.TestCase):
                 (catalog / name).write_text(content, encoding="utf-8")
             (controllers / "DemoController.java").write_text(java, encoding="utf-8")
             env = dict(os.environ)
-            env["PYTHONIOENCODING"] = "utf-8"
+            # 故意**不**注入 PYTHONIOENCODING：检查器自己负责把输出切成 UTF-8
+            # （_force_utf8_output），注入环境变量会让这条路径永远得不到验证。
+            env.pop("PYTHONIOENCODING", None)
             return subprocess.run(
                 [
                     sys.executable,
@@ -174,6 +176,24 @@ class DriftCheckerFixtureTest(unittest.TestCase):
         output = self.output(result)
         self.assertEqual(result.returncode, 0, output)
         self.assertNotIn("ERROR", output)
+
+    def test_chinese_diagnostics_round_trip_without_encoding_env(self) -> None:
+        """不设 PYTHONIOENCODING 时，中文诊断仍要正确输出。
+
+        检查器自己把 stdout/stderr 切成 UTF-8（_force_utf8_output），因此在
+        cp936 控制台上也不会抛 UnicodeEncodeError，输出按 UTF-8 解码后是原样的中文。
+        """
+        result = self.run_checker(
+            [AUDIT_ROW],
+            controller(method('PostMapping("/things")', "hasAuthority('demo:thing:audit')", "create")),
+        )
+        output = self.output(result)
+        self.assertEqual(result.returncode, 0, output)
+        # 中文告警按 UTF-8 解码后必须原样出现。
+        self.assertIn("目录里没有", output)
+        self.assertIn("绑定", output)
+        # 没有替换字符（U+FFFD）：出现即说明编码被破坏过。
+        self.assertNotIn("\ufffd", output)
 
     def test_unbound_code_is_only_a_warning(self) -> None:
         """码在目录里存在、但该 (path, method) 没绑定 → 只报 WARNING，不失败。"""
