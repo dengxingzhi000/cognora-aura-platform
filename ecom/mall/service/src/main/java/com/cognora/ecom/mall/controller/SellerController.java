@@ -2,6 +2,7 @@ package com.cognora.ecom.mall.controller;
 
 import com.cognora.ecom.mall.domain.entity.Seller;
 import com.cognora.ecom.mall.service.ISellerService;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,6 +26,7 @@ public class SellerController {
 
     @Operation(summary = "卖家入驻", description = "注册新的商城卖家并返回注册后的卖家信息。")
     @PostMapping
+    @AuditLog(operation = "卖家入驻注册", businessType = "MALL", riskLevel = 3)
     public Seller registerSeller(@RequestBody Seller seller) {
         log.info("[API] Register seller: name={}", (seller.getSellerName() + "").replace("\r", "_").replace("\n", "_"));
         return sellerService.registerSeller(seller);

@@ -13,6 +13,7 @@ import com.cognora.ecom.analytics.service.DatasetFieldService;
 import com.cognora.ecom.analytics.service.DatasetService;
 import com.cognora.ecom.analytics.service.DimensionService;
 import com.cognora.ecom.analytics.service.MetricService;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -56,6 +57,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "创建指标", description = "新增一个指标定义，返回创建后的指标信息。")
     @PostMapping("/metrics")
+    @AuditLog(operation = "创建指标", businessType = "ANALYTICS", riskLevel = 3)
     public ApiResponse<MetricDefinition> createMetric(@RequestBody MetricDTO dto) {
         log.info("[API] create metric: code={}, type={}", (dto.getMetricCode() + "").replace("\r", "_").replace("\n", "_"), (dto.getMetricType() + "").replace("\r", "_").replace("\n", "_"));
         return ApiResponse.success(metricService.create(dto));
@@ -63,6 +65,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "更新指标", description = "根据指标 ID 更新指标定义的编码、类型与计算口径等信息。")
     @PutMapping("/metrics/{id}")
+    @AuditLog(operation = "修改指标", businessType = "ANALYTICS", riskLevel = 3)
     public ApiResponse<MetricDefinition> updateMetric(@Parameter(description = "指标 ID") @PathVariable UUID id,
                                                       @RequestBody MetricDTO dto) {
         log.info("[API] update metric: id={}, code={}", (id + "").replace("\r", "_").replace("\n", "_"), (dto.getMetricCode() + "").replace("\r", "_").replace("\n", "_"));
@@ -71,6 +74,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "删除指标", description = "根据指标 ID 删除指定的指标定义。")
     @DeleteMapping("/metrics/{id}")
+    @AuditLog(operation = "删除指标", businessType = "ANALYTICS", riskLevel = 4)
     public ApiResponse<Void> deleteMetric(@Parameter(description = "指标 ID") @PathVariable UUID id) {
         log.info("[API] delete metric: id={}", id);
         metricService.delete(id);
@@ -102,6 +106,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "创建维度", description = "新增一个维度定义，返回创建后的维度信息。")
     @PostMapping("/dimensions")
+    @AuditLog(operation = "创建维度", businessType = "ANALYTICS", riskLevel = 3)
     public ApiResponse<DimensionDefinition> createDimension(@RequestBody DimensionDTO dto) {
         log.info("[API] create dimension: code={}, type={}", (dto.getDimCode() + "").replace("\r", "_").replace("\n", "_"), (dto.getDimType() + "").replace("\r", "_").replace("\n", "_"));
         return ApiResponse.success(dimensionService.create(dto));
@@ -109,6 +114,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "更新维度", description = "根据维度 ID 更新维度定义的类型与取值来源等信息。")
     @PutMapping("/dimensions/{id}")
+    @AuditLog(operation = "修改维度", businessType = "ANALYTICS", riskLevel = 3)
     public ApiResponse<DimensionDefinition> updateDimension(@Parameter(description = "维度 ID") @PathVariable UUID id,
                                                             @RequestBody DimensionDTO dto) {
         log.info("[API] update dimension: id={}, code={}", (id + "").replace("\r", "_").replace("\n", "_"), (dto.getDimCode() + "").replace("\r", "_").replace("\n", "_"));
@@ -117,6 +123,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "删除维度", description = "根据维度 ID 删除指定的维度定义。")
     @DeleteMapping("/dimensions/{id}")
+    @AuditLog(operation = "删除维度", businessType = "ANALYTICS", riskLevel = 4)
     public ApiResponse<Void> deleteDimension(@Parameter(description = "维度 ID") @PathVariable UUID id) {
         log.info("[API] delete dimension: id={}", id);
         dimensionService.delete(id);
@@ -148,6 +155,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "创建数据集", description = "新增一个数据集定义，返回创建后的数据集信息。")
     @PostMapping("/datasets")
+    @AuditLog(operation = "创建数据集", businessType = "ANALYTICS", riskLevel = 3)
     public ApiResponse<DatasetDefinition> createDataset(@RequestBody DatasetDTO dto) {
         log.info("[API] create dataset: code={}, type={}", (dto.getDatasetCode() + "").replace("\r", "_").replace("\n", "_"), (dto.getDatasetType() + "").replace("\r", "_").replace("\n", "_"));
         return ApiResponse.success(datasetService.create(dto));
@@ -155,6 +163,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "更新数据集", description = "根据数据集 ID 更新数据集定义的类型与来源配置。")
     @PutMapping("/datasets/{id}")
+    @AuditLog(operation = "修改数据集", businessType = "ANALYTICS", riskLevel = 3)
     public ApiResponse<DatasetDefinition> updateDataset(@Parameter(description = "数据集 ID") @PathVariable UUID id,
                                                         @RequestBody DatasetDTO dto) {
         log.info("[API] update dataset: id={}, code={}", (id + "").replace("\r", "_").replace("\n", "_"), (dto.getDatasetCode() + "").replace("\r", "_").replace("\n", "_"));
@@ -163,6 +172,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "删除数据集", description = "根据数据集 ID 删除指定的数据集定义。")
     @DeleteMapping("/datasets/{id}")
+    @AuditLog(operation = "删除数据集", businessType = "ANALYTICS", riskLevel = 4)
     public ApiResponse<Void> deleteDataset(@Parameter(description = "数据集 ID") @PathVariable UUID id) {
         log.info("[API] delete dataset: id={}", id);
         datasetService.delete(id);
@@ -194,6 +204,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "创建数据集字段", description = "为指定数据集新增一个字段定义，返回创建后的字段信息。")
     @PostMapping("/datasets/{datasetId}/fields")
+    @AuditLog(operation = "创建数据集字段", businessType = "ANALYTICS", riskLevel = 3)
     public ApiResponse<DatasetFieldDefinition> createField(@Parameter(description = "数据集 ID") @PathVariable UUID datasetId,
                                                             @RequestBody DatasetFieldDTO dto) {
         log.info("[API] create dataset field: dataset={}, code={}", (datasetId + "").replace("\r", "_").replace("\n", "_"), (dto.getFieldCode() + "").replace("\r", "_").replace("\n", "_"));
@@ -202,6 +213,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "更新数据集字段", description = "根据字段 ID 更新指定数据集下的字段定义。")
     @PutMapping("/datasets/{datasetId}/fields/{id}")
+    @AuditLog(operation = "修改数据集字段", businessType = "ANALYTICS", riskLevel = 3)
     public ApiResponse<DatasetFieldDefinition> updateField(@Parameter(description = "字段 ID") @PathVariable UUID id,
                                                             @RequestBody DatasetFieldDTO dto) {
         log.info("[API] update dataset field: id={}, code={}", id, (dto.getFieldCode() + "").replace("\r", "_").replace("\n", "_"));
@@ -210,6 +222,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "删除数据集字段", description = "根据字段 ID 删除指定数据集下的字段定义。")
     @DeleteMapping("/datasets/{datasetId}/fields/{id}")
+    @AuditLog(operation = "删除数据集字段", businessType = "ANALYTICS", riskLevel = 4)
     public ApiResponse<Void> deleteField(@Parameter(description = "字段 ID") @PathVariable UUID id) {
         log.info("[API] delete dataset field: id={}", id);
         datasetFieldService.delete(id);

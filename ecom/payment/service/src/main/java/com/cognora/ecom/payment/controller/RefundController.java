@@ -3,6 +3,7 @@ package com.cognora.ecom.payment.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.ecom.payment.domain.entity.Refund;
 import com.cognora.ecom.payment.service.IRefundService;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.web.ownership.OwnershipGuard;
 import com.cognora.platform.common.web.util.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -75,6 +76,7 @@ public class RefundController {
 
     @Operation(summary = "审批通过退款", description = "审批通过指定退款申请并执行退款。")
     @PostMapping("/{refundNo}/approve")
+    @AuditLog(operation = "审批通过退款", businessType = "PAYMENT", riskLevel = 4)
     public Refund approveRefund(@Parameter(description = "退款单号") @PathVariable String refundNo) {
         log.info("[API] Approve refund: refundNo={}", (refundNo + "").replace("\r", "_").replace("\n", "_"));
         return refundService.approveRefund(refundNo);
@@ -82,6 +84,7 @@ public class RefundController {
 
     @Operation(summary = "驳回退款", description = "驳回指定退款申请并记录驳回原因。")
     @PostMapping("/{refundNo}/reject")
+    @AuditLog(operation = "驳回退款申请", businessType = "PAYMENT", riskLevel = 3)
     public Refund rejectRefund(@Parameter(description = "退款单号") @PathVariable String refundNo,
                                @RequestBody(required = false) RejectRequest request) {
         log.info("[API] Reject refund: refundNo={}", (refundNo + "").replace("\r", "_").replace("\n", "_"));

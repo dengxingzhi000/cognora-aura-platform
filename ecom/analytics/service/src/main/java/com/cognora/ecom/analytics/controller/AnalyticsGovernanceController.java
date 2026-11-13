@@ -6,6 +6,7 @@ import com.cognora.ecom.analytics.domain.entity.DataQualityRule;
 import com.cognora.ecom.analytics.domain.entity.LineageEdge;
 import com.cognora.ecom.analytics.service.DataQualityService;
 import com.cognora.ecom.analytics.service.LineageService;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -42,6 +43,7 @@ public class AnalyticsGovernanceController {
 
     @Operation(summary = "记录血缘", description = "登记一条数据血缘边，用于建立上游节点与下游节点之间的依赖关系。")
     @PostMapping("/lineage")
+    @AuditLog(operation = "登记数据血缘关系", businessType = "ANALYTICS", riskLevel = 2)
     public ApiResponse<LineageEdge> recordLineage(@RequestBody LineageEdge edge) {
         return ApiResponse.success(lineageService.record(edge));
     }
@@ -66,6 +68,7 @@ public class AnalyticsGovernanceController {
 
     @Operation(summary = "删除血缘关系", description = "根据血缘记录 ID 删除指定的数据血缘关系。")
     @DeleteMapping("/lineage/{id}")
+    @AuditLog(operation = "删除数据血缘关系", businessType = "ANALYTICS", riskLevel = 4)
     public ApiResponse<Void> deleteLineage(@Parameter(description = "血缘记录 ID") @PathVariable UUID id) {
         lineageService.delete(id);
         return ApiResponse.success();
@@ -73,6 +76,7 @@ public class AnalyticsGovernanceController {
 
     @Operation(summary = "创建质量规则", description = "新增一条数据质量校验规则并返回创建结果。")
     @PostMapping("/quality/rules")
+    @AuditLog(operation = "创建质量规则", businessType = "ANALYTICS", riskLevel = 3)
     public ApiResponse<DataQualityRule> createRule(@RequestBody DataQualityRule rule) {
         log.info("[API] create quality rule: code={}", (rule.getRuleCode() + "").replace("\r", "_").replace("\n", "_"));
         return ApiResponse.success(dataQualityService.create(rule));
@@ -80,6 +84,7 @@ public class AnalyticsGovernanceController {
 
     @Operation(summary = "更新质量规则", description = "根据规则 ID 更新数据质量校验规则的配置内容。")
     @PutMapping("/quality/rules/{id}")
+    @AuditLog(operation = "修改质量规则", businessType = "ANALYTICS", riskLevel = 3)
     public ApiResponse<DataQualityRule> updateRule(@Parameter(description = "质量规则 ID") @PathVariable UUID id,
                                                    @RequestBody DataQualityRule rule) {
         log.info("[API] update quality rule: id={}", id);
@@ -88,6 +93,7 @@ public class AnalyticsGovernanceController {
 
     @Operation(summary = "删除质量规则", description = "根据规则 ID 删除指定的数据质量校验规则。")
     @DeleteMapping("/quality/rules/{id}")
+    @AuditLog(operation = "删除质量规则", businessType = "ANALYTICS", riskLevel = 4)
     public ApiResponse<Void> deleteRule(@Parameter(description = "质量规则 ID") @PathVariable UUID id) {
         dataQualityService.delete(id);
         return ApiResponse.success();
@@ -110,6 +116,7 @@ public class AnalyticsGovernanceController {
 
     @Operation(summary = "执行质量规则", description = "立即执行指定的数据质量规则并返回本次校验结果。")
     @PostMapping("/quality/rules/{id}/run")
+    @AuditLog(operation = "执行质量规则", businessType = "ANALYTICS", riskLevel = 1)
     public ApiResponse<DataQualityResult> runRule(@Parameter(description = "质量规则 ID") @PathVariable UUID id) {
         log.info("[API] run quality rule: id={}", id);
         return ApiResponse.success(dataQualityService.runRule(id));

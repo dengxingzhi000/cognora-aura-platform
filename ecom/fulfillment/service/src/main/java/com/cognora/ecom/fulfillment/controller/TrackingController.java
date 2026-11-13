@@ -2,6 +2,7 @@ package com.cognora.ecom.fulfillment.controller;
 
 import com.cognora.ecom.fulfillment.domain.entity.Tracking;
 import com.cognora.ecom.fulfillment.service.ITrackingService;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,6 +29,7 @@ public class TrackingController {
 
     @Operation(summary = "记录跟踪事件", description = "登记一条履约轨迹事件，用于形成物流跟踪记录。")
     @PostMapping("/tracking")
+    @AuditLog(operation = "登记履约跟踪事件", businessType = "FULFILLMENT", riskLevel = 2)
     public Tracking recordEvent(@Valid @RequestBody Tracking tracking) {
         log.info("[API] Record tracking event: fulfillmentNo={}, status={}",
                 (tracking.getFulfillmentNo() + "").replace("\r", "_").replace("\n", "_"), (tracking.getStatus() + "").replace("\r", "_").replace("\n", "_"));

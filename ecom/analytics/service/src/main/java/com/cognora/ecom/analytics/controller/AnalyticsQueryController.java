@@ -3,6 +3,7 @@ package com.cognora.ecom.analytics.controller;
 import com.cognora.ecom.analytics.api.dto.DatasetQueryRequest;
 import com.cognora.ecom.analytics.api.dto.DatasetQueryResult;
 import com.cognora.ecom.analytics.query.QueryEngine;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.tenant.TenantContextHolder;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,6 +38,7 @@ public class AnalyticsQueryController {
 
     @Operation(summary = "执行分析查询", description = "按数据集与指标、维度定义执行声明式分析查询，并按组织范围过滤数据。")
     @PostMapping("/query")
+    @AuditLog(operation = "执行分析查询", businessType = "ANALYTICS", riskLevel = 2)
     public ApiResponse<DatasetQueryResult> query(
             @RequestBody DatasetQueryRequest request,
             @RequestHeader(value = "X-Organization-Ids", required = false) String organizationIds) {
