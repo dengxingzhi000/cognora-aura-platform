@@ -75,6 +75,7 @@ class DriftCheckerFixtureTest(unittest.TestCase):
         java: str,
         *,
         extra_catalog_files: dict[str, str] | None = None,
+        encoding_env: str | None = None,
     ) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -89,9 +90,12 @@ class DriftCheckerFixtureTest(unittest.TestCase):
                 (catalog / name).write_text(content, encoding="utf-8")
             (controllers / "DemoController.java").write_text(java, encoding="utf-8")
             env = dict(os.environ)
-            # 故意**不**注入 PYTHONIOENCODING：检查器自己负责把输出切成 UTF-8
-            # （_force_utf8_output），注入环境变量会让这条路径永远得不到验证。
+            # 默认**不**注入 PYTHONIOENCODING：检查器自己负责把输出切成 UTF-8
+            # （_force_utf8_output），注入环境变量会让这条路径得不到验证。
+            # encoding_env 用来把子进程钉在某个编码上（见 gbk 用例）。
             env.pop("PYTHONIOENCODING", None)
+            if encoding_env is not None:
+                env["PYTHONIOENCODING"] = encoding_env
             return subprocess.run(
                 [
                     sys.executable,
@@ -195,6 +199,26 @@ class DriftCheckerFixtureTest(unittest.TestCase):
         # 没有替换字符（U+FFFD）：出现即说明编码被破坏过。
         self.assertNotIn("\ufffd", output)
 
+    def test_chinese_diagnostics_round_trip_with_legacy_encoding_env(self) -> None:
+        """即便子进程被钉在 GBK 上，检查器也必须输出 UTF-8。
+
+        上一条用例在「默认编码本来就是 UTF-8」的机器上（Linux CI、或开了
+        "Beta: Use Unicode UTF-8" 的 Windows）是空转的：删掉检查器的
+        `_force_utf8_output()` 也不会红。这里把子进程的编码钉成 GBK（CPython 自带该
+        编解码器，任何机器都有），检查器自己的 reconfigure 必须覆盖掉它 —— 于是
+        这个用例在**每一台**机器上都能区分「有强制 UTF-8」与「没有」。
+        """
+        result = self.run_checker(
+            [AUDIT_ROW],
+            controller(method('PostMapping("/things")', "hasAuthority('demo:thing:audit')", "create")),
+            encoding_env="gbk",
+        )
+        output = self.output(result)
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("目录里没有", output)
+        self.assertIn("绑定", output)
+        self.assertNotIn("\ufffd", output)
+
     def test_unbound_code_is_only_a_warning(self) -> None:
         """码在目录里存在、但该 (path, method) 没绑定 → 只报 WARNING，不失败。"""
         result = self.run_checker(
@@ -270,6 +294,28 @@ class DriftCheckerFixtureTest(unittest.TestCase):
         # 跳过该端点时有告警，且注解因为绑定不到端点而报 CONCERN（不静默）。
         self.assertIn("跳过该端点", output)
         self.assertIn("CONCERN", output)
+
+    def test_malformed_catalog_row_aborts(self) -> None:
+        """结构不合法的目录行 → 解析失败、退出码 1（fail-fast，不能被"跳过"软化）。
+
+        这一行同时踩了两个坑：码不像权限码（没有 `:`）、url 不是绝对路径。
+        结构校验必须**先于**「码不像权限码就跳过」——否则真正畸形的行会被静默跳过，
+        脚本就不再是「宁可失败也不产出错误结论」。
+        """
+        result = self.run_checker(
+            [CREATE_ROW],
+            controller(method('PostMapping("/things")', "hasAuthority('demo:thing:create')", "create")),
+            extra_catalog_files={
+                "023_malformed.sql": (
+                    SEED_HEADER
+                    + "    ('notapermissioncode','演示','menu:demo','api/v1/things','POST',3,1);\n"
+                ),
+            },
+        )
+        output = self.output(result)
+        self.assertEqual(result.returncode, 1, output)
+        self.assertIn("ERROR parse", output)
+        self.assertNotIn("Traceback", output)
 
     def test_conflicting_catalog_rows_abort(self) -> None:
         """同一 (url, method) 绑到不同权限码 → 解析失败、退出码 1。"""

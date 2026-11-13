@@ -28,6 +28,7 @@ import contextlib
 import importlib.util
 import io
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -75,12 +76,43 @@ def quiet(function, *args, **kwargs):
         return function(*args, **kwargs)
 
 
+def capture(function, *args, **kwargs):
+    """调用会打印提示的函数，返回（结果, stdout+stderr）。"""
+    buffer_out = io.StringIO()
+    buffer_err = io.StringIO()
+    with contextlib.redirect_stdout(buffer_out), contextlib.redirect_stderr(buffer_err):
+        result = function(*args, **kwargs)
+    return result, buffer_out.getvalue() + buffer_err.getvalue()
+
+
 def strip_shape(index: dict) -> dict:
     """去掉生成器独有的 `shape` 元数据，只比业务字段。"""
     return {
         key: {field: value for field, value in row.items() if field != "shape"}
         for key, row in index.items()
     }
+
+
+# 一个 javadoc 长到「方法声明查找窗口」之外（> METHOD_LOOKUP_WINDOW 个字符）的 controller：
+# 两侧必须给出同样的结论（同样跳过该端点、同样告警）。
+LONG_JAVADOC_CONTROLLER = """package demo;
+
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1")
+public class LongDocController {
+
+    @GetMapping("/things")
+    /**
+""" + "     * " + ("很长的说明 " * 2000) + """
+     */
+    public String things() {
+        return "ok";
+    }
+
+}
+"""
 
 
 class PermissionRulesConformanceTest(unittest.TestCase):
@@ -189,6 +221,69 @@ class PermissionRulesConformanceTest(unittest.TestCase):
             [path.resolve() for path in checker_files],
             "两个脚本扫描到的 controller 文件集合不一致",
         )
+
+    def test_comment_stripping_is_identical(self) -> None:
+        """注释置空算法必须逐字一致。
+
+        生成器曾经「删除」注释、护栏「置空」注释：源码长度不同 → 方法声明查找窗口
+        量到的距离不同 → 同一份源码在两侧得到不同的端点集合。这里直接比对置空结果。
+        """
+        compared = 0
+        for path in quiet(self.mapping.controller_files):
+            source = path.read_text(encoding="utf-8", errors="replace")
+            map_stripped = self.mapping.strip_java_comments(source)
+            checker_stripped = self.checker.strip_java_comments(source)
+            self.assertEqual(
+                map_stripped,
+                checker_stripped,
+                f"{path.name}：两个脚本的注释置空结果不同",
+            )
+            # 置空必须保留行数（诊断行号依赖它）。
+            self.assertEqual(
+                map_stripped.count("\n"), source.count("\n"), f"{path.name}：行数被改动"
+            )
+            compared += 1
+        self.assertGreater(compared, 0, "没有可比对的 controller 文件，测试等于没跑")
+
+    def test_long_javadoc_case_is_identical(self) -> None:
+        """长 javadoc 的 controller：两个脚本必须给出同样的结论。
+
+        窗口按字符数量计算，注释置空算法不同时两侧会一个保留端点、一个跳过端点
+        （已提交产物与 CI 护栏就会对同一份源码给出不同结论）。
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            controller = root / "LongDocController.java"
+            controller.write_text(LONG_JAVADOC_CONTROLLER, encoding="utf-8")
+            original_root = self.mapping.ROOT
+            self.mapping.ROOT = root
+            try:
+                (_rel, map_endpoints), map_output = capture(
+                    self.mapping.parse_controller, controller
+                )
+                checker_endpoints, _annotations = quiet(
+                    self.checker.parse_controller, controller, root
+                )
+                checker_warnings = self.checker.pending_warnings()
+            finally:
+                self.mapping.ROOT = original_root
+
+            self.assertEqual(
+                len(map_endpoints),
+                len(checker_endpoints),
+                "长 javadoc 场景下两个脚本解析出的端点数不一致",
+            )
+            self.assertEqual(
+                {(e["httpMethod"], e["path"]) for e in map_endpoints},
+                {(e["httpMethod"], e["path"]) for e in checker_endpoints},
+                "长 javadoc 场景下两个脚本解析出的端点不一致",
+            )
+            # 两边都要「跳过该端点 + 告警」，而不是一个跳过、一个中断。
+            self.assertIn("跳过该端点", map_output)
+            self.assertTrue(
+                any("跳过该端点" in message for message in checker_warnings),
+                f"检查器没有记录跳过告警：{checker_warnings}",
+            )
 
     def test_endpoint_codes_and_exemptions_are_identical(self) -> None:
         """每个端点：目录绑定、豁免判定、豁免原因都必须一致。"""

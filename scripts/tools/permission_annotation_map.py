@@ -279,29 +279,44 @@ def matches_any(path: str, patterns: list[str]) -> bool:
 # Java 源码解析
 # ---------------------------------------------------------------------------
 def strip_java_comments(source: str) -> str:
-    """去掉 // 与 /* */ 注释，保留字符串/字符字面量内容。"""
-    out: list[str] = []
-    i = 0
+    """把注释替换成等长空格（保留换行），行号与源文件保持一致。
+
+    字符串/字符字面量的内容原样保留：注解参数里就有字符串。
+
+    注释**置空**而不是删除：删除会让源码变短，而方法声明查找窗口
+    （METHOD_LOOKUP_WINDOW）按字符数量计算 —— 两侧算法不同就会量到不同的距离，
+    得到不同的端点集合（生成器与 CI 护栏因此会对同一份源码给出不同结论）。
+    置空后两侧量到的是同一段距离，端点集合一致；一致性由
+    scripts/ci/test_permission_rules_conformance.py 钉住。
+    """
+    out = list(source)
     length = len(source)
+    i = 0
     while i < length:
         char = source[i]
         nxt = source[i + 1] if i + 1 < length else ""
         if char == "/" and nxt == "/":
             while i < length and source[i] != "\n":
+                out[i] = " "
                 i += 1
         elif char == "/" and nxt == "*":
+            out[i] = " "
+            out[i + 1] = " "
             i += 2
             while i + 1 < length and not (source[i] == "*" and source[i + 1] == "/"):
+                if source[i] != "\n":
+                    out[i] = " "
                 i += 1
+            if i < length:
+                out[i] = " "
+            if i + 1 < length:
+                out[i + 1] = " "
             i += 2
         elif char in ("\"", "'"):
             quote = char
-            out.append(char)
             i += 1
             while i < length:
-                out.append(source[i])
                 if source[i] == "\\" and i + 1 < length:
-                    out.append(source[i + 1])
                     i += 2
                     continue
                 if source[i] == quote:
@@ -309,7 +324,6 @@ def strip_java_comments(source: str) -> str:
                     break
                 i += 1
         else:
-            out.append(char)
             i += 1
     return "".join(out)
 
@@ -448,13 +462,17 @@ def parse_catalog() -> tuple[list[dict], list[str]]:
                     continue
                 spans.append((match.start(), match.end()))
                 code = match.group(1)
-                url = normalize_path(match.group(url_group))
+                raw_url = match.group(url_group)
                 method = match.group(method_group).upper()
-                if not url.startswith("/"):
+                if not raw_url.strip().startswith("/"):
+                    # 结构不合法 → 宁可失败，也不产出错误结论。
+                    # 注意：这里校验的是 **seed 里的原始值**，不是 normalize 之后的值
+                    # （normalize_path 会补前导斜杠，用它校验等于形同虚设）。
                     raise ParseError(
-                        f"{sql_path.name}: {code} 的 url 不是绝对路径（{url}），"
+                        f"{sql_path.name}: {code} 的 url 不是绝对路径（{raw_url}），"
                         f"目录形状判定可能有误"
                     )
+                url = normalize_path(raw_url)
                 rows.append(
                     {
                         "code": code,

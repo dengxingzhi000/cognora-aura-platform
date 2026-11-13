@@ -24,8 +24,9 @@ controller 解析与豁免规则；两个脚本有意各自独立、**不互相 
     不失败，也不在本脚本里补目录数据）。
   * 端点命中豁免清单 → ERROR（防止后续把权限注解打回豁免端点）。
 
-诊断格式：`file:line code expected ...`（error / warning / concern 各一段，
-按 file:line 排序，输出确定）。
+诊断格式：`file:line code expected ...`（error / warning / concern 各一段，按 file:line
+全局排序，输出确定）。解析阶段的告警（跳过端点等）也并入同一张表：它们没有行号，
+按 0 排在本文件最前。
 
 仅使用标准库。
 """
@@ -217,6 +218,11 @@ _PARSE_WARNINGS: list[str] = []
 def warn(message: str) -> None:
     """记录一条告警（不改变退出码；计入摘要的 warnings 计数）。"""
     _PARSE_WARNINGS.append(message)
+
+
+def pending_warnings() -> list[str]:
+    """解析阶段记录的告警（main() 会清空并把它们并入诊断输出）。"""
+    return list(_PARSE_WARNINGS)
 
 
 # ---------------------------------------------------------------------------
@@ -571,19 +577,22 @@ def parse_catalog(
                     continue
                 spans.append((match.start(), match.end()))
                 code = match.group(code_group)
-                url = normalize_path(match.group(url_group))
+                raw_url = match.group(url_group)
                 method = match.group(method_group).upper()
+                if not raw_url.strip().startswith("/"):
+                    # 结构不合法 → 宁可失败，也不产出错误结论。
+                    # 注意：这里校验的是 **seed 里的原始值**，不是 normalize 之后的值
+                    # （normalize_path 会补前导斜杠，用它校验等于形同虚设）。
+                    raise ParseError(
+                        f"{sql_path.name}: {code} 的 url 不是绝对路径（{raw_url}），"
+                        f"目录形状判定可能有误"
+                    )
+                url = normalize_path(raw_url)
                 if ":" not in code:
-                    # 目录行的码必须像权限码（domain:resource:action）。不像就不是目录行
-                    # （多半是 seed 的列顺序变了，或匹配到了别的形状）：整行跳过并计数，
+                    # 结构合法、但码不像权限码（domain:resource:action）：整行跳过并计数，
                     # 不让它进码集合、也不让它成为 (url, method) 的绑定。
                     skipped_literals += 1
                     continue
-                if not url.startswith("/"):
-                    raise ParseError(
-                        f"{sql_path.name}: {code} 的 url 不是绝对路径（{url}），"
-                        f"目录形状判定可能有误"
-                    )
                 rows += 1
                 codes.add(code)
                 key = (url, method)
@@ -832,13 +841,17 @@ def main(argv: list[str] | None = None) -> int:
         if severity != "ok":
             diagnostics.append((severity, message, annotation["line"]))
 
+    # 解析阶段的告警（跳过端点等）并入同一张表：这样
+    #   * 摘要里的 warnings 数 == 打印出来的 WARNING 行数；
+    #   * 所有诊断按 file:line 全局排序（解析告警没有行号，按 0 排在本文件最前）。
+    for message in _PARSE_WARNINGS:
+        diagnostics.append((SEVERITY_WARNING, message, 0))
+
     diagnostics.sort(key=lambda item: (item[1].split(":", 1)[0], item[2], item[1]))
     errors = [message for severity, message, _line in diagnostics if severity == SEVERITY_ERROR]
-    # 解析阶段的告警（跳过端点等）也算 warning：摘要里的 warnings 数必须等于
-    # 实际打印出来的 WARNING 行数。
     warnings = [
         message for severity, message, _line in diagnostics if severity == SEVERITY_WARNING
-    ] + list(_PARSE_WARNINGS)
+    ]
     concerns = [
         message for severity, message, _line in diagnostics if severity == SEVERITY_CONCERN
     ]
