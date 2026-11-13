@@ -13,10 +13,10 @@
 --   管理端 + 混合端合计 552 条：literal 203 条，templated 349 条。
 --   （order-center 的 /api/v1/orders/{orderNo}/pay 已从本清单移除：该路由现在只走服务间
 --     HMAC 签名通道，由 ecom-payment 在渠道验签通过后调用，不再属于权限目录。）
---   - 第 1 段（literal）：当前 ApiAccessControlFilter + SysPermissionMapper.findPermissionsByUrl
---     使用 api_path 精确匹配，可直接生效。
---   - 第 2 段（templated）：api_path 含 {var} 占位符，需先把 findPermissionsByUrl 升级为
---     Ant/占位符匹配后才会生效；本段只登记定义，不改变当前放行行为。
+--   - 第 1 段（literal）：api_path 为字面量，匹配时先按字符串全等命中。
+--   - 第 2 段（templated）：api_path 含 {var} 占位符，经 ApiPermissionMatcher 的
+--     Ant/占位符匹配生效；行为由 SysPermissionServiceImplMatcherTest 与
+--     ApiPermissionMatcherTest 固化。
 --
 -- 不在本脚本内：
 --   - 公开端点（登录/刷新/支付渠道回调）
