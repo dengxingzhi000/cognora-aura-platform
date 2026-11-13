@@ -12,7 +12,8 @@
 #  - CronJob `db-maintenance-monthly`：`0 3 1 * *`，`once all` = create + create-audit + drop + retention。
 #  - CronJob `db-maintenance-weekly`：`0 3 * * 1`，依次执行 `once drop` 与 `once retention`。
 #    runner 的 `once` 一次只接受一个任务，所以这里顺序调用两次；drop 失败也必须继续跑 retention
-#    （因此不用 `&&` 串联），Pod 退出码反映最后一个任务（retention）的结果。
+#    （因此不用 `&&` 串联），但退出码取两个任务结果的合并值：任一失败都返回非 0，
+#    否则 drop（安全关键的那一步）失败会被 retention 的成功掩盖，Job 被误标成成功。
 #
 # 连接参数沿用既有约定：DB_HOST / DB_PORT / DB_USER / DB_PASSWORD（+ CH_*）。
 # 注意脚本读的是 DB_USER，而 Secret `scm-secrets` 里的 key 是 DB_USERNAME，这里做一次映射。
@@ -744,9 +745,13 @@ items:
                       chmod +x /opt/run-maintenance.sh
                       export MAINTENANCE_SCRIPTS_DIR=/opt/db
                       # runner 的 once 一次只接一个任务，所以这里顺序调用两次。
-                      # 不用 `&&` 串联：drop 失败也必须继续跑 retention；退出码取最后一个任务（retention）的结果。
-                      bash /opt/run-maintenance.sh once drop
-                      bash /opt/run-maintenance.sh once retention
+                      # 不用 `&&` 串联：drop 失败也必须继续跑 retention。
+                      # 退出码取两个任务结果的合并值：任一失败都返回非 0，
+                      # 否则 drop（安全关键的那一步）失败会被 retention 的成功掩盖，Job 被误标成成功。
+                      failed=0
+                      bash /opt/run-maintenance.sh once drop || failed=1
+                      bash /opt/run-maintenance.sh once retention || failed=1
+                      exit "${failed}"
                   env:
                     - name: DB_HOST
                       valueFrom:

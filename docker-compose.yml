@@ -861,6 +861,9 @@ services:
       SPRING_APPLICATION_NAME: platform-product
       # classpath 上 application.yaml / .yml 同时存在时端口会被盖成 8080，OS 环境变量优先级最高
       SERVER_PORT: 8201
+      # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
+      # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
+      SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
       # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
       SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_product?stringtype=unspecified
       # 搜索索引由 ES 提供；没有 ES 时搜索接口会报错，但启动与其余接口正常
