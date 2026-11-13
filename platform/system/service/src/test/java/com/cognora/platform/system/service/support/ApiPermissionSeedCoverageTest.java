@@ -35,8 +35,8 @@ class ApiPermissionSeedCoverageTest {
         List<Row> rows = seedRows();
         List<Row> templated = rows.stream().filter(row -> isTemplate(row.apiPath)).toList();
 
-        assertEquals(354, templated.size(),
-                "模板端点数（019 段 2 的 349 条，order-center pay 端点已移出目录 + 002 的 4 条 + inventory safety-stock 的 1 条 = 354），改动 seed 后需同步更新断言");
+        assertEquals(353, templated.size(),
+                "模板端点数（019 段 2 的 349 条，order-center pay 端点已移出目录 + 002 的 4 条 = 353），改动 seed 后需同步更新断言");
 
         List<SysPermission> candidates = toCandidates(rows);
         for (Row row : templated) {
