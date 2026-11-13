@@ -5,6 +5,7 @@ import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.scm.warehouse.domain.entity.WmsWavePicking;
 import com.cognora.scm.warehouse.service.command.WmsWavePickingCommandService;
@@ -25,6 +26,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "创建波次拣货单", description = "按仓库与订单数量新建波次拣货单并生成波次号。")
     @PostMapping
+    @PreAuthorize("hasAuthority('warehouse:wave-picking:create')")
     @AuditLog(operation = "创建波次拣货单", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsWavePicking> create(@RequestBody WmsWavePicking wave) {
         log.info("[API] 创建波次拣货单 warehouseId={}, orderCount={}", (wave.getWarehouseId() + "").replace("\r", "_").replace("\n", "_"), (wave.getOrderCount() + "").replace("\r", "_").replace("\n", "_"));
@@ -35,6 +37,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "更新波次拣货单", description = "按主键更新波次拣货单信息，仅未开始拣货的波次允许修改。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:wave-picking:update')")
     @AuditLog(operation = "更新波次拣货单", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsWavePicking> update(@Parameter(description = "波次拣货单主键 ID") @PathVariable String id, @RequestBody WmsWavePicking wave) {
         log.info("[API] 更新波次拣货单 id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -52,6 +55,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "删除波次拣货单", description = "按主键删除波次拣货单，删除后不再参与拣货作业。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:wave-picking:delete')")
     @AuditLog(operation = "删除波次拣货单", businessType = "WAREHOUSE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "波次拣货单主键 ID") @PathVariable String id) {
         log.info("[API] 删除波次拣货单 id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -61,6 +65,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "查询波次拣货单详情", description = "按主键查询波次拣货单，单据不存在时返回 404。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:wave-picking:view')")
     public ApiResponse<WmsWavePicking> getById(@Parameter(description = "波次拣货单主键 ID") @PathVariable String id) {
         WmsWavePicking wave = wavePickingQueryService.getById(id);
         if (wave == null) {
@@ -71,6 +76,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "分页查询波次拣货单", description = "按仓库与波次状态分页查询波次拣货单列表。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('warehouse:wave-picking:page')")
     public ApiResponse<Page<WmsWavePicking>> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -81,6 +87,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "开始拣货", description = "指派拣货员并开始执行指定波次拣货单。")
     @PutMapping("/{id}/start")
+    @PreAuthorize("hasAuthority('warehouse:wave-picking:start')")
     @AuditLog(operation = "开始拣货", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<Void> start(
             @Parameter(description = "波次拣货单主键 ID") @PathVariable String id,
@@ -97,6 +104,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "完成拣货", description = "将指定波次拣货单标记为拣货完成并记录操作人。")
     @PutMapping("/{id}/complete")
+    @PreAuthorize("hasAuthority('warehouse:wave-picking:complete')")
     @AuditLog(operation = "完成拣货", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<Void> complete(
             @Parameter(description = "波次拣货单主键 ID") @PathVariable String id,
@@ -112,6 +120,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "取消波次拣货单", description = "取消指定波次拣货单并记录操作人，已完成拣货的波次不允许取消。")
     @PutMapping("/{id}/cancel")
+    @PreAuthorize("hasAuthority('warehouse:wave-picking:cancel')")
     @AuditLog(operation = "取消波次拣货单", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<Void> cancel(
             @Parameter(description = "波次拣货单主键 ID") @PathVariable String id,

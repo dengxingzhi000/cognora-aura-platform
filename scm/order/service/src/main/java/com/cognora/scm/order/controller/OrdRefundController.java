@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -63,6 +64,7 @@ public class OrdRefundController {
 
     @Operation(summary = "查询退款单", description = "根据退款单 ID 查询退款详情及其明细。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('order:refund:view')")
     public ApiResponse<RefundResponse> getById(@Parameter(description = "退款单 ID") @PathVariable UUID id) {
         log.info("[API] Query refund: id={}", id);
         return ApiResponse.success(queryService.getResponseById(id));
@@ -70,6 +72,7 @@ public class OrdRefundController {
 
     @Operation(summary = "查询退款明细", description = "根据退款单 ID 查询退款明细列表。")
     @GetMapping("/{id}/items")
+    @PreAuthorize("hasAuthority('order:refund:list-items')")
     public ApiResponse<List<RefundItemResponse>> listItems(@Parameter(description = "退款单 ID") @PathVariable UUID id) {
         log.info("[API] Query refund items: refundId={}", id);
         return ApiResponse.success(refundItemQueryService.listResponsesByRefundId(id));
@@ -77,6 +80,7 @@ public class OrdRefundController {
 
     @Operation(summary = "按订单查询退款单", description = "根据订单 ID 查询该订单关联的退款单列表。")
     @GetMapping("/order/{orderId}")
+    @PreAuthorize("hasAuthority('order:refund:list-by-order-id')")
     public ApiResponse<List<RefundResponse>> listByOrderId(@Parameter(description = "订单 ID") @PathVariable UUID orderId) {
         log.info("[API] Query refunds by order: orderId={}", orderId);
         return ApiResponse.success(queryService.listResponsesByOrderId(orderId));
@@ -87,6 +91,7 @@ public class OrdRefundController {
      */
     @Operation(summary = "分页查询退款单", description = "按条件分页查询退款单，支持退款单号、订单、用户、状态及时间区间过滤。")
     @PostMapping("/query")
+    @PreAuthorize("hasAuthority('order:refund:query')")
     @AuditLog(operation = "分页查询退款单", businessType = "ORDER", riskLevel = 2)
     public ApiResponse<Page<RefundResponse>> query(@RequestBody @Valid RefundQueryRequest request) {
         log.info("[API] Query refunds: {}", (request + "").replace("\r", "_").replace("\n", "_"));
@@ -110,6 +115,7 @@ public class OrdRefundController {
      */
     @Operation(summary = "审核通过退款", description = "审核通过退款申请并记录处理人信息。")
     @PutMapping("/{id}/approve")
+    @PreAuthorize("hasAuthority('order:refund:approve')")
     @AuditLog(operation = "审批通过退款", businessType = "ORDER", riskLevel = 4)
     public ApiResponse<RefundResponse> approve(
             @Parameter(description = "退款单 ID") @PathVariable UUID id,
@@ -124,6 +130,7 @@ public class OrdRefundController {
      */
     @Operation(summary = "拒绝退款", description = "拒绝退款申请并记录处理人信息。")
     @PutMapping("/{id}/reject")
+    @PreAuthorize("hasAuthority('order:refund:reject')")
     @AuditLog(operation = "驳回退款申请", businessType = "ORDER", riskLevel = 4)
     public ApiResponse<RefundResponse> reject(
             @Parameter(description = "退款单 ID") @PathVariable UUID id,
@@ -138,6 +145,7 @@ public class OrdRefundController {
      */
     @Operation(summary = "完成退款", description = "标记退款单已完成，用于线下退款成功后的回调。")
     @PutMapping("/{id}/complete")
+    @PreAuthorize("hasAuthority('order:refund:complete')")
     @AuditLog(operation = "完成退款", businessType = "ORDER", riskLevel = 4)
     public ApiResponse<RefundResponse> complete(@Parameter(description = "退款单 ID") @PathVariable UUID id) {
         log.info("[API] Complete refund: id={}", id);

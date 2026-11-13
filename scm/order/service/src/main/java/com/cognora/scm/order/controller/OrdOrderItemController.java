@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,6 +46,7 @@ public class OrdOrderItemController {
 
     @Operation(summary = "查询订单明细", description = "根据订单明细 ID 查询明细详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('order:order-item:view')")
     public ApiResponse<OrderItemResponse> getById(@Parameter(description = "订单明细 ID") @PathVariable UUID id) {
         log.info("[API] Query order item: id={}", id);
         return ApiResponse.success(queryService.getResponseById(id.toString()));
@@ -55,6 +57,7 @@ public class OrdOrderItemController {
      */
     @Operation(summary = "分页查询订单明细", description = "按订单 ID 分页查询该订单的明细项。")
     @PostMapping("/query")
+    @PreAuthorize("hasAuthority('order:order-item:query')")
     @AuditLog(operation = "分页查询订单明细", businessType = "ORDER", riskLevel = 2)
     public ApiResponse<Page<OrderItemResponse>> queryByOrderId(@RequestBody @Valid OrdOrderItemQueryRequest request) {
         log.info("[API] Query order items: orderId={}, page={}/{}",

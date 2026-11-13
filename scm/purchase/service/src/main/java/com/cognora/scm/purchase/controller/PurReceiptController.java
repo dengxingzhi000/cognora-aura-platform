@@ -3,6 +3,7 @@ package com.cognora.scm.purchase.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurReceipt;
@@ -24,18 +25,21 @@ public class PurReceiptController {
 
     @Operation(summary = "根据 ID 查询收货单", description = "按主键查询单张采购收货单的完整信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:receipt:view')")
     public PurReceipt getById(@Parameter(description = "收货单主键 ID") @PathVariable String id) {
         return purReceiptService.getById(id);
     }
 
     @Operation(summary = "根据收货单号查询", description = "按业务单号查询采购收货单，用于外部单据核对。")
     @GetMapping("/no/{receiptNo}")
+    @PreAuthorize("hasAuthority('purchase:receipt:get-by-receipt-no')")
     public PurReceipt getByReceiptNo(@Parameter(description = "收货单业务单号") @PathVariable String receiptNo) {
         return purReceiptService.getByReceiptNo(receiptNo);
     }
 
     @Operation(summary = "分页查询收货单", description = "按状态、收货类型、供应商和关键字分页查询采购收货单。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('purchase:receipt:page')")
     public Page<PurReceipt> page(
             @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") int size,
@@ -48,12 +52,14 @@ public class PurReceiptController {
 
     @Operation(summary = "查询采购订单的收货单", description = "根据采购订单 ID 查询该订单关联的全部收货单。")
     @GetMapping("/order/{orderId}")
+    @PreAuthorize("hasAuthority('purchase:receipt:list-by-order-id')")
     public List<PurReceipt> listByOrderId(@Parameter(description = "采购订单 ID") @PathVariable String orderId) {
         return purReceiptService.listByOrderId(orderId);
     }
 
     @Operation(summary = "新增收货单", description = "创建一张新的采购收货单。")
     @PostMapping
+    @PreAuthorize("hasAuthority('purchase:receipt:create')")
     @AuditLog(operation = "新增收货单", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurReceipt purReceipt) {
         return purReceiptService.save(purReceipt);
@@ -61,6 +67,7 @@ public class PurReceiptController {
 
     @Operation(summary = "修改收货单", description = "按主键更新已有的采购收货单。")
     @PutMapping
+    @PreAuthorize("hasAuthority('purchase:receipt:update')")
     @AuditLog(operation = "修改收货单", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurReceipt purReceipt) {
         return purReceiptService.updateById(purReceipt);
@@ -68,6 +75,7 @@ public class PurReceiptController {
 
     @Operation(summary = "删除收货单", description = "按主键删除采购收货单。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:receipt:delete')")
     @AuditLog(operation = "删除收货单", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "收货单主键 ID") @PathVariable String id) {
         return purReceiptService.removeById(id);
@@ -75,6 +83,7 @@ public class PurReceiptController {
 
     @Operation(summary = "确认收货", description = "登记收货人和收货人名称，将收货单推进至已收货状态。")
     @PostMapping("/{id}/receive")
+    @PreAuthorize("hasAuthority('purchase:receipt:receive')")
     @AuditLog(operation = "确认收货", businessType = "PURCHASE", riskLevel = 3)
     public boolean receive(
             @Parameter(description = "收货单主键 ID") @PathVariable String id,
@@ -85,6 +94,7 @@ public class PurReceiptController {
 
     @Operation(summary = "收货质检", description = "记录质检人、质检结果与备注，完成收货单的质量检验。")
     @PostMapping("/{id}/quality-inspect")
+    @PreAuthorize("hasAuthority('purchase:receipt:quality-inspect')")
     @AuditLog(operation = "收货质检", businessType = "PURCHASE", riskLevel = 3)
     public boolean qualityInspect(
             @Parameter(description = "收货单主键 ID") @PathVariable String id,
@@ -97,6 +107,7 @@ public class PurReceiptController {
 
     @Operation(summary = "收货上架", description = "记录上架操作人，将质检合格的货物上架入库。")
     @PostMapping("/{id}/shelve")
+    @PreAuthorize("hasAuthority('purchase:receipt:shelve')")
     @AuditLog(operation = "收货上架", businessType = "PURCHASE", riskLevel = 3)
     public boolean shelve(
             @Parameter(description = "收货单主键 ID") @PathVariable String id,

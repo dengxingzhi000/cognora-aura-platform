@@ -5,6 +5,7 @@ import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.scm.warehouse.domain.entity.WmsWarehouse;
 import com.cognora.scm.warehouse.service.command.WmsWarehouseCommandService;
@@ -27,6 +28,7 @@ public class WmsWarehouseController {
 
     @Operation(summary = "创建仓库", description = "新建仓库档案，仓库编码需保持唯一。")
     @PostMapping
+    @PreAuthorize("hasAuthority('warehouse:warehouse:create')")
     @AuditLog(operation = "创建仓库", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsWarehouse> create(@RequestBody WmsWarehouse warehouse) {
         log.info("[API] 创建仓库: code={}, name={}", (warehouse.getWarehouseCode() + "").replace("\r", "_").replace("\n", "_"), (warehouse.getWarehouseName() + "").replace("\r", "_").replace("\n", "_"));
@@ -41,6 +43,7 @@ public class WmsWarehouseController {
 
     @Operation(summary = "更新仓库", description = "按主键更新仓库的基础信息与联系人信息。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:warehouse:update')")
     @AuditLog(operation = "更新仓库", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsWarehouse> update(@Parameter(description = "仓库主键 ID") @PathVariable String id, @RequestBody WmsWarehouse warehouse) {
         log.info("[API] 更新仓库: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -54,6 +57,7 @@ public class WmsWarehouseController {
 
     @Operation(summary = "删除仓库", description = "按主键逻辑删除仓库，已删除的仓库不再参与出入库作业。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:warehouse:delete')")
     @AuditLog(operation = "删除仓库", businessType = "WAREHOUSE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "仓库主键 ID") @PathVariable String id) {
         log.info("[API] 删除仓库: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -63,6 +67,7 @@ public class WmsWarehouseController {
 
     @Operation(summary = "查询仓库详情", description = "按主键查询仓库，仓库不存在或已删除时返回 404。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:warehouse:view')")
     public ApiResponse<WmsWarehouse> getById(@Parameter(description = "仓库主键 ID") @PathVariable String id) {
         WmsWarehouse warehouse = warehouseQueryService.getById(id);
         if (warehouse == null || Boolean.TRUE.equals(warehouse.getDeleted())) {
@@ -73,12 +78,14 @@ public class WmsWarehouseController {
 
     @Operation(summary = "查询启用仓库列表", description = "查询全部处于启用状态的仓库，用于下拉选择。")
     @GetMapping("/list")
+    @PreAuthorize("hasAuthority('warehouse:warehouse:list-enabled')")
     public ApiResponse<List<WmsWarehouse>> listEnabled() {
         return ApiResponse.success(warehouseQueryService.listEnabled());
     }
 
     @Operation(summary = "分页查询仓库", description = "按仓库名称、仓库类型与启用状态分页查询仓库列表。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('warehouse:warehouse:page')")
     public ApiResponse<Page<WmsWarehouse>> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -90,6 +97,7 @@ public class WmsWarehouseController {
 
     @Operation(summary = "启用仓库", description = "将指定仓库置为启用状态，启用后可参与出入库作业。")
     @PutMapping("/{id}/enable")
+    @PreAuthorize("hasAuthority('warehouse:warehouse:enable')")
     @AuditLog(operation = "启用仓库", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<Void> enable(@Parameter(description = "仓库主键 ID") @PathVariable String id) {
         log.info("[API] 启用仓库: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -99,6 +107,7 @@ public class WmsWarehouseController {
 
     @Operation(summary = "停用仓库", description = "将指定仓库置为停用状态，停用后不再接收新的出入库作业。")
     @PutMapping("/{id}/disable")
+    @PreAuthorize("hasAuthority('warehouse:warehouse:disable')")
     @AuditLog(operation = "停用仓库", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<Void> disable(@Parameter(description = "仓库主键 ID") @PathVariable String id) {
         log.info("[API] 停用仓库: id={}", (id + "").replace("\r", "_").replace("\n", "_"));

@@ -3,6 +3,7 @@ package com.cognora.scm.purchase.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurPriceComparison;
@@ -24,18 +25,21 @@ public class PurPriceComparisonController {
 
     @Operation(summary = "根据 ID 查询比价单", description = "按主键查询比价单的详细信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:comparison:view')")
     public PurPriceComparison getById(@Parameter(description = "比价单 ID") @PathVariable String id) {
         return purPriceComparisonService.getById(id);
     }
 
     @Operation(summary = "根据比价单号查询", description = "通过比价单号查询比价单详情。")
     @GetMapping("/no/{comparisonNo}")
+    @PreAuthorize("hasAuthority('purchase:comparison:get-by-comparison-no')")
     public PurPriceComparison getByComparisonNo(@Parameter(description = "比价单号") @PathVariable String comparisonNo) {
         return purPriceComparisonService.getByComparisonNo(comparisonNo);
     }
 
     @Operation(summary = "分页查询比价单", description = "按状态和关联询价单分页查询比价单。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('purchase:comparison:page')")
     public Page<PurPriceComparison> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -46,12 +50,14 @@ public class PurPriceComparisonController {
 
     @Operation(summary = "按询价单查询比价单列表", description = "查询指定询价单关联的全部比价单。")
     @GetMapping("/rfq/{rfqId}")
+    @PreAuthorize("hasAuthority('purchase:comparison:list-by-rfq-id')")
     public List<PurPriceComparison> listByRfqId(@Parameter(description = "询价单 ID") @PathVariable String rfqId) {
         return purPriceComparisonService.listByRfqId(rfqId);
     }
 
     @Operation(summary = "新增比价单", description = "创建一份新的供应商比价单。")
     @PostMapping
+    @PreAuthorize("hasAuthority('purchase:comparison:create')")
     @AuditLog(operation = "新增比价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurPriceComparison purPriceComparison) {
         return purPriceComparisonService.save(purPriceComparison);
@@ -59,6 +65,7 @@ public class PurPriceComparisonController {
 
     @Operation(summary = "更新比价单", description = "按主键更新比价单信息。")
     @PutMapping
+    @PreAuthorize("hasAuthority('purchase:comparison:update')")
     @AuditLog(operation = "更新比价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurPriceComparison purPriceComparison) {
         return purPriceComparisonService.updateById(purPriceComparison);
@@ -66,6 +73,7 @@ public class PurPriceComparisonController {
 
     @Operation(summary = "删除比价单", description = "按主键删除比价单。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:comparison:delete')")
     @AuditLog(operation = "删除比价单", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "比价单 ID") @PathVariable String id) {
         return purPriceComparisonService.removeById(id);
@@ -73,6 +81,7 @@ public class PurPriceComparisonController {
 
     @Operation(summary = "审批比价单", description = "记录审批人信息并通过比价单审批。")
     @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAuthority('purchase:comparison:approve')")
     @AuditLog(operation = "审批比价单", businessType = "PURCHASE", riskLevel = 4)
     public boolean approve(
             @Parameter(description = "比价单 ID") @PathVariable String id,

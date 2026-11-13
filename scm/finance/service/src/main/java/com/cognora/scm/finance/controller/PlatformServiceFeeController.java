@@ -4,6 +4,7 @@ import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.scm.finance.domain.entity.PlatformServiceFee;
 import com.cognora.scm.finance.service.IPlatformServiceFeeService;
@@ -24,6 +25,7 @@ public class PlatformServiceFeeController {
 
     @Operation(summary = "查询服务费详情", description = "根据账单 ID 查询平台服务费的完整计费信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:service-fee:view')")
     public ApiResponse<PlatformServiceFee> getById(@Parameter(description = "平台服务费账单 ID") @PathVariable String id) {
         PlatformServiceFee fee = platformServiceFeeService.getById(id);
         return ApiResponse.success(fee);
@@ -31,6 +33,7 @@ public class PlatformServiceFeeController {
 
     @Operation(summary = "创建服务费账单", description = "新增平台服务费账单，生成主键并将状态置为待支付。")
     @PostMapping
+    @PreAuthorize("hasAuthority('finance:service-fee:create')")
     @AuditLog(operation = "创建平台服务费账单", businessType = "FINANCE_SERVICE_FEE", riskLevel = 3)
     public ApiResponse<PlatformServiceFee> create(@RequestBody PlatformServiceFee fee) {
         PlatformServiceFee created = platformServiceFeeService.createFee(fee);
@@ -39,6 +42,7 @@ public class PlatformServiceFeeController {
 
     @Operation(summary = "更新服务费账单", description = "按账单 ID 更新平台服务费账单信息并刷新更新时间。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:service-fee:update')")
     @AuditLog(operation = "修改平台服务费账单", businessType = "FINANCE_SERVICE_FEE", riskLevel = 3)
     public ApiResponse<PlatformServiceFee> update(@Parameter(description = "平台服务费账单 ID") @PathVariable String id, @RequestBody PlatformServiceFee fee) {
         PlatformServiceFee updated = platformServiceFeeService.updateFee(id, fee);
@@ -47,6 +51,7 @@ public class PlatformServiceFeeController {
 
     @Operation(summary = "删除服务费账单", description = "按账单 ID 删除平台服务费账单。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:service-fee:delete')")
     @AuditLog(operation = "删除平台服务费账单", businessType = "FINANCE_SERVICE_FEE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "平台服务费账单 ID") @PathVariable String id) {
         platformServiceFeeService.removeById(id);
@@ -56,6 +61,7 @@ public class PlatformServiceFeeController {
 
     @Operation(summary = "查询待支付服务费", description = "获取所有尚未结清的平台服务费账单列表。")
     @GetMapping("/pending")
+    @PreAuthorize("hasAuthority('finance:service-fee:list-pending-fees')")
     public ApiResponse<List<PlatformServiceFee>> listPendingFees() {
         List<PlatformServiceFee> fees = platformServiceFeeService.listPendingFees();
         return ApiResponse.success(fees);
@@ -63,6 +69,7 @@ public class PlatformServiceFeeController {
 
     @Operation(summary = "登记服务费付款", description = "按账单 ID 登记本次实付金额并更新账单的已付金额。")
     @PostMapping("/{id}/pay")
+    @PreAuthorize("hasAuthority('finance:service-fee:pay')")
     @AuditLog(operation = "登记平台服务费付款", businessType = "FINANCE_SERVICE_FEE", riskLevel = 4)
     public ApiResponse<PlatformServiceFee> pay(
             @Parameter(description = "平台服务费账单 ID") @PathVariable String id,

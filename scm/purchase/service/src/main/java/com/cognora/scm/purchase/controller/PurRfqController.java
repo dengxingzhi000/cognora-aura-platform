@@ -3,6 +3,7 @@ package com.cognora.scm.purchase.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurRfq;
@@ -24,18 +25,21 @@ public class PurRfqController {
 
     @Operation(summary = "根据 ID 查询询价单", description = "按主键查询单张采购询价单的完整信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:rfq:view')")
     public PurRfq getById(@Parameter(description = "询价单主键 ID") @PathVariable String id) {
         return purRfqService.getById(id);
     }
 
     @Operation(summary = "根据询价单号查询", description = "按业务单号查询采购询价单，用于单据核对与追溯。")
     @GetMapping("/no/{rfqNo}")
+    @PreAuthorize("hasAuthority('purchase:rfq:get-by-rfq-no')")
     public PurRfq getByRfqNo(@Parameter(description = "询价单业务单号") @PathVariable String rfqNo) {
         return purRfqService.getByRfqNo(rfqNo);
     }
 
     @Operation(summary = "分页查询询价单", description = "按状态、询价类型和关键字分页查询采购询价单。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('purchase:rfq:page')")
     public Page<PurRfq> page(
             @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") int size,
@@ -47,12 +51,14 @@ public class PurRfqController {
 
     @Operation(summary = "按状态查询询价单", description = "查询指定状态下的全部采购询价单，用于列表展示。")
     @GetMapping("/list")
+    @PreAuthorize("hasAuthority('purchase:rfq:list-by-status')")
     public List<PurRfq> listByStatus(@Parameter(description = "询价单状态") @RequestParam Integer status) {
         return purRfqService.listByStatus(status);
     }
 
     @Operation(summary = "新增询价单", description = "创建一张新的采购询价单。")
     @PostMapping
+    @PreAuthorize("hasAuthority('purchase:rfq:create')")
     @AuditLog(operation = "新增询价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurRfq purRfq) {
         return purRfqService.save(purRfq);
@@ -60,6 +66,7 @@ public class PurRfqController {
 
     @Operation(summary = "修改询价单", description = "按主键更新已有的采购询价单。")
     @PutMapping
+    @PreAuthorize("hasAuthority('purchase:rfq:update')")
     @AuditLog(operation = "修改询价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurRfq purRfq) {
         return purRfqService.updateById(purRfq);
@@ -67,6 +74,7 @@ public class PurRfqController {
 
     @Operation(summary = "删除询价单", description = "按主键删除采购询价单。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:rfq:delete')")
     @AuditLog(operation = "删除询价单", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "询价单主键 ID") @PathVariable String id) {
         return purRfqService.removeById(id);
@@ -74,6 +82,7 @@ public class PurRfqController {
 
     @Operation(summary = "发布询价单", description = "将询价单发布给供应商，进入报价阶段。")
     @PostMapping("/{id}/publish")
+    @PreAuthorize("hasAuthority('purchase:rfq:publish')")
     @AuditLog(operation = "发布询价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean publish(@Parameter(description = "询价单主键 ID") @PathVariable String id) {
         return purRfqService.publish(id);
@@ -81,6 +90,7 @@ public class PurRfqController {
 
     @Operation(summary = "关闭询价单", description = "关闭采购询价单，停止接收新的供应商报价。")
     @PostMapping("/{id}/close")
+    @PreAuthorize("hasAuthority('purchase:rfq:close')")
     @AuditLog(operation = "关闭询价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean close(@Parameter(description = "询价单主键 ID") @PathVariable String id) {
         return purRfqService.close(id);

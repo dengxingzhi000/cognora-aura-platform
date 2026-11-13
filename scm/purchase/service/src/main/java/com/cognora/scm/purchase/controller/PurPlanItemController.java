@@ -2,6 +2,7 @@ package com.cognora.scm.purchase.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurPlanItem;
@@ -23,18 +24,21 @@ public class PurPlanItemController {
 
     @Operation(summary = "根据 ID 查询计划明细", description = "按主键查询单条采购计划明细。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:plan-item:view')")
     public PurPlanItem getById(@Parameter(description = "采购计划明细 ID") @PathVariable String id) {
         return purPlanItemService.getById(id);
     }
 
     @Operation(summary = "按计划查询明细列表", description = "查询指定采购计划下的全部明细行。")
     @GetMapping("/list/{planId}")
+    @PreAuthorize("hasAuthority('purchase:plan-item:list-by-plan-id')")
     public List<PurPlanItem> listByPlanId(@Parameter(description = "采购计划 ID") @PathVariable String planId) {
         return purPlanItemService.listByPlanId(planId);
     }
 
     @Operation(summary = "新增计划明细", description = "为采购计划新增一条明细行。")
     @PostMapping
+    @PreAuthorize("hasAuthority('purchase:plan-item:create')")
     @AuditLog(operation = "新增采购计划明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurPlanItem purPlanItem) {
         return purPlanItemService.save(purPlanItem);
@@ -42,6 +46,7 @@ public class PurPlanItemController {
 
     @Operation(summary = "更新计划明细", description = "按主键更新采购计划明细信息。")
     @PutMapping
+    @PreAuthorize("hasAuthority('purchase:plan-item:update')")
     @AuditLog(operation = "更新采购计划明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurPlanItem purPlanItem) {
         return purPlanItemService.updateById(purPlanItem);
@@ -49,6 +54,7 @@ public class PurPlanItemController {
 
     @Operation(summary = "删除计划明细", description = "按主键删除单条采购计划明细。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:plan-item:delete')")
     @AuditLog(operation = "删除采购计划明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "采购计划明细 ID") @PathVariable String id) {
         return purPlanItemService.removeById(id);
@@ -56,6 +62,7 @@ public class PurPlanItemController {
 
     @Operation(summary = "按计划删除明细", description = "删除指定采购计划下的全部明细行。")
     @DeleteMapping("/plan/{planId}")
+    @PreAuthorize("hasAuthority('purchase:plan-item:delete-by-plan-id')")
     @AuditLog(operation = "按采购计划删除明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean deleteByPlanId(@Parameter(description = "采购计划 ID") @PathVariable String planId) {
         return purPlanItemService.deleteByPlanId(planId);

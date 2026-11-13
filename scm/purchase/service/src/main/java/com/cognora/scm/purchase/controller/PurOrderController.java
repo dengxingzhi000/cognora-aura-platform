@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,6 +34,7 @@ public class PurOrderController {
 
     @Operation(summary = "分页查询采购订单", description = "按单号/供应商关键字、状态与供应商分页查询采购订单。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('purchase:order:page')")
     public ApiResponse<Page<PurOrder>> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -44,6 +46,7 @@ public class PurOrderController {
 
     @Operation(summary = "查询采购订单详情", description = "按主键查询采购订单，不存在或已删除时返回 404。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:order:view')")
     public ApiResponse<PurOrder> getById(@Parameter(description = "采购订单 ID") @PathVariable String id) {
         PurOrder order = purOrderQueryService.getById(id);
         if (order == null || Boolean.TRUE.equals(order.getDeleted())) {
@@ -54,6 +57,7 @@ public class PurOrderController {
 
     @Operation(summary = "查询采购订单明细", description = "查询指定采购订单下的全部明细行。")
     @GetMapping("/{id}/items")
+    @PreAuthorize("hasAuthority('purchase:order:list-items')")
     public ApiResponse<List<PurOrderItem>> listItems(@Parameter(description = "采购订单 ID") @PathVariable String id) {
         return ApiResponse.success(purOrderItemService.listByOrderId(id));
     }

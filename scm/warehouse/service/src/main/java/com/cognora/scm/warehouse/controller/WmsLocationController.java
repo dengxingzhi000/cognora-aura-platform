@@ -5,6 +5,7 @@ import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.scm.warehouse.domain.entity.WmsLocation;
 import com.cognora.scm.warehouse.service.command.WmsLocationCommandService;
@@ -27,6 +28,7 @@ public class WmsLocationController {
 
     @Operation(summary = "创建库位", description = "在指定仓库下新建库位，库位编码需保持唯一。")
     @PostMapping
+    @PreAuthorize("hasAuthority('warehouse:location:create')")
     @AuditLog(operation = "创建库位", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsLocation> create(@RequestBody WmsLocation location) {
         log.info("[API] 创建库位: warehouseId={}, code={}", (location.getWarehouseId() + "").replace("\r", "_").replace("\n", "_"), (location.getLocationCode() + "").replace("\r", "_").replace("\n", "_"));
@@ -41,6 +43,7 @@ public class WmsLocationController {
 
     @Operation(summary = "更新库位", description = "按主键更新库位的基础信息与状态。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:location:update')")
     @AuditLog(operation = "更新库位", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsLocation> update(@Parameter(description = "库位主键 ID") @PathVariable String id, @RequestBody WmsLocation location) {
         log.info("[API] 更新库位: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -54,6 +57,7 @@ public class WmsLocationController {
 
     @Operation(summary = "删除库位", description = "按主键逻辑删除库位，已删除的库位不再参与上架分配。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:location:delete')")
     @AuditLog(operation = "删除库位", businessType = "WAREHOUSE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "库位主键 ID") @PathVariable String id) {
         log.info("[API] 删除库位: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -63,6 +67,7 @@ public class WmsLocationController {
 
     @Operation(summary = "查询库位详情", description = "按主键查询库位，库位不存在或已删除时返回 404。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:location:view')")
     public ApiResponse<WmsLocation> getById(@Parameter(description = "库位主键 ID") @PathVariable String id) {
         WmsLocation location = locationQueryService.getById(id);
         if (location == null || Boolean.TRUE.equals(location.getDeleted())) {
@@ -73,6 +78,7 @@ public class WmsLocationController {
 
     @Operation(summary = "查询仓库库位列表", description = "根据仓库 ID 查询该仓库下的全部库位。")
     @GetMapping("/list")
+    @PreAuthorize("hasAuthority('warehouse:location:list-by-warehouse-id')")
     public ApiResponse<List<WmsLocation>> listByWarehouseId(
             @Parameter(description = "仓库主键 ID") @RequestParam String warehouseId) {
         return ApiResponse.success(locationQueryService.listByWarehouseId(warehouseId));
@@ -80,6 +86,7 @@ public class WmsLocationController {
 
     @Operation(summary = "分页查询库位", description = "按仓库、库位类型与状态分页查询库位列表。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('warehouse:location:page')")
     public ApiResponse<Page<WmsLocation>> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

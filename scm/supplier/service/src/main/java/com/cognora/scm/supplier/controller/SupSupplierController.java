@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,6 +43,7 @@ public class SupSupplierController {
 
     @Operation(summary = "查询供应商详情", description = "根据供应商ID查询未删除的供应商详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:supplier:view')")
     public ApiResponse<SupSupplier> getById(@Parameter(description = "供应商ID") @PathVariable String id) {
         log.info("[API] 查询供应商详情 id={}", LogUtils.sanitizeForLog(id));
         SupSupplier supplier = supplierService.getById(id);
@@ -53,6 +55,7 @@ public class SupSupplierController {
 
     @Operation(summary = "查询供应商画像", description = "返回主数据、联系人、银行账户、资质、分类与最近变更日志。")
     @GetMapping("/{id}/profile")
+    @PreAuthorize("hasAuthority('supplier:supplier:get-profile')")
     public ApiResponse<SupplierProfileVO> getProfile(@Parameter(description = "供应商ID") @PathVariable String id) {
         log.info("[API] 查询供应商画像 id={}", LogUtils.sanitizeForLog(id));
         return ApiResponse.success(supplierService.getProfile(id));
@@ -60,6 +63,7 @@ public class SupSupplierController {
 
     @Operation(summary = "查询供应商绩效评分卡", description = "按质量/交付/服务/价格维度汇总评价得分并给出分级建议。")
     @GetMapping("/{id}/performance")
+    @PreAuthorize("hasAuthority('supplier:supplier:get-performance')")
     public ApiResponse<SupplierPerformanceVO> getPerformance(
             @Parameter(description = "供应商ID") @PathVariable String id) {
         log.info("[API] 查询供应商绩效 id={}", LogUtils.sanitizeForLog(id));
@@ -68,6 +72,7 @@ public class SupSupplierController {
 
     @Operation(summary = "查询供应商变更日志", description = "按时间倒序返回供应商主数据、准入与黑名单变更记录。")
     @GetMapping("/{id}/change-logs")
+    @PreAuthorize("hasAuthority('supplier:supplier:list-change-logs')")
     public ApiResponse<List<SupSupplierChangeLog>> listChangeLogs(
             @Parameter(description = "供应商ID") @PathVariable String id,
             @RequestParam(defaultValue = "20") int limit) {
@@ -77,6 +82,7 @@ public class SupSupplierController {
 
     @Operation(summary = "查询供应商分类", description = "查询指定供应商已关联的分类。")
     @GetMapping("/{id}/categories")
+    @PreAuthorize("hasAuthority('supplier:supplier:get-categories')")
     public ApiResponse<List<SupSupplierCategory>> getCategories(
             @Parameter(description = "供应商ID") @PathVariable String id) {
         return ApiResponse.success(supplierService.getCategories(id));
@@ -84,6 +90,7 @@ public class SupSupplierController {
 
     @Operation(summary = "设置供应商分类", description = "全量替换指定供应商的分类关联。")
     @PutMapping("/{id}/categories")
+    @PreAuthorize("hasAuthority('supplier:supplier:assign-categories')")
     @AuditLog(operation = "设置供应商分类", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<Void> assignCategories(
             @Parameter(description = "供应商ID") @PathVariable String id,
@@ -96,12 +103,14 @@ public class SupSupplierController {
 
     @Operation(summary = "查询供应商统计", description = "返回供应商总数、启用数、合作中、待审核、黑名单与资质到期数量。")
     @GetMapping("/stats")
+    @PreAuthorize("hasAuthority('supplier:supplier:stats')")
     public ApiResponse<SupplierStatsVO> stats() {
         return ApiResponse.success(supplierService.getStats());
     }
 
     @Operation(summary = "创建供应商", description = "新增供应商主数据，初始化为草稿准入状态并自动生成编码。")
     @PostMapping
+    @PreAuthorize("hasAuthority('supplier:supplier:create')")
     @AuditLog(operation = "创建供应商", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSupplier> create(@Valid @RequestBody SupplierUpsertRequest request) {
         log.info("[API] 创建供应商 name={}", LogUtils.sanitizeForLog(request.getSupplierName()));
@@ -110,6 +119,7 @@ public class SupSupplierController {
 
     @Operation(summary = "更新供应商", description = "更新供应商主数据；准入状态、黑名单与评分由流程维护。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:supplier:update')")
     @AuditLog(operation = "更新供应商", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSupplier> update(@Parameter(description = "供应商ID") @PathVariable String id,
                                            @Valid @RequestBody SupplierUpsertRequest request) {
@@ -119,6 +129,7 @@ public class SupSupplierController {
 
     @Operation(summary = "删除供应商", description = "逻辑删除供应商；合作中的供应商需先终止合作。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:supplier:delete')")
     @AuditLog(operation = "删除供应商", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "供应商ID") @PathVariable String id,
                                     @RequestParam(required = false) String operatorId,
@@ -130,6 +141,7 @@ public class SupSupplierController {
 
     @Operation(summary = "分页查询供应商", description = "按关键字、类型、合作/准入/分级/风险等条件分页查询供应商。")
     @GetMapping
+    @PreAuthorize("hasAuthority('supplier:supplier:page')")
     public ApiResponse<Page<SupSupplier>> pageList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -151,12 +163,14 @@ public class SupSupplierController {
 
     @Operation(summary = "查询可合作供应商", description = "查询启用、准入通过、非黑名单且合作中的供应商。")
     @GetMapping("/active")
+    @PreAuthorize("hasAuthority('supplier:supplier:list-active')")
     public ApiResponse<List<SupSupplier>> listActive() {
         return ApiResponse.success(supplierService.listActive());
     }
 
     @Operation(summary = "搜索供应商", description = "根据供应商名称关键字模糊搜索供应商。")
     @GetMapping("/search")
+    @PreAuthorize("hasAuthority('supplier:supplier:search-by-name')")
     public ApiResponse<List<SupSupplier>> searchByName(
             @Parameter(description = "供应商名称关键字") @RequestParam String name) {
         return ApiResponse.success(supplierService.searchByName(name));
@@ -164,6 +178,7 @@ public class SupSupplierController {
 
     @Operation(summary = "启用供应商", description = "仅准入审核通过且未列入黑名单的供应商可启用。")
     @PutMapping("/{id}/enable")
+    @PreAuthorize("hasAuthority('supplier:supplier:enable')")
     @AuditLog(operation = "启用供应商", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<Void> enable(@Parameter(description = "供应商ID") @PathVariable String id) {
         log.info("[API] 启用供应商 id={}", LogUtils.sanitizeForLog(id));
@@ -173,6 +188,7 @@ public class SupSupplierController {
 
     @Operation(summary = "停用供应商", description = "将指定供应商状态置为停用。")
     @PutMapping("/{id}/disable")
+    @PreAuthorize("hasAuthority('supplier:supplier:disable')")
     @AuditLog(operation = "停用供应商", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<Void> disable(@Parameter(description = "供应商ID") @PathVariable String id) {
         log.info("[API] 停用供应商 id={}", LogUtils.sanitizeForLog(id));
@@ -182,6 +198,7 @@ public class SupSupplierController {
 
     @Operation(summary = "提交准入审核", description = "将草稿或被驳回的供应商提交审核，要求税号已补全。")
     @PostMapping("/{id}/submit-audit")
+    @PreAuthorize("hasAuthority('supplier:supplier:submit-audit')")
     @AuditLog(operation = "提交准入审核", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<Void> submitAudit(@Parameter(description = "供应商ID") @PathVariable String id,
                                          @RequestParam(required = false) String operatorId,
@@ -192,6 +209,7 @@ public class SupSupplierController {
 
     @Operation(summary = "审核供应商准入", description = "APPROVE 通过并启用供应商；REJECT 驳回并记录原因。")
     @PutMapping("/{id}/audit")
+    @PreAuthorize("hasAuthority('supplier:supplier:audit')")
     @AuditLog(operation = "审核供应商准入", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> audit(@Parameter(description = "供应商ID") @PathVariable String id,
                                    @RequestBody SupplierAuditRequest request) {
@@ -201,6 +219,7 @@ public class SupSupplierController {
 
     @Operation(summary = "列入黑名单", description = "将供应商列入黑名单，同时停用并终止合作。")
     @PutMapping("/{id}/blacklist")
+    @PreAuthorize("hasAuthority('supplier:supplier:blacklist')")
     @AuditLog(operation = "列入黑名单", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<Void> blacklist(@Parameter(description = "供应商ID") @PathVariable String id,
                                        @RequestParam String reason,
@@ -212,6 +231,7 @@ public class SupSupplierController {
 
     @Operation(summary = "移出黑名单", description = "将供应商移出黑名单，启用状态与准入状态保持不变。")
     @PutMapping("/{id}/unblacklist")
+    @PreAuthorize("hasAuthority('supplier:supplier:unblacklist')")
     @AuditLog(operation = "移出黑名单", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<Void> unblacklist(@Parameter(description = "供应商ID") @PathVariable String id,
                                          @RequestParam(required = false) String operatorId,
@@ -222,6 +242,7 @@ public class SupSupplierController {
 
     @Operation(summary = "调整风险等级", description = "风险等级 1-低,2-中,3-高，变更写入供应商变更日志。")
     @PutMapping("/{id}/risk-level")
+    @PreAuthorize("hasAuthority('supplier:supplier:change-risk-level')")
     @AuditLog(operation = "调整风险等级", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<Void> changeRiskLevel(
             @Parameter(description = "供应商ID") @PathVariable String id,
@@ -235,6 +256,7 @@ public class SupSupplierController {
 
     @Operation(summary = "变更合作状态", description = "合作状态 0-潜在,1-合作中,2-暂停,3-终止，按合法路径流转。")
     @PutMapping("/{id}/cooperation-status")
+    @PreAuthorize("hasAuthority('supplier:supplier:change-cooperation-status')")
     @AuditLog(operation = "变更合作状态", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<Void> changeCooperationStatus(
             @Parameter(description = "供应商ID") @PathVariable String id,

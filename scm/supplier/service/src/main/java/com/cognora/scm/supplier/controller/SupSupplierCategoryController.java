@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +33,7 @@ public class SupSupplierCategoryController {
 
     @Operation(summary = "查询分类列表", description = "按层级与排序返回分类字典，可按关键字与启用状态过滤。")
     @GetMapping
+    @PreAuthorize("hasAuthority('supplier:category:list')")
     public ApiResponse<List<SupSupplierCategory>> list(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Boolean enabled) {
@@ -40,6 +42,7 @@ public class SupSupplierCategoryController {
 
     @Operation(summary = "新增分类", description = "新增供应商分类，编码在租户内唯一。")
     @PostMapping
+    @PreAuthorize("hasAuthority('supplier:category:create')")
     @AuditLog(operation = "新增供应商分类", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSupplierCategory> create(@RequestBody SupSupplierCategory category) {
         return ApiResponse.success(categoryService.createCategory(category));
@@ -47,6 +50,7 @@ public class SupSupplierCategoryController {
 
     @Operation(summary = "更新分类", description = "更新分类名称、上级与排序。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:category:update')")
     @AuditLog(operation = "更新供应商分类", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSupplierCategory> update(@Parameter(description = "分类ID") @PathVariable String id,
                                                    @RequestBody SupSupplierCategory category) {
@@ -55,6 +59,7 @@ public class SupSupplierCategoryController {
 
     @Operation(summary = "删除分类", description = "删除未被供应商引用的分类。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:category:delete')")
     @AuditLog(operation = "删除供应商分类", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "分类ID") @PathVariable String id) {
         categoryService.deleteCategory(id);

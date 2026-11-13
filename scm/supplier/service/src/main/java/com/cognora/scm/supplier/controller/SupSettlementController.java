@@ -5,6 +5,7 @@ import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.scm.supplier.domain.entity.SupSettlement;
 import com.cognora.scm.supplier.service.ISupSettlementService;
@@ -25,6 +26,7 @@ public class SupSettlementController {
 
     @Operation(summary = "查询对账单详情", description = "根据对账单ID查询未删除的对账单详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:settlement:view')")
     public ApiResponse<SupSettlement> getById(@Parameter(description = "对账单ID") @PathVariable String id) {
         log.info("[API] 查询对账单详情 id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         SupSettlement settlement = settlementService.getById(id);
@@ -36,6 +38,7 @@ public class SupSettlementController {
 
     @Operation(summary = "创建对账单", description = "新建供应商对账单并初始化为草稿状态。")
     @PostMapping
+    @PreAuthorize("hasAuthority('supplier:settlement:create')")
     @AuditLog(operation = "创建对账单", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSettlement> create(@RequestBody SupSettlement settlement) {
         SupSettlement created = settlementService.createSettlement(settlement);
@@ -44,6 +47,7 @@ public class SupSettlementController {
 
     @Operation(summary = "更新对账单", description = "根据对账单ID更新对账单信息并校验状态变更是否合法。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:settlement:update')")
     @AuditLog(operation = "更新对账单", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSettlement> update(@Parameter(description = "对账单ID") @PathVariable String id, @RequestBody SupSettlement settlement) {
         SupSettlement updated = settlementService.updateSettlement(id, settlement);
@@ -55,6 +59,7 @@ public class SupSettlementController {
 
     @Operation(summary = "删除对账单", description = "对指定对账单执行逻辑删除。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:settlement:delete')")
     @AuditLog(operation = "删除对账单", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "对账单ID") @PathVariable String id) {
         boolean success = settlementService.deleteSettlement(id);
@@ -63,6 +68,7 @@ public class SupSettlementController {
 
     @Operation(summary = "分页查询对账单", description = "按供应商、状态与结算周期分页查询对账单列表。")
     @GetMapping
+    @PreAuthorize("hasAuthority('supplier:settlement:page')")
     public ApiResponse<Page<SupSettlement>> pageList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -76,6 +82,7 @@ public class SupSettlementController {
 
     @Operation(summary = "查询供应商对账单", description = "查询指定供应商的全部对账单。")
     @GetMapping("/supplier/{supplierId}")
+    @PreAuthorize("hasAuthority('supplier:settlement:list-by-supplier-id')")
     public ApiResponse<List<SupSettlement>> listBySupplierId(@Parameter(description = "供应商ID") @PathVariable String supplierId) {
         log.info("[API] 查询供应商对账单列表: supplierId={}", (supplierId + "").replace("\r", "_").replace("\n", "_"));
         return ApiResponse.success(settlementService.listBySupplierId(supplierId));
@@ -83,6 +90,7 @@ public class SupSettlementController {
 
     @Operation(summary = "确认对账单", description = "确认供应商对账单并记录审核人信息。")
     @PutMapping("/{id}/confirm")
+    @PreAuthorize("hasAuthority('supplier:settlement:confirm')")
     @AuditLog(operation = "确认对账单", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<Void> confirm(@Parameter(description = "对账单ID") @PathVariable String id,
                                      @Parameter(description = "审核人ID") @RequestParam String approverId,
@@ -94,6 +102,7 @@ public class SupSettlementController {
 
     @Operation(summary = "标记对账单已付款", description = "将对账单标记为已付款并记录更新人。")
     @PutMapping("/{id}/pay")
+    @PreAuthorize("hasAuthority('supplier:settlement:mark-as-paid')")
     @AuditLog(operation = "标记对账单已付款", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> markAsPaid(@Parameter(description = "对账单ID") @PathVariable String id, @Parameter(description = "更新人") @RequestParam String updateBy) {
         log.info("[API] 标记对账单已付款: id={}", (id + "").replace("\r", "_").replace("\n", "_"));

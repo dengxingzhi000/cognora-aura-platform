@@ -4,6 +4,7 @@ import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.scm.warehouse.domain.entity.WmsOutboundItem;
 import com.cognora.scm.warehouse.service.command.WmsOutboundItemCommandService;
@@ -26,6 +27,7 @@ public class WmsOutboundItemController {
 
     @Operation(summary = "创建出库明细", description = "为指定出库单新增一条商品明细行。")
     @PostMapping
+    @PreAuthorize("hasAuthority('warehouse:outbound-item:create')")
     @AuditLog(operation = "创建出库明细", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsOutboundItem> create(@RequestBody WmsOutboundItem item) {
         log.info("[API] 创建出库明细: outboundId={}, skuId={}", (item.getOutboundId() + "").replace("\r", "_").replace("\n", "_"), (item.getSkuId() + "").replace("\r", "_").replace("\n", "_"));
@@ -36,6 +38,7 @@ public class WmsOutboundItemController {
 
     @Operation(summary = "更新出库明细", description = "按主键更新出库明细的数量、库位等信息。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:outbound-item:update')")
     @AuditLog(operation = "更新出库明细", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsOutboundItem> update(@Parameter(description = "出库明细主键 ID") @PathVariable String id, @RequestBody WmsOutboundItem item) {
         log.info("[API] 更新出库明细: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -49,6 +52,7 @@ public class WmsOutboundItemController {
 
     @Operation(summary = "删除出库明细", description = "按主键逻辑删除出库明细行。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:outbound-item:delete')")
     @AuditLog(operation = "删除出库明细", businessType = "WAREHOUSE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "出库明细主键 ID") @PathVariable String id) {
         log.info("[API] 删除出库明细: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -58,6 +62,7 @@ public class WmsOutboundItemController {
 
     @Operation(summary = "查询出库明细详情", description = "按主键查询出库明细，明细不存在或已删除时返回 404。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:outbound-item:view')")
     public ApiResponse<WmsOutboundItem> getById(@Parameter(description = "出库明细主键 ID") @PathVariable String id) {
         WmsOutboundItem item = outboundItemQueryService.getById(id);
         if (item == null || Boolean.TRUE.equals(item.getDeleted())) {
@@ -68,6 +73,7 @@ public class WmsOutboundItemController {
 
     @Operation(summary = "查询出库单明细列表", description = "根据出库单 ID 查询该出库单下的全部明细行。")
     @GetMapping("/list")
+    @PreAuthorize("hasAuthority('warehouse:outbound-item:list-by-outbound-id')")
     public ApiResponse<List<WmsOutboundItem>> listByOutboundId(
             @Parameter(description = "出库单主键 ID") @RequestParam String outboundId) {
         return ApiResponse.success(outboundItemQueryService.listByOutboundId(outboundId));

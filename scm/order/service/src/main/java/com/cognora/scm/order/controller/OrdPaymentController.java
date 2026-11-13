@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -66,6 +67,7 @@ public class OrdPaymentController {
      */
     @Operation(summary = "按订单查询支付记录", description = "根据订单 ID 查询该订单关联的全部支付记录。")
     @GetMapping("/order/{orderId}")
+    @PreAuthorize("hasAuthority('order:payment:list-by-order-id')")
     public ApiResponse<List<PaymentResponse>> listByOrderId(@Parameter(description = "订单 ID") @PathVariable UUID orderId) {
         log.info("[API] Query payments by order: orderId={}", orderId);
         return ApiResponse.success(queryService.listResponsesByOrderId(orderId));
@@ -102,6 +104,7 @@ public class OrdPaymentController {
      */
     @Operation(summary = "更新支付状态", description = "按状态流转规则更新支付记录状态并记录变更原因。")
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('order:payment:update-status')")
     @AuditLog(operation = "更新支付状态", businessType = "ORDER", riskLevel = 4)
     public ApiResponse<PaymentResponse> updateStatus(
             @Parameter(description = "支付记录 ID") @PathVariable UUID id,

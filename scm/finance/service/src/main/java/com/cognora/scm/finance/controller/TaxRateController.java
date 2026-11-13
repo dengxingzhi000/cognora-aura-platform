@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,6 +38,7 @@ public class TaxRateController {
     @Operation(summary = "新增税率规则",
             description = "税率 0..1；isDefault=true 时同租户原默认规则自动降级。")
     @PostMapping
+    @PreAuthorize("hasAuthority('finance:tax-rate:create')")
     @AuditLog(operation = "新增税率规则", businessType = "FINANCE_TAX_RATE", riskLevel = 3)
     public ApiResponse<TaxRate> create(@Valid @RequestBody CreateTaxRateRequest request) {
         return ApiResponse.success(taxRateService.create(request));
@@ -44,6 +46,7 @@ public class TaxRateController {
 
     @Operation(summary = "修改税率规则", description = "局部更新，字段为空表示不修改。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:tax-rate:update')")
     @AuditLog(operation = "修改税率规则", businessType = "FINANCE_TAX_RATE", riskLevel = 3)
     public ApiResponse<TaxRate> update(
             @Parameter(description = "规则 ID") @PathVariable String id,
@@ -53,6 +56,7 @@ public class TaxRateController {
 
     @Operation(summary = "停用税率规则", description = "停用后不参与匹配，保留历史记录。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:tax-rate:disable')")
     @AuditLog(operation = "停用税率规则", businessType = "FINANCE_TAX_RATE", riskLevel = 3)
     public ApiResponse<TaxRate> disable(@Parameter(description = "规则 ID") @PathVariable String id) {
         return ApiResponse.success(taxRateService.disable(id));
@@ -60,12 +64,14 @@ public class TaxRateController {
 
     @Operation(summary = "查询税率规则详情")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:tax-rate:view')")
     public ApiResponse<TaxRate> getById(@Parameter(description = "规则 ID") @PathVariable String id) {
         return ApiResponse.success(taxRateService.getById(id));
     }
 
     @Operation(summary = "分页查询税率规则")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('finance:tax-rate:page')")
     public ApiResponse<Page<TaxRate>> page(
             @Parameter(description = "页码，默认 1") @RequestParam(required = false) Integer page,
             @Parameter(description = "每页数量，默认 20") @RequestParam(required = false) Integer size,
@@ -80,6 +86,7 @@ public class TaxRateController {
             description = "按业务日期在生效区间内匹配品类/地区规则，取最新生效；未命中回退租户默认/配置默认。"
                     + "响应 source=RULE 表示命中规则，DEFAULT 表示默认值兜底。")
     @GetMapping("/resolve")
+    @PreAuthorize("hasAuthority('finance:tax-rate:resolve')")
     public ApiResponse<TaxRateResolution> resolve(
             @Parameter(description = "品类编码，可为空") @RequestParam(required = false) String category,
             @Parameter(description = "地区编码，可为空") @RequestParam(required = false) String region,
