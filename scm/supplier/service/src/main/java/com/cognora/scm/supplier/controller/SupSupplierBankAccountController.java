@@ -39,7 +39,7 @@ public class SupSupplierBankAccountController {
 
     @Operation(summary = "新增银行账户", description = "新增供应商银行账户；首个账户自动成为默认账户。")
     @PostMapping
-    @AuditLog(operation = "新增供应商银行账户", businessType = "SUPPLIER", riskLevel = 4)
+    @AuditLog(operation = "新增供应商银行账户", businessType = "SUPPLIER", riskLevel = 4, recordParams = false)
     public ApiResponse<SupSupplierBankAccount> create(
             @Parameter(description = "供应商ID") @PathVariable String supplierId,
             @RequestBody SupSupplierBankAccount account) {
@@ -49,7 +49,7 @@ public class SupSupplierBankAccountController {
 
     @Operation(summary = "更新银行账户", description = "更新银行账户；设为默认时会自动取消其他默认账户。")
     @PutMapping("/{id}")
-    @AuditLog(operation = "更新供应商银行账户", businessType = "SUPPLIER", riskLevel = 4)
+    @AuditLog(operation = "更新供应商银行账户", businessType = "SUPPLIER", riskLevel = 4, recordParams = false)
     public ApiResponse<SupSupplierBankAccount> update(
             @Parameter(description = "银行账户ID") @PathVariable String id,
             @RequestBody SupSupplierBankAccount account) {

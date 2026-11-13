@@ -81,7 +81,7 @@ public class PurContractController {
 
     @Operation(summary = "签订合同", description = "记录合同签订人与签订时间并推进合同状态。")
     @PostMapping("/{id}/sign")
-    @AuditLog(operation = "签订采购合同", businessType = "PURCHASE", riskLevel = 3)
+    @AuditLog(operation = "签订采购合同", businessType = "PURCHASE", riskLevel = 4)
     public boolean sign(
             @Parameter(description = "采购合同 ID") @PathVariable String id,
             @Parameter(description = "签订人 ID") @RequestParam String signedBy,
