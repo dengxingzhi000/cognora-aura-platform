@@ -10,6 +10,8 @@ import org.springframework.util.StringUtils;
 import com.cognora.lms.logistics.domain.entity.TmsCarrier;
 import com.cognora.lms.logistics.mapper.TmsCarrierMapper;
 import com.cognora.lms.logistics.service.ITmsCarrierService;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.UUID;
 public class TmsCarrierServiceImpl extends ServiceImpl<TmsCarrierMapper, TmsCarrier> implements ITmsCarrierService {
 
     @Override
+    @Slave
     public Page<TmsCarrier> pageList(int page, int size, String carrierName, Integer carrierType, Boolean enabled) {
         log.debug("Query carrier list: page={}, size={}, carrierName={}, carrierType={}, enabled={}", (page + "").replace("\r", "_").replace("\n", "_"), (size + "").replace("\r", "_").replace("\n", "_"), (carrierName + "").replace("\r", "_").replace("\n", "_"), (carrierType + "").replace("\r", "_").replace("\n", "_"), (enabled + "").replace("\r", "_").replace("\n", "_"));
 
@@ -41,6 +44,7 @@ public class TmsCarrierServiceImpl extends ServiceImpl<TmsCarrierMapper, TmsCarr
     }
 
     @Override
+    @Slave
     public List<TmsCarrier> listEnabled() {
         log.debug("Query enabled carriers list");
         return lambdaQuery()
@@ -51,6 +55,7 @@ public class TmsCarrierServiceImpl extends ServiceImpl<TmsCarrierMapper, TmsCarr
     }
 
     @Override
+    @Slave
     public TmsCarrier getByCarrierCode(String carrierCode) {
         log.debug("Query carrier by code: carrierCode={}", (carrierCode + "").replace("\r", "_").replace("\n", "_"));
         return lambdaQuery()
@@ -60,6 +65,7 @@ public class TmsCarrierServiceImpl extends ServiceImpl<TmsCarrierMapper, TmsCarr
     }
 
     @Override
+    @Master(reason = "新增承运商")
     public TmsCarrier createCarrier(TmsCarrier carrier) {
         log.info("Create carrier: carrierCode={}, carrierName={}", (carrier.getCarrierCode() + "").replace("\r", "_").replace("\n", "_"), (carrier.getCarrierName() + "").replace("\r", "_").replace("\n", "_"));
         carrier.setId(UUID.randomUUID().toString());
@@ -71,6 +77,7 @@ public class TmsCarrierServiceImpl extends ServiceImpl<TmsCarrierMapper, TmsCarr
     }
 
     @Override
+    @Master(reason = "更新承运商")
     public TmsCarrier updateCarrier(String id, TmsCarrier carrier) {
         log.info("Update carrier: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         carrier.setId(id);
@@ -80,6 +87,7 @@ public class TmsCarrierServiceImpl extends ServiceImpl<TmsCarrierMapper, TmsCarr
     }
 
     @Override
+    @Master(reason = "逻辑删除承运商")
     public void deleteCarrier(String id) {
         log.info("Delete carrier: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         TmsCarrier carrier = new TmsCarrier();
@@ -90,6 +98,7 @@ public class TmsCarrierServiceImpl extends ServiceImpl<TmsCarrierMapper, TmsCarr
     }
 
     @Override
+    @Master(reason = "启用/停用承运商")
     public void toggleEnabled(String id, boolean enabled) {
         log.info("Toggle carrier enabled: id={}, enabled={}", (id + "").replace("\r", "_").replace("\n", "_"), (enabled + "").replace("\r", "_").replace("\n", "_"));
         TmsCarrier carrier = new TmsCarrier();

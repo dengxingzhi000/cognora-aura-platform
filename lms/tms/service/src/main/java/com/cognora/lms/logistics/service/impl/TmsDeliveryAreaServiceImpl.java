@@ -10,6 +10,8 @@ import org.springframework.util.StringUtils;
 import com.cognora.lms.logistics.domain.entity.TmsDeliveryArea;
 import com.cognora.lms.logistics.mapper.TmsDeliveryAreaMapper;
 import com.cognora.lms.logistics.service.ITmsDeliveryAreaService;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,6 +23,7 @@ public class TmsDeliveryAreaServiceImpl extends ServiceImpl<TmsDeliveryAreaMappe
         implements ITmsDeliveryAreaService {
 
     @Override
+    @Slave
     public Page<TmsDeliveryArea> pageList(int page, int size, String carrierId, String province, String city) {
         log.debug("Query delivery area list: page={}, size={}, carrierId={}, province={}, city={}", (page + "").replace("\r", "_").replace("\n", "_"), (size + "").replace("\r", "_").replace("\n", "_"), (carrierId + "").replace("\r", "_").replace("\n", "_"), (province + "").replace("\r", "_").replace("\n", "_"), (city + "").replace("\r", "_").replace("\n", "_"));
 
@@ -41,6 +44,7 @@ public class TmsDeliveryAreaServiceImpl extends ServiceImpl<TmsDeliveryAreaMappe
     }
 
     @Override
+    @Slave
     public List<TmsDeliveryArea> listByCarrier(String carrierId) {
         log.debug("Query delivery area by carrier: carrierId={}", (carrierId + "").replace("\r", "_").replace("\n", "_"));
         return lambdaQuery()
@@ -50,6 +54,7 @@ public class TmsDeliveryAreaServiceImpl extends ServiceImpl<TmsDeliveryAreaMappe
     }
 
     @Override
+    @Slave
     public boolean checkCoverage(String carrierId, String province, String city, String district) {
         log.debug("Check area coverage: carrierId={}, province={}, city={}, district={}", (carrierId + "").replace("\r", "_").replace("\n", "_"), (province + "").replace("\r", "_").replace("\n", "_"), (city + "").replace("\r", "_").replace("\n", "_"), (district + "").replace("\r", "_").replace("\n", "_"));
 
@@ -69,6 +74,7 @@ public class TmsDeliveryAreaServiceImpl extends ServiceImpl<TmsDeliveryAreaMappe
     }
 
     @Override
+    @Master(reason = "新增配送区域")
     public TmsDeliveryArea createArea(TmsDeliveryArea area) {
         log.info("Create delivery area: areaCode={}, areaName={}", (area.getAreaCode() + "").replace("\r", "_").replace("\n", "_"), (area.getAreaName() + "").replace("\r", "_").replace("\n", "_"));
         area.setId(UUID.randomUUID().toString());
@@ -80,6 +86,7 @@ public class TmsDeliveryAreaServiceImpl extends ServiceImpl<TmsDeliveryAreaMappe
     }
 
     @Override
+    @Master(reason = "更新配送区域")
     public TmsDeliveryArea updateArea(String id, TmsDeliveryArea area) {
         log.info("Update delivery area: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         area.setId(id);
@@ -89,6 +96,7 @@ public class TmsDeliveryAreaServiceImpl extends ServiceImpl<TmsDeliveryAreaMappe
     }
 
     @Override
+    @Master(reason = "逻辑删除配送区域")
     public void deleteArea(String id) {
         log.info("Delete delivery area: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         TmsDeliveryArea area = new TmsDeliveryArea();

@@ -13,6 +13,8 @@ import com.cognora.lms.logistics.service.ITmsFreightReconciliationService;
 import com.cognora.lms.logistics.service.ITmsFreightTemplateService;
 import com.cognora.lms.logistics.service.ITmsWaybillService;
 import com.cognora.lms.logistics.support.TenantGuard;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -40,6 +42,7 @@ public class TmsFreightReconciliationServiceImpl
     private final ITmsFreightTemplateService freightTemplateService;
 
     @Override
+    @Slave
     public Page<TmsFreightReconciliation> pageList(int page, int size, String batchNo, String diffType, String status,
                                                    String waybillId) {
         LambdaQueryWrapper<TmsFreightReconciliation> wrapper = Wrappers.lambdaQuery();
@@ -60,6 +63,7 @@ public class TmsFreightReconciliationServiceImpl
     }
 
     @Override
+    @Master(reason = "生成运费对账差异单")
     @Transactional(rollbackFor = Exception.class)
     public TmsFreightReconciliation reconcile(String waybillId, String regionCode, BigDecimal billedAmount,
                                               String batchNo, String operator) {
@@ -134,6 +138,7 @@ public class TmsFreightReconciliationServiceImpl
     }
 
     @Override
+    @Master(reason = "确认运费差异单")
     @Transactional(rollbackFor = Exception.class)
     public TmsFreightReconciliation confirm(String id, String operator) {
         TenantGuard.requireTenant();

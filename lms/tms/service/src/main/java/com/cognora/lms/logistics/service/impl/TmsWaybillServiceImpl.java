@@ -15,6 +15,8 @@ import com.cognora.lms.logistics.domain.entity.TmsWaybill;
 import com.cognora.lms.logistics.mapper.TmsWaybillMapper;
 import com.cognora.lms.logistics.service.ITmsWaybillService;
 import com.cognora.lms.logistics.support.TenantGuard;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
@@ -27,6 +29,7 @@ import java.util.UUID;
 public class TmsWaybillServiceImpl extends ServiceImpl<TmsWaybillMapper, TmsWaybill> implements ITmsWaybillService {
 
     @Override
+    @Slave
     public Page<TmsWaybill> pageList(int page, int size, String waybillNo, Integer status, String carrierId) {
         log.debug("鏌ヨ杩愬崟鍒楄〃: page={}, size={}, waybillNo={}, status={}, carrierId={}", (page + "").replace("\r", "_").replace("\n", "_"), (size + "").replace("\r", "_").replace("\n", "_"), (waybillNo + "").replace("\r", "_").replace("\n", "_"), (status + "").replace("\r", "_").replace("\n", "_"), (carrierId + "").replace("\r", "_").replace("\n", "_"));
 
@@ -47,6 +50,7 @@ public class TmsWaybillServiceImpl extends ServiceImpl<TmsWaybillMapper, TmsWayb
     }
 
     @Override
+    @Slave
     public TmsWaybill getByWaybillNo(String waybillNo) {
         log.debug("Query by waybill number: waybillNo={}", (waybillNo + "").replace("\r", "_").replace("\n", "_"));
         return lambdaQuery()
@@ -56,6 +60,7 @@ public class TmsWaybillServiceImpl extends ServiceImpl<TmsWaybillMapper, TmsWayb
     }
 
     @Override
+    @Slave
     public List<TmsWaybill> listByOrderId(String orderId) {
         log.debug("Query waybills by order ID: orderId={}", (orderId + "").replace("\r", "_").replace("\n", "_"));
         return lambdaQuery()
@@ -66,6 +71,7 @@ public class TmsWaybillServiceImpl extends ServiceImpl<TmsWaybillMapper, TmsWayb
     }
 
     @Override
+    @Slave
     public List<TmsWaybill> listByOrderNo(String orderNo) {
         log.debug("Query waybills by order number: orderNo={}", (orderNo + "").replace("\r", "_").replace("\n", "_"));
         return lambdaQuery()
@@ -76,6 +82,7 @@ public class TmsWaybillServiceImpl extends ServiceImpl<TmsWaybillMapper, TmsWayb
     }
 
     @Override
+    @Master(reason = "创建运单")
     @Transactional(rollbackFor = Exception.class)
     public TmsWaybill createWaybill(TmsWaybill waybill) {
         log.info("鍒涘缓杩愬崟: orderNo={}, carrierId={}", (waybill.getOrderNo() + "").replace("\r", "_").replace("\n", "_"), (waybill.getCarrierId() + "").replace("\r", "_").replace("\n", "_"));
@@ -102,6 +109,7 @@ public class TmsWaybillServiceImpl extends ServiceImpl<TmsWaybillMapper, TmsWayb
     }
 
     @Override
+    @Master(reason = "更新运单状态")
     @Transactional(rollbackFor = Exception.class)
     public boolean updateStatus(String waybillId, Integer status, String operator) {
         log.info("鏇存柊杩愬崟鐘讹拷 waybillId={}, status={}, operator={}", (waybillId + "").replace("\r", "_").replace("\n", "_"), (status + "").replace("\r", "_").replace("\n", "_"), (operator + "").replace("\r", "_").replace("\n", "_"));
@@ -146,6 +154,7 @@ public class TmsWaybillServiceImpl extends ServiceImpl<TmsWaybillMapper, TmsWayb
     }
 
     @Override
+    @Master(reason = "取消运单")
     @Transactional(rollbackFor = Exception.class)
     public boolean cancelWaybill(String waybillId, String reason, String operator) {
         log.info("鍙栨秷杩愬崟: waybillId={}, reason={}, operator={}", (waybillId + "").replace("\r", "_").replace("\n", "_"), (reason + "").replace("\r", "_").replace("\n", "_"), (operator + "").replace("\r", "_").replace("\n", "_"));
@@ -178,6 +187,7 @@ public class TmsWaybillServiceImpl extends ServiceImpl<TmsWaybillMapper, TmsWayb
     }
 
     @Override
+    @Master(reason = "逻辑删除运单")
     public void deleteWaybill(String id) {
         log.info("Delete waybill: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         TenantGuard.requireTenant();

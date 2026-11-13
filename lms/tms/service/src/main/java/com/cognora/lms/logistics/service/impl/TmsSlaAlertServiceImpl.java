@@ -12,6 +12,8 @@ import com.cognora.lms.logistics.mapper.TmsSlaAlertMapper;
 import com.cognora.lms.logistics.service.ITmsSlaAlertService;
 import com.cognora.lms.logistics.service.ITmsWaybillService;
 import com.cognora.lms.logistics.support.TenantGuard;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -33,6 +35,7 @@ public class TmsSlaAlertServiceImpl extends ServiceImpl<TmsSlaAlertMapper, TmsSl
     private final ITmsWaybillService waybillService;
 
     @Override
+    @Master(reason = "扫描超时运单并写入 SLA 预警")
     @Transactional(rollbackFor = Exception.class)
     public int scanOverdue(LocalDateTime now) {
         LocalDateTime scanAt = now == null ? LocalDateTime.now() : now;
@@ -79,6 +82,7 @@ public class TmsSlaAlertServiceImpl extends ServiceImpl<TmsSlaAlertMapper, TmsSl
     }
 
     @Override
+    @Slave
     public Page<TmsSlaAlert> pageList(int page, int size, String waybillNo, String status, String level) {
         LambdaQueryWrapper<TmsSlaAlert> wrapper = Wrappers.lambdaQuery();
         if (StringUtils.hasText(waybillNo)) {
@@ -95,6 +99,7 @@ public class TmsSlaAlertServiceImpl extends ServiceImpl<TmsSlaAlertMapper, TmsSl
     }
 
     @Override
+    @Master(reason = "确认 SLA 预警并更新状态")
     public void acknowledge(String id, String operator) {
         TenantGuard.requireTenant();
         TmsSlaAlert alert = getById(id);

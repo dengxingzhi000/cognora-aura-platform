@@ -12,6 +12,8 @@ import com.cognora.lms.logistics.mapper.TmsExceptionCaseMapper;
 import com.cognora.lms.logistics.service.ITmsExceptionCaseService;
 import com.cognora.lms.logistics.service.ITmsWaybillService;
 import com.cognora.lms.logistics.support.TenantGuard;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -31,6 +33,7 @@ public class TmsExceptionCaseServiceImpl extends ServiceImpl<TmsExceptionCaseMap
     private final ITmsWaybillService waybillService;
 
     @Override
+    @Slave
     public Page<TmsExceptionCase> pageList(int page, int size, String waybillNo, String status) {
         LambdaQueryWrapper<TmsExceptionCase> wrapper = Wrappers.lambdaQuery();
         if (StringUtils.hasText(waybillNo)) {
@@ -44,6 +47,7 @@ public class TmsExceptionCaseServiceImpl extends ServiceImpl<TmsExceptionCaseMap
     }
 
     @Override
+    @Master(reason = "登记异常件")
     @Transactional(rollbackFor = Exception.class)
     public TmsExceptionCase createCase(String waybillId, String exceptionType, String description, String operator) {
         TenantGuard.requireTenant();
@@ -75,6 +79,7 @@ public class TmsExceptionCaseServiceImpl extends ServiceImpl<TmsExceptionCaseMap
     }
 
     @Override
+    @Master(reason = "认领异常件")
     @Transactional(rollbackFor = Exception.class)
     public TmsExceptionCase claim(String id, String responsibleParty, String operator) {
         TenantGuard.requireTenant();
@@ -108,6 +113,7 @@ public class TmsExceptionCaseServiceImpl extends ServiceImpl<TmsExceptionCaseMap
     }
 
     @Override
+    @Master(reason = "异常件状态流转")
     @Transactional(rollbackFor = Exception.class)
     public TmsExceptionCase transition(String id, String targetStatus, String resolution, String operator) {
         TenantGuard.requireTenant();
