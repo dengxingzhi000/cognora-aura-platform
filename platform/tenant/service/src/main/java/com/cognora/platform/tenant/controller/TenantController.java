@@ -55,7 +55,7 @@ public class TenantController {
 
     @Operation(summary = "启用租户", description = "将指定租户状态置为可用，允许其正常访问平台。")
     @PutMapping("/{id}/enable")
-    @AuditLog(operation = "启用租户", businessType = "TENANT", riskLevel = 3)
+    @AuditLog(operation = "启用租户", businessType = "TENANT", riskLevel = 4)
     public boolean enable(@Parameter(description = "租户ID") @PathVariable String id) {
         log.info("[API] 启用租户: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantService.enableTenant(id);
