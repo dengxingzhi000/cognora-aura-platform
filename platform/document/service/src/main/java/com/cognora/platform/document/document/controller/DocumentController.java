@@ -1,6 +1,7 @@
 package com.cognora.platform.document.document.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.document.document.domain.dto.DocumentStatusChangeRequest;
 import com.cognora.platform.document.document.domain.entity.DocDocument;
@@ -47,6 +48,7 @@ public class DocumentController {
 
     @Operation(summary = "创建文档", description = "手工登记一份文档，初始状态为已生成。")
     @PostMapping
+    @AuditLog(operation = "创建文档", businessType = "DOCUMENT", riskLevel = 3)
     public ApiResponse<DocDocument> create(@RequestBody DocDocument document) {
         return ApiResponse.success(documentService.createDocument(document));
     }
@@ -65,6 +67,7 @@ public class DocumentController {
 
     @Operation(summary = "变更文档状态", description = "签署（SIGNED）或归档（ARCHIVED），并写入审计轨迹。")
     @PostMapping("/{id}/status")
+    @AuditLog(operation = "变更文档状态", businessType = "DOCUMENT", riskLevel = 3)
     public ApiResponse<DocDocument> changeStatus(@Parameter(description = "文档 ID") @PathVariable String id,
                                                  @RequestBody DocumentStatusChangeRequest request) {
         return ApiResponse.success(documentService.changeStatus(

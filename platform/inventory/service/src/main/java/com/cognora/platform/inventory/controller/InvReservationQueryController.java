@@ -1,6 +1,7 @@
 package com.cognora.platform.inventory.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.response.ResultCode;
 import com.cognora.platform.inventory.dto.InvReservationQueryRequest;
@@ -44,6 +45,7 @@ public class InvReservationQueryController {
   @Operation(summary = "分页查询预占",
       description = "按业务键、SKU、仓库、状态与创建时间范围分页查询预占记录。")
   @PostMapping("/query")
+  @AuditLog(operation = "分页查询库存预占", businessType = "INVENTORY", riskLevel = 2)
   public ApiResponse<Page<InvReservationResponse>> query(
       @RequestBody @Valid InvReservationQueryRequest request) {
     return ApiResponse.success(queryService.query(request));

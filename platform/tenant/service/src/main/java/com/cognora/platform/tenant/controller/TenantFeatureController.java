@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.tenant.domain.entity.TenantFeature;
 import com.cognora.platform.tenant.service.ITenantFeatureService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +23,7 @@ public class TenantFeatureController {
 
     @Operation(summary = "创建租户功能", description = "为指定租户新增一个功能开关记录并返回创建结果。")
     @PostMapping
+    @AuditLog(operation = "创建租户功能", businessType = "TENANT", riskLevel = 3)
     public TenantFeature create(@RequestBody TenantFeature entity) {
         log.info("[API] Create tenant feature: tenantId={}, featureCode={}", (entity.getTenantId() + "").replace("\r", "_").replace("\n", "_"), (entity.getFeatureCode() + "").replace("\r", "_").replace("\n", "_"));
         return tenantFeatureService.createFeature(entity);
@@ -36,6 +38,7 @@ public class TenantFeatureController {
 
     @Operation(summary = "更新租户功能", description = "根据功能记录 ID 更新租户功能开关配置。")
     @PutMapping
+    @AuditLog(operation = "更新租户功能", businessType = "TENANT", riskLevel = 3)
     public TenantFeature update(@RequestBody TenantFeature entity) {
         log.info("[API] Update tenant feature: id={}", (entity.getId() + "").replace("\r", "_").replace("\n", "_"));
         return tenantFeatureService.updateFeature(entity);
@@ -43,6 +46,7 @@ public class TenantFeatureController {
 
     @Operation(summary = "删除租户功能", description = "根据功能记录 ID 删除指定的租户功能开关。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除租户功能", businessType = "TENANT", riskLevel = 4)
     public boolean deleteById(@Parameter(description = "功能记录ID") @PathVariable String id) {
         log.info("[API] Delete tenant feature: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantFeatureService.deleteById(id);

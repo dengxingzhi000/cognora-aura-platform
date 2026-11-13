@@ -2,6 +2,7 @@ package com.cognora.platform.product.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.platform.common.domain.PageResult;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +60,7 @@ public class ProdBrandController {
 
     @Operation(summary = "创建品牌", description = "新增品牌，自动生成ID并初始化创建与更新时间。")
     @PostMapping
+    @AuditLog(operation = "创建品牌", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> create(@RequestBody ProdBrand brand) {
         brandService.createBrand(brand);
         return ApiResponse.success();
@@ -66,6 +68,7 @@ public class ProdBrandController {
 
     @Operation(summary = "更新品牌", description = "根据品牌ID更新品牌信息并刷新更新时间。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "修改品牌", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> update(@Parameter(description = "品牌ID") @PathVariable String id, @RequestBody ProdBrand brand) {
         brandService.updateBrand(id, brand);
         return ApiResponse.success();
@@ -73,6 +76,7 @@ public class ProdBrandController {
 
     @Operation(summary = "删除品牌", description = "根据品牌ID逻辑删除品牌。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除品牌", businessType = "PRODUCT", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "品牌ID") @PathVariable String id) {
         brandService.deleteBrand(id);
         return ApiResponse.success();

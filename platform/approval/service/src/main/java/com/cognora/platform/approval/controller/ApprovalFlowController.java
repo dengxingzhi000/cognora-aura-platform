@@ -2,6 +2,7 @@ package com.cognora.platform.approval.controller;
 
 import com.cognora.platform.approval.service.flowable.ApprovalFlowService;
 import com.cognora.platform.approval.service.flowable.ApprovalFlowService.TaskDTO;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -38,6 +39,7 @@ public class ApprovalFlowController {
      */
     @Operation(summary = "发起审批", description = "根据流程定义与业务单据信息发起一个审批流程实例，返回流程实例 ID。")
     @PostMapping("/start")
+    @AuditLog(operation = "发起审批流程", businessType = "APPROVAL", riskLevel = 3)
     public ApiResponse<String> startProcess(@Valid @RequestBody StartProcessRequest request) {
         String processInstanceId = approvalFlowService.startProcess(
                 request.getProcessKey(),
@@ -54,6 +56,7 @@ public class ApprovalFlowController {
      */
     @Operation(summary = "审批通过", description = "提交审批意见，将指定待办任务置为通过并推进流程。")
     @PostMapping("/approve")
+    @AuditLog(operation = "审批通过", businessType = "APPROVAL", riskLevel = 4)
     public ApiResponse<Void> approve(@Valid @RequestBody ApproveRequest request) {
         approvalFlowService.approve(
                 request.getTaskId(),
@@ -69,6 +72,7 @@ public class ApprovalFlowController {
      */
     @Operation(summary = "审批驳回", description = "填写驳回原因，将指定待办任务驳回并结束当前审批分支。")
     @PostMapping("/reject")
+    @AuditLog(operation = "审批驳回", businessType = "APPROVAL", riskLevel = 4)
     public ApiResponse<Void> reject(@Valid @RequestBody RejectRequest request) {
         approvalFlowService.reject(
                 request.getTaskId(),

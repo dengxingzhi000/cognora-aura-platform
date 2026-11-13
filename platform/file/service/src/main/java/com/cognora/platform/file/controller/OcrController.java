@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.file.service.ocr.OcrService;
 import com.cognora.platform.file.service.ocr.OcrService.ContractInfo;
@@ -36,6 +37,7 @@ public class OcrController {
      */
     @Operation(summary = "识别图片文字", description = "识别上传图片中的文字并返回识别结果。")
     @PostMapping("/recognize")
+    @AuditLog(operation = "识别图片文字", businessType = "FILE", riskLevel = 1)
     public ApiResponse<String> recognizeText(@Parameter(description = "待识别的图片文件") @RequestParam("file") MultipartFile file) {
         return ApiResponse.success(ocrService.recognizeText(file));
     }
@@ -48,6 +50,7 @@ public class OcrController {
      */
     @Operation(summary = "提取发票信息", description = "识别发票图片并提取结构化发票信息。")
     @PostMapping("/invoice")
+    @AuditLog(operation = "提取发票信息", businessType = "FILE", riskLevel = 1)
     public ApiResponse<InvoiceInfo> extractInvoice(@Parameter(description = "发票图片文件") @RequestParam("file") MultipartFile file) {
         return ApiResponse.success(ocrService.extractInvoiceInfo(file));
     }
@@ -60,6 +63,7 @@ public class OcrController {
      */
     @Operation(summary = "提取合同信息", description = "识别合同图片并提取结构化合同信息。")
     @PostMapping("/contract")
+    @AuditLog(operation = "提取合同信息", businessType = "FILE", riskLevel = 1)
     public ApiResponse<ContractInfo> extractContract(@Parameter(description = "合同图片文件") @RequestParam("file") MultipartFile file) {
         return ApiResponse.success(ocrService.extractContractInfo(file));
     }

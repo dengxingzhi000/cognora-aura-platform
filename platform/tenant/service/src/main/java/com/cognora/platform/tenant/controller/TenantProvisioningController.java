@@ -1,5 +1,6 @@
 package com.cognora.platform.tenant.controller;
 
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.tenant.api.command.TenantCreateCommand;
 import com.cognora.platform.tenant.service.provisioning.TenantProvisioningResult;
@@ -23,6 +24,7 @@ public class TenantProvisioningController {
 
     @Operation(summary = "开通租户", description = "根据入驻信息一次性完成租户及其默认订阅、资源配额的开通流程。")
     @PostMapping
+    @AuditLog(operation = "开通租户", businessType = "TENANT", riskLevel = 4)
     public ApiResponse<TenantProvisioningResult> provisionTenant(@Valid @RequestBody TenantCreateCommand command) {
         TenantProvisioningResult result = provisioningService.provision(command);
         if (result.isSuccess()) {

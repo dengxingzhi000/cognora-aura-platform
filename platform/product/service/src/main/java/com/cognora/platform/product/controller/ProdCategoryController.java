@@ -2,6 +2,7 @@ package com.cognora.platform.product.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.platform.common.domain.PageResult;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +67,7 @@ public class ProdCategoryController {
 
     @Operation(summary = "创建分类", description = "新增商品分类，自动生成ID并初始化创建与更新时间。")
     @PostMapping
+    @AuditLog(operation = "创建商品分类", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> create(@RequestBody ProdCategory category) {
         categoryService.createCategory(category);
         return ApiResponse.success();
@@ -73,6 +75,7 @@ public class ProdCategoryController {
 
     @Operation(summary = "更新分类", description = "根据分类ID更新商品分类信息并刷新更新时间。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "修改商品分类", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> update(@Parameter(description = "分类ID") @PathVariable String id, @RequestBody ProdCategory category) {
         categoryService.updateCategory(id, category);
         return ApiResponse.success();
@@ -80,6 +83,7 @@ public class ProdCategoryController {
 
     @Operation(summary = "删除分类", description = "根据分类ID逻辑删除商品分类。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除商品分类", businessType = "PRODUCT", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "分类ID") @PathVariable String id) {
         categoryService.deleteCategory(id);
         return ApiResponse.success();

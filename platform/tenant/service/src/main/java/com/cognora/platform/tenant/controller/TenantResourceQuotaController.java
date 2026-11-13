@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.tenant.domain.entity.TenantResourceQuota;
 import com.cognora.platform.tenant.service.ITenantResourceQuotaService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +23,7 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "创建资源配额", description = "为指定租户新增资源配额记录并返回创建结果。")
     @PostMapping
+    @AuditLog(operation = "创建租户资源配额", businessType = "TENANT", riskLevel = 3)
     public TenantResourceQuota create(@RequestBody TenantResourceQuota entity) {
         log.info("[API] Create tenant resource quota: tenantId={}", (entity.getTenantId() + "").replace("\r", "_").replace("\n", "_"));
         return tenantResourceQuotaService.createQuota(entity);
@@ -36,6 +38,7 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "更新资源配额", description = "根据配额 ID 更新租户各项资源的上限配置。")
     @PutMapping
+    @AuditLog(operation = "更新租户资源配额", businessType = "TENANT", riskLevel = 3)
     public TenantResourceQuota update(@RequestBody TenantResourceQuota entity) {
         log.info("[API] Update tenant resource quota: id={}", (entity.getId() + "").replace("\r", "_").replace("\n", "_"));
         return tenantResourceQuotaService.updateQuota(entity);
@@ -43,6 +46,7 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "删除资源配额", description = "根据配额 ID 删除指定的租户资源配额。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除租户资源配额", businessType = "TENANT", riskLevel = 4)
     public boolean deleteById(@Parameter(description = "配额ID") @PathVariable String id) {
         log.info("[API] Delete tenant resource quota: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantResourceQuotaService.deleteById(id);

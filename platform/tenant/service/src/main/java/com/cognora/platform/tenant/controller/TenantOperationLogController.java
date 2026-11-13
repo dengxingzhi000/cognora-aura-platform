@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.tenant.domain.entity.TenantOperationLog;
 import com.cognora.platform.tenant.service.ITenantOperationLogService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +23,7 @@ public class TenantOperationLogController {
 
     @Operation(summary = "创建操作日志", description = "写入一条租户操作日志记录并返回创建结果。")
     @PostMapping
+    @AuditLog(operation = "登记租户操作日志", businessType = "TENANT", riskLevel = 2)
     public TenantOperationLog create(@RequestBody TenantOperationLog entity) {
         log.info("[API] 创建租户操作日志: tenantId={}, operationType={}", (entity.getTenantId() + "").replace("\r", "_").replace("\n", "_"), (entity.getOperationType() + "").replace("\r", "_").replace("\n", "_"));
         return tenantOperationLogService.createLog(entity);
@@ -36,6 +38,7 @@ public class TenantOperationLogController {
 
     @Operation(summary = "删除操作日志", description = "根据日志 ID 删除指定的租户操作日志。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除租户操作日志", businessType = "TENANT", riskLevel = 4)
     public boolean deleteById(@Parameter(description = "日志ID") @PathVariable String id) {
         log.info("[API] 删除租户操作日志: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantOperationLogService.deleteById(id);

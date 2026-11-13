@@ -1,6 +1,7 @@
 package com.cognora.platform.tenant.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.tenant.domain.entity.TenantPlatformFee;
 import com.cognora.platform.tenant.service.IPlatformFeeService;
@@ -69,6 +70,7 @@ public class TenantPlatformFeeController {
 
   @Operation(summary = "计算平台服务费", description = "按账期计算租户平台服务费，支持指定单个租户；同一账期重复执行会更新未支付账单。")
   @PostMapping("/calculate")
+  @AuditLog(operation = "计算平台服务费账单", businessType = "TENANT", riskLevel = 4)
   public ApiResponse<Integer> calculate(
       @Parameter(description = "账期，格式 yyyy-MM，默认上月")
       @RequestParam(required = false) String billingPeriod,

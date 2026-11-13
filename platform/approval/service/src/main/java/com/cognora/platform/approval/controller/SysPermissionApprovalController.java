@@ -1,5 +1,6 @@
 package com.cognora.platform.approval.controller;
 
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +22,7 @@ public class SysPermissionApprovalController {
 
     @Operation(summary = "提交权限审批", description = "提交一条权限变更申请，进入待审批状态。")
     @PostMapping("/submit")
+    @AuditLog(operation = "提交权限变更审批申请", businessType = "APPROVAL", riskLevel = 3)
     public ApiResponse<SysPermissionApproval> submitApproval(@RequestBody SysPermissionApproval approval) {
         SysPermissionApproval result = approvalService.submitApproval(approval);
         return ApiResponse.success(result);
@@ -28,6 +30,7 @@ public class SysPermissionApprovalController {
 
     @Operation(summary = "通过权限审批", description = "审批人通过指定的权限变更申请并记录审批信息。")
     @PostMapping("/{id}/approve")
+    @AuditLog(operation = "审批通过权限变更申请", businessType = "APPROVAL", riskLevel = 4)
     public ApiResponse<SysPermissionApproval> approve(
             @Parameter(description = "权限审批单 ID") @PathVariable String id,
             @Parameter(description = "审批人用户 ID") @RequestParam String approverId,
@@ -38,6 +41,7 @@ public class SysPermissionApprovalController {
 
     @Operation(summary = "驳回权限审批", description = "审批人驳回指定的权限变更申请并填写驳回原因。")
     @PostMapping("/{id}/reject")
+    @AuditLog(operation = "驳回权限变更申请", businessType = "APPROVAL", riskLevel = 4)
     public ApiResponse<SysPermissionApproval> reject(
             @Parameter(description = "权限审批单 ID") @PathVariable String id,
             @Parameter(description = "审批人用户 ID") @RequestParam String approverId,

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.tenant.domain.entity.TenantConfig;
 import com.cognora.platform.tenant.service.ITenantConfigService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +22,7 @@ public class TenantConfigController {
 
     @Operation(summary = "创建租户配置", description = "新增一条租户配置项并返回创建后的配置内容。")
     @PostMapping
+    @AuditLog(operation = "创建租户配置", businessType = "TENANT", riskLevel = 3)
     public TenantConfig create(@RequestBody TenantConfig entity) {
         log.info("[API] 创建租户配置: tenantId={}, configKey={}", (entity.getTenantId() + "").replace("\r", "_").replace("\n", "_"), (entity.getConfigKey() + "").replace("\r", "_").replace("\n", "_"));
         return tenantConfigService.createConfig(entity);
@@ -35,6 +37,7 @@ public class TenantConfigController {
 
     @Operation(summary = "更新租户配置", description = "根据配置 ID 更新租户配置内容并返回更新结果。")
     @PutMapping
+    @AuditLog(operation = "更新租户配置", businessType = "TENANT", riskLevel = 3)
     public TenantConfig update(@RequestBody TenantConfig entity) {
         log.info("[API] 更新租户配置: id={}", (entity.getId() + "").replace("\r", "_").replace("\n", "_"));
         return tenantConfigService.updateConfig(entity);
@@ -42,6 +45,7 @@ public class TenantConfigController {
 
     @Operation(summary = "删除租户配置", description = "根据配置 ID 删除指定租户配置。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除租户配置", businessType = "TENANT", riskLevel = 4)
     public boolean deleteById(@Parameter(description = "配置ID") @PathVariable String id) {
         log.info("[API] 删除租户配置: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantConfigService.deleteById(id);

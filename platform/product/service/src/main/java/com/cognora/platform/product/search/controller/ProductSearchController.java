@@ -1,5 +1,6 @@
 package com.cognora.platform.product.search.controller;
 
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +48,7 @@ public class ProductSearchController {
      */
     @Operation(summary = "综合搜索商品", description = "支持关键词、分类、品牌、价格区间与排序条件的商品分页搜索。")
     @PostMapping
+    @AuditLog(operation = "搜索商品", businessType = "PRODUCT", riskLevel = 2)
     public ApiResponse<Page<ProductSearchResponse>> search(
             @RequestBody ProductSearchRequest request) {
 

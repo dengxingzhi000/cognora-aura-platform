@@ -3,6 +3,7 @@ package com.cognora.platform.inventory.controller;
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.platform.common.lock.Idempotent;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.response.ResultCode;
@@ -92,6 +93,7 @@ public class InvInventoryController {
              key = "T(com.cognora.platform.common.tenant.TenantCacheKeys).inventoryBatch(#warehouseId, #skuIds)",
              unless = "#result == null")
   @SentinelResource("inventory.batchGet")
+  @AuditLog(operation = "批量查询库存", businessType = "INVENTORY", riskLevel = 2)
   public ApiResponse<List<InventoryResponse>> batchGetInventory(
       @RequestBody @NotEmpty(message = "SKU ID 列表不能为空")
       @Size(max = 100, message = "批量查询 SKU 数量不能超过 100") List<String> skuIds,
@@ -108,6 +110,7 @@ public class InvInventoryController {
   @Operation(summary = "分页查询库存", description = "按请求中的多种过滤条件分页查询库存记录。")
   @PostMapping("/query")
   @SentinelResource("inventory.query")
+  @AuditLog(operation = "分页查询库存", businessType = "INVENTORY", riskLevel = 2)
   public ApiResponse<Page<InventoryResponse>> queryInventory(
       @RequestBody @Valid InventoryQueryRequest request) {
 
@@ -123,6 +126,7 @@ public class InvInventoryController {
   @Idempotent(key = "#request.referenceNo", ttl = 24, unit = TimeUnit.HOURS,
               errorMessage = "重复的库存调整请求，请勿重复提交")
   @SentinelResource("inventory.adjust")
+  @AuditLog(operation = "调整库存", businessType = "INVENTORY", riskLevel = 3)
   public ApiResponse<InventoryResponse> adjustInventory(
       @RequestBody @Valid InventoryAdjustRequest request) {
 
@@ -140,6 +144,7 @@ public class InvInventoryController {
   @Idempotent(key = "#request.transferNo", ttl = 24, unit = TimeUnit.HOURS,
               errorMessage = "重复的库存调拨请求，请勿重复提交")
   @SentinelResource("inventory.transfer")
+  @AuditLog(operation = "库存调拨", businessType = "INVENTORY", riskLevel = 3)
   public ApiResponse<Boolean> transferInventory(
       @RequestBody @Valid InventoryTransferRequest request) {
 
@@ -188,6 +193,7 @@ public class InvInventoryController {
   @Idempotent(key = "#skuId + ':' + #warehouseId + ':' + #request.safetyStock", ttl = 1, unit = TimeUnit.MINUTES,
               errorMessage = "重复的安全库存设置请求，请勿重复提交")
   @SentinelResource("inventory.safetyStock")
+  @AuditLog(operation = "设置安全库存阈值", businessType = "INVENTORY", riskLevel = 3)
   public ApiResponse<InventoryResponse> updateSafetyStock(
       @RequestParam @NotBlank(message = "SKU ID 不能为空") String skuId,
       @RequestParam @NotBlank(message = "仓库 ID 不能为空") String warehouseId,
@@ -208,6 +214,7 @@ public class InvInventoryController {
   @Idempotent(key = "#skuId + ':' + #warehouseId", ttl = 24, unit = TimeUnit.HOURS,
               errorMessage = "重复的库存初始化请求，请勿重复提交")
   @SentinelResource("inventory.init")
+  @AuditLog(operation = "初始化库存", businessType = "INVENTORY", riskLevel = 3)
   public ApiResponse<InventoryResponse> initInventory(
       @RequestParam @NotBlank(message = "SKU ID 不能为空") String skuId,
       @RequestParam @NotBlank(message = "仓库 ID 不能为空") String warehouseId,

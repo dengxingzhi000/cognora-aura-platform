@@ -2,6 +2,7 @@ package com.cognora.platform.product.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.platform.common.domain.PageResult;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +51,7 @@ public class ProdSkuController {
 
     @Operation(summary = "创建 SKU", description = "新增SKU，自动生成ID与时间字段，未指定状态时默认为启用。")
     @PostMapping
+    @AuditLog(operation = "创建 SKU", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> create(@RequestBody ProdSku sku) {
         skuService.createSku(sku);
         return ApiResponse.success();
@@ -57,6 +59,7 @@ public class ProdSkuController {
 
     @Operation(summary = "更新 SKU", description = "根据SKU ID更新SKU信息并刷新更新时间。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "修改 SKU", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> update(@Parameter(description = "SKU ID") @PathVariable String id, @RequestBody ProdSku sku) {
         skuService.updateSku(id, sku);
         return ApiResponse.success();
@@ -64,6 +67,7 @@ public class ProdSkuController {
 
     @Operation(summary = "删除 SKU", description = "根据SKU ID逻辑删除SKU并将其状态置为删除。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除 SKU", businessType = "PRODUCT", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "SKU ID") @PathVariable String id) {
         skuService.deleteSku(id);
         return ApiResponse.success();

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.tenant.domain.entity.TenantPackage;
 import com.cognora.platform.tenant.service.ITenantPackageService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +23,7 @@ public class TenantPackageController {
 
     @Operation(summary = "创建租户套餐", description = "新增一个租户套餐并返回创建后的套餐信息。")
     @PostMapping
+    @AuditLog(operation = "创建租户套餐", businessType = "TENANT", riskLevel = 3)
     public TenantPackage create(@RequestBody TenantPackage entity) {
         log.info("[API] 创建租户套餐: packageCode={}, packageName={}", (entity.getPackageCode() + "").replace("\r", "_").replace("\n", "_"), (entity.getPackageName() + "").replace("\r", "_").replace("\n", "_"));
         return tenantPackageService.createPackage(entity);
@@ -36,6 +38,7 @@ public class TenantPackageController {
 
     @Operation(summary = "更新租户套餐", description = "根据套餐 ID 更新套餐配置与资源上限。")
     @PutMapping
+    @AuditLog(operation = "更新租户套餐", businessType = "TENANT", riskLevel = 3)
     public TenantPackage update(@RequestBody TenantPackage entity) {
         log.info("[API] 更新租户套餐: id={}", (entity.getId() + "").replace("\r", "_").replace("\n", "_"));
         return tenantPackageService.updatePackage(entity);
@@ -43,6 +46,7 @@ public class TenantPackageController {
 
     @Operation(summary = "删除租户套餐", description = "根据套餐 ID 删除指定租户套餐。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除租户套餐", businessType = "TENANT", riskLevel = 4)
     public boolean deleteById(@Parameter(description = "套餐ID") @PathVariable String id) {
         log.info("[API] 删除租户套餐: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantPackageService.deleteById(id);

@@ -1,6 +1,7 @@
 package com.cognora.platform.document.file.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.document.file.domain.entity.DocumentFile;
 import com.cognora.platform.document.file.service.DocumentFileService;
@@ -57,12 +58,14 @@ public class DocumentFileController {
 
     @Operation(summary = "创建文档文件", description = "保存文档文件元数据并绑定当前租户。")
     @PostMapping
+    @AuditLog(operation = "创建文档文件", businessType = "DOCUMENT", riskLevel = 3)
     public ApiResponse<DocumentFile> create(@RequestBody DocumentFile file) {
         return ApiResponse.success(documentFileService.createCurrentTenant(file));
     }
 
     @Operation(summary = "删除文档文件", description = "根据文件 ID 删除当前租户的文档文件记录。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除文档文件", businessType = "DOCUMENT", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "文档文件 ID") @PathVariable String id) {
         documentFileService.deleteCurrentTenant(id);
         return ApiResponse.success();

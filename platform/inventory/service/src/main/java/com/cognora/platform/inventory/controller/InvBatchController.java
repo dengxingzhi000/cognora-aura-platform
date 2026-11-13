@@ -1,6 +1,7 @@
 package com.cognora.platform.inventory.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.tenant.TenantContextHolder;
 import com.cognora.platform.inventory.dto.FefoPreviewRequest;
@@ -41,6 +42,7 @@ public class InvBatchController {
   @Operation(summary = "FEFO 分配预览",
       description = "只读预览：按先到期先出给出会扣减的批次与数量，不实际扣减库存。")
   @PostMapping("/fefo-preview")
+  @AuditLog(operation = "预览 FEFO 批次分配", businessType = "INVENTORY", riskLevel = 1)
   public ApiResponse<FefoPreviewResponse> preview(@Valid @RequestBody FefoPreviewRequest request) {
     UUID tenantId = TenantContextHolder.getRequiredTenantId();
     FefoAllocationPlan plan = fefoAllocationService.preview(
@@ -51,6 +53,7 @@ public class InvBatchController {
   @Operation(summary = "分页查询批次",
       description = "按 SKU、仓库、批次号、质量状态、批次状态与效期区间分页查询批次，附剩余天数与剩余金额。")
   @PostMapping("/query")
+  @AuditLog(operation = "分页查询库存批次", businessType = "INVENTORY", riskLevel = 2)
   public ApiResponse<Page<InvBatchResponse>> query(
       @RequestBody @Valid InvBatchQueryRequest request) {
     return ApiResponse.success(batchQueryService.query(request));
@@ -59,6 +62,7 @@ public class InvBatchController {
   @Operation(summary = "批次效期汇总",
       description = "汇总同一筛选条件下的过期/临期/耗尽批次数量与剩余金额，用于报表 KPI。")
   @PostMapping("/stats")
+  @AuditLog(operation = "汇总库存批次效期", businessType = "INVENTORY", riskLevel = 2)
   public ApiResponse<InvBatchStatsResponse> stats(
       @RequestBody @Valid InvBatchQueryRequest request) {
     return ApiResponse.success(batchQueryService.stats(request));

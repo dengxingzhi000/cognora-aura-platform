@@ -1,6 +1,7 @@
 package com.cognora.platform.file.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.file.api.dto.FileBatchDeleteRequest;
@@ -64,6 +65,7 @@ public class FileController {
 
     @Operation(summary = "更新文件信息", description = "重命名文件或调整业务类型、业务 ID 关联。传空表示解除关联。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "更新文件信息", businessType = "FILE", riskLevel = 3)
     public ApiResponse<FileMetadataDTO> update(
             @Parameter(description = "文件 ID") @PathVariable String id,
             @RequestBody FileUpdateRequest request) {
@@ -82,6 +84,7 @@ public class FileController {
 
     @Operation(summary = "删除文件", description = "删除文件元数据与存储对象。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除文件", businessType = "FILE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "文件 ID") @PathVariable String id) {
         try {
             fileManagementService.delete(id);
@@ -96,6 +99,7 @@ public class FileController {
 
     @Operation(summary = "批量删除文件", description = "按 ID 列表批量删除当前租户的文件，返回实际删除数量。")
     @PostMapping("/batch-delete")
+    @AuditLog(operation = "批量删除文件", businessType = "FILE", riskLevel = 4)
     public ApiResponse<Integer> batchDelete(@RequestBody FileBatchDeleteRequest request) {
         try {
             return ApiResponse.success(fileManagementService.deleteBatch(request.getIds()));
@@ -107,6 +111,7 @@ public class FileController {
 
     @Operation(summary = "上传文件", description = "上传文件并返回文件的元数据信息。")
     @PostMapping("/upload")
+    @AuditLog(operation = "上传文件", businessType = "FILE", riskLevel = 3)
     public ApiResponse<FileMetadataDTO> upload(@RequestParam("file") MultipartFile file,
                                                 @Parameter(description = "业务类型") @RequestParam(value = "bizType", required = false) String bizType,
                                                 @Parameter(description = "业务 ID") @RequestParam(value = "bizId", required = false) String bizId) {

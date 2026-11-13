@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.tenant.domain.entity.Tenant;
 import com.cognora.platform.tenant.service.ITenantService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +24,7 @@ public class TenantController {
 
     @Operation(summary = "创建租户", description = "新增一个租户并返回创建后的租户信息。")
     @PostMapping
+    @AuditLog(operation = "创建租户", businessType = "TENANT", riskLevel = 4)
     public Tenant create(@RequestBody Tenant entity) {
         log.info("[API] 创建租户: tenantCode={}, tenantName={}", (entity.getTenantCode() + "").replace("\r", "_").replace("\n", "_"), (entity.getTenantName() + "").replace("\r", "_").replace("\n", "_"));
         return tenantService.createTenant(entity);
@@ -37,6 +39,7 @@ public class TenantController {
 
     @Operation(summary = "更新租户", description = "根据租户 ID 更新租户信息并返回更新结果。")
     @PutMapping
+    @AuditLog(operation = "更新租户", businessType = "TENANT", riskLevel = 3)
     public Tenant update(@RequestBody Tenant entity) {
         log.info("[API] 更新租户: id={}", (entity.getId() + "").replace("\r", "_").replace("\n", "_"));
         return tenantService.updateTenant(entity);
@@ -44,6 +47,7 @@ public class TenantController {
 
     @Operation(summary = "删除租户", description = "根据租户 ID 删除指定租户。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除租户", businessType = "TENANT", riskLevel = 4)
     public boolean deleteById(@Parameter(description = "租户ID") @PathVariable String id) {
         log.info("[API] 删除租户: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantService.deleteById(id);
@@ -51,6 +55,7 @@ public class TenantController {
 
     @Operation(summary = "启用租户", description = "将指定租户状态置为可用，允许其正常访问平台。")
     @PutMapping("/{id}/enable")
+    @AuditLog(operation = "启用租户", businessType = "TENANT", riskLevel = 3)
     public boolean enable(@Parameter(description = "租户ID") @PathVariable String id) {
         log.info("[API] 启用租户: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantService.enableTenant(id);
@@ -58,6 +63,7 @@ public class TenantController {
 
     @Operation(summary = "禁用租户", description = "将指定租户状态置为禁用，暂停其访问平台。")
     @PutMapping("/{id}/disable")
+    @AuditLog(operation = "禁用租户", businessType = "TENANT", riskLevel = 4)
     public boolean disable(@Parameter(description = "租户ID") @PathVariable String id) {
         log.info("[API] 禁用租户: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantService.disableTenant(id);

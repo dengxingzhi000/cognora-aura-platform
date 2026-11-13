@@ -1,5 +1,6 @@
 package com.cognora.platform.system.controller;
 
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.decision.config.WeightProfile;
 import com.cognora.platform.system.service.DecisionWeightService;
@@ -35,12 +36,14 @@ public class DecisionWeightController {
 
     @Operation(summary = "新增权重方案", description = "创建新的权重方案，各维度权重之和须为 1。")
     @PostMapping
+    @AuditLog(operation = "新增决策权重方案", businessType = "DECISION_WEIGHT", riskLevel = 3)
     public ApiResponse<WeightProfile> create(@RequestBody WeightProfile profile) {
         return ApiResponse.success(weightService.create(profile));
     }
 
     @Operation(summary = "启用权重方案", description = "将指定的权重方案设为该引擎当前生效的版本。")
     @PutMapping("/{id}/activate")
+    @AuditLog(operation = "启用决策权重方案", businessType = "DECISION_WEIGHT", riskLevel = 3)
     public ApiResponse<Void> activate(@Parameter(description = "权重方案 ID") @PathVariable String id) {
         weightService.activate(id);
         return ApiResponse.success();
@@ -48,6 +51,7 @@ public class DecisionWeightController {
 
     @Operation(summary = "删除权重方案", description = "根据方案 ID 删除指定的权重方案。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除决策权重方案", businessType = "DECISION_WEIGHT", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "权重方案 ID") @PathVariable String id) {
         weightService.delete(id);
         return ApiResponse.success();

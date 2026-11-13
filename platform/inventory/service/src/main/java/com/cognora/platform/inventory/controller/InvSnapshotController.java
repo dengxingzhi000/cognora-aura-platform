@@ -1,6 +1,7 @@
 package com.cognora.platform.inventory.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.response.ResultCode;
 import com.cognora.platform.inventory.domain.entity.InvSnapshot;
@@ -54,6 +55,7 @@ public class InvSnapshotController {
    */
   @Operation(summary = "分页查询快照", description = "按日期、SKU 和仓库分页查询库存每日快照。")
   @PostMapping("/query")
+  @AuditLog(operation = "分页查询库存快照", businessType = "INVENTORY", riskLevel = 2)
   public ApiResponse<Page<InvSnapshot>> query(
       @RequestBody @Valid InvSnapshotQueryRequest request) {
     return ApiResponse.success(queryService.query(request));
@@ -92,6 +94,7 @@ public class InvSnapshotController {
    */
   @Operation(summary = "生成库存快照", description = "为当前租户生成指定日期的库存快照，默认使用当天；同日重复执行会跳过已生成的记录。")
   @PostMapping("/generate")
+  @AuditLog(operation = "生成库存快照", businessType = "INVENTORY", riskLevel = 2)
   public ApiResponse<InvSnapshotGenerationResult> generate(
       @Parameter(description = "快照日期，格式 yyyy-MM-dd，默认当天")
       @RequestParam(required = false)

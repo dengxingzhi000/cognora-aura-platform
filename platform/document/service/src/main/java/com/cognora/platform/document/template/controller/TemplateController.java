@@ -1,6 +1,7 @@
 package com.cognora.platform.document.template.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.document.template.domain.dto.RenderRequest;
 import com.cognora.platform.document.template.domain.dto.RenderResult;
@@ -59,12 +60,14 @@ public class TemplateController {
 
     @Operation(summary = "创建模板", description = "新建并保存一个文档模板，初始状态为草稿。")
     @PostMapping
+    @AuditLog(operation = "创建文档模板", businessType = "DOCUMENT", riskLevel = 3)
     public ApiResponse<DocTemplate> create(@RequestBody DocTemplate template) {
         return ApiResponse.success(templateService.createTemplate(template));
     }
 
     @Operation(summary = "更新模板", description = "更新模板名称、类型、分类、格式、描述或状态。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "修改文档模板", businessType = "DOCUMENT", riskLevel = 3)
     public ApiResponse<DocTemplate> update(@Parameter(description = "模板 ID") @PathVariable String id,
                                            @RequestBody DocTemplate template) {
         return ApiResponse.success(templateService.updateTemplate(id, template));
@@ -72,6 +75,7 @@ public class TemplateController {
 
     @Operation(summary = "创建模板版本", description = "为模板创建新版本，版本号自动递增，初始状态为草稿。")
     @PostMapping("/{id}/versions")
+    @AuditLog(operation = "创建模板版本", businessType = "DOCUMENT", riskLevel = 3)
     public ApiResponse<DocTemplateVersion> createVersion(@Parameter(description = "模板 ID") @PathVariable String id,
                                                          @RequestBody DocTemplateVersion version) {
         return ApiResponse.success(templateService.createVersion(id, version));
@@ -79,6 +83,7 @@ public class TemplateController {
 
     @Operation(summary = "发布模板版本", description = "发布指定版本，归档旧的已发布版本并更新模板当前版本。")
     @PostMapping("/{id}/versions/{versionId}/publish")
+    @AuditLog(operation = "发布模板版本", businessType = "DOCUMENT", riskLevel = 3)
     public ApiResponse<DocTemplateVersion> publishVersion(@Parameter(description = "模板 ID") @PathVariable String id,
                                                           @Parameter(description = "模板版本 ID") @PathVariable String versionId) {
         return ApiResponse.success(templateService.publishVersion(id, versionId));
@@ -88,6 +93,7 @@ public class TemplateController {
 
     @Operation(summary = "保存模板变量 Schema", description = "带 id 时更新已有 Schema，否则新建；变量定义需为合法 JSON 数组。")
     @PostMapping("/{templateId}/schema")
+    @AuditLog(operation = "保存模板变量 Schema", businessType = "DOCUMENT", riskLevel = 3)
     public ApiResponse<DocTemplateSchema> saveSchema(@Parameter(description = "模板 ID") @PathVariable String templateId,
                                                      @RequestBody DocTemplateSchema schema) {
         return ApiResponse.success(schemaService.saveSchema(templateId, schema));
@@ -103,6 +109,7 @@ public class TemplateController {
 
     @Operation(summary = "渲染模板", description = "按模板和变量数据渲染生成文档。")
     @PostMapping("/render")
+    @AuditLog(operation = "渲染模板生成文档", businessType = "DOCUMENT", riskLevel = 3)
     public ApiResponse<RenderResult> render(@RequestBody RenderRequest request) {
         return ApiResponse.success(renderService.render(request));
     }

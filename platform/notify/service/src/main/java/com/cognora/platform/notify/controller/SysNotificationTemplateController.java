@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.notify.domain.entity.SysNotificationTemplate;
 import com.cognora.platform.notify.service.ISysNotificationTemplateService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +24,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "创建通知模板", description = "创建通知模板并指定模板编码与通知渠道。")
     @PostMapping
+    @AuditLog(operation = "创建通知模板", businessType = "NOTIFY", riskLevel = 3)
     public SysNotificationTemplate create(@RequestBody SysNotificationTemplate entity) {
         log.info("[API] 创建通知模板: templateCode={}, channel={}", (entity.getTemplateCode() + "").replace("\r", "_").replace("\n", "_"), (entity.getChannel() + "").replace("\r", "_").replace("\n", "_"));
         return notificationTemplateService.createTemplate(entity);
@@ -37,6 +39,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "更新通知模板", description = "更新通知模板的内容与渠道配置。")
     @PutMapping
+    @AuditLog(operation = "更新通知模板", businessType = "NOTIFY", riskLevel = 3)
     public SysNotificationTemplate update(@RequestBody SysNotificationTemplate entity) {
         log.info("[API] 更新通知模板: id={}", (entity.getId() + "").replace("\r", "_").replace("\n", "_"));
         return notificationTemplateService.updateTemplate(entity);
@@ -44,6 +47,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "删除通知模板", description = "根据模板ID删除通知模板。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除通知模板", businessType = "NOTIFY", riskLevel = 4)
     public boolean deleteById(@Parameter(description = "模板ID") @PathVariable String id) {
         log.info("[API] 删除通知模板: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return notificationTemplateService.deleteById(id);
@@ -58,6 +62,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "启用通知模板", description = "将指定通知模板状态置为启用。")
     @PutMapping("/{id}/enable")
+    @AuditLog(operation = "启用通知模板", businessType = "NOTIFY", riskLevel = 3)
     public boolean enable(@Parameter(description = "模板ID") @PathVariable String id) {
         log.info("[API] 启用通知模板: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return notificationTemplateService.enableTemplate(id);
@@ -65,6 +70,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "禁用通知模板", description = "将指定通知模板状态置为禁用。")
     @PutMapping("/{id}/disable")
+    @AuditLog(operation = "禁用通知模板", businessType = "NOTIFY", riskLevel = 3)
     public boolean disable(@Parameter(description = "模板ID") @PathVariable String id) {
         log.info("[API] 禁用通知模板: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return notificationTemplateService.disableTemplate(id);

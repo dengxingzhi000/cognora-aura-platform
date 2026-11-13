@@ -2,6 +2,7 @@ package com.cognora.platform.product.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.platform.common.domain.PageResult;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +51,7 @@ public class ProdAttributeTemplateController {
 
     @Operation(summary = "创建属性模板", description = "新增属性模板，自动生成ID并初始化创建与更新时间。")
     @PostMapping
+    @AuditLog(operation = "创建属性模板", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> create(@RequestBody ProdAttributeTemplate template) {
         attributeTemplateService.createTemplate(template);
         return ApiResponse.success();
@@ -57,6 +59,7 @@ public class ProdAttributeTemplateController {
 
     @Operation(summary = "更新属性模板", description = "根据模板ID更新属性模板内容并刷新更新时间。")
     @PutMapping("/{id}")
+    @AuditLog(operation = "修改属性模板", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> update(@Parameter(description = "属性模板ID") @PathVariable String id, @RequestBody ProdAttributeTemplate template) {
         attributeTemplateService.updateTemplate(id, template);
         return ApiResponse.success();
@@ -64,6 +67,7 @@ public class ProdAttributeTemplateController {
 
     @Operation(summary = "删除属性模板", description = "根据模板ID逻辑删除属性模板。")
     @DeleteMapping("/{id}")
+    @AuditLog(operation = "删除属性模板", businessType = "PRODUCT", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "属性模板ID") @PathVariable String id) {
         attributeTemplateService.deleteTemplate(id);
         return ApiResponse.success();
