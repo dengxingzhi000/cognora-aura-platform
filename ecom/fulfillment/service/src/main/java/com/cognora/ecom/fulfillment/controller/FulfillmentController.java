@@ -92,7 +92,7 @@ public class FulfillmentController {
 
     @Operation(summary = "确认签收", description = "对指定履约单确认收货签收，将履约单推进至已完成状态。")
     @PostMapping("/{fulfillmentNo}/deliver")
-    @AuditLog(operation = "确认签收", businessType = "FULFILLMENT", riskLevel = 1)
+    @AuditLog(operation = "确认签收", businessType = "FULFILLMENT", riskLevel = 3)
     public boolean confirmDelivery(@Parameter(description = "履约单号") @PathVariable String fulfillmentNo) {
         log.info("[API] Confirm delivery: fulfillmentNo={}", (fulfillmentNo + "").replace("\r", "_").replace("\n", "_"));
         fulfillmentService.confirmDelivery(fulfillmentNo);

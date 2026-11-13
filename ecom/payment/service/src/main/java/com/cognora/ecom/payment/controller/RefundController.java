@@ -84,7 +84,7 @@ public class RefundController {
 
     @Operation(summary = "驳回退款", description = "驳回指定退款申请并记录驳回原因。")
     @PostMapping("/{refundNo}/reject")
-    @AuditLog(operation = "驳回退款申请", businessType = "PAYMENT", riskLevel = 3)
+    @AuditLog(operation = "驳回退款申请", businessType = "PAYMENT", riskLevel = 4)
     public Refund rejectRefund(@Parameter(description = "退款单号") @PathVariable String refundNo,
                                @RequestBody(required = false) RejectRequest request) {
         log.info("[API] Reject refund: refundNo={}", (refundNo + "").replace("\r", "_").replace("\n", "_"));

@@ -105,7 +105,7 @@ public class OrderCenterController {
 
     @Operation(summary = "确认收货", description = "按订单号确认收货并完成订单状态流转。")
     @PostMapping("/{orderNo}/confirm")
-    @AuditLog(operation = "确认收货", businessType = "ORDER_CENTER", riskLevel = 1)
+    @AuditLog(operation = "确认收货", businessType = "ORDER_CENTER", riskLevel = 3)
     public boolean confirmOrder(@Parameter(description = "订单号") @PathVariable String orderNo) {
         log.info("[API] Confirm order: orderNo={}", (orderNo + "").replace("\r", "_").replace("\n", "_"));
         orderService.confirmOrder(orderNo);
