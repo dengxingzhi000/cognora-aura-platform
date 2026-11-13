@@ -1,5 +1,6 @@
 package com.cognora.platform.inventory.service.cost;
 
+import com.cognora.platform.common.data.rw.annotation.Master;
 import com.cognora.platform.inventory.domain.entity.Inventory;
 import com.cognora.platform.inventory.mapper.InvInventoryMapper;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class MovingAverageCostService {
    * @param unitPrice 入库单价；为空时按当前均价入账（均价不变）
    * @return 本次成本移动（含变更前后均价与结存数量）
    */
+  @Master(reason = "库存数量与均价更新必须走主库")
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
   public CostMovement applyInbound(String inventoryId, int quantity, BigDecimal unitPrice,
                                    int adjustType, String operatorId) {
@@ -78,6 +80,7 @@ public class MovingAverageCostService {
    *
    * @param balanceBefore 变更前结存数量；为空时（Redis 路径）只记金额不记结存
    */
+  @Master(reason = "出库计价属于写链路，必须走主库")
   public static CostMovement outboundMovement(BigDecimal averageCost, Integer balanceBefore,
                                               int quantity) {
     if (quantity < 0) {
