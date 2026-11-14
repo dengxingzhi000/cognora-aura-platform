@@ -27,7 +27,7 @@
 # the numerator that came from a test which no longer exists did. Re-raise both
 # rows once the smoke tests are restored or replaced by tests that assert
 # behaviour rather than mere startup.
-../platform/gateway	0.723	0.549
-../ecom/payment/service	0.680	0.601
+../platform/gateway	0.718	0.549
+../ecom/payment/service	0.624	0.576
 ../ecom/order-center/service	0.391	0.393
 ../platform/common/web	0.208	0.177

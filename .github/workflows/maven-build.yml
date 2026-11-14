@@ -89,6 +89,17 @@ jobs:
       - name: Validate the checked-in permission mapping artifacts
         run: python3 scripts/tools/permission_annotation_map.py --tracked-only --check
 
+      # 端口冲突：两个服务的 server.port 相同，或 compose 里两个容器映射同一个宿主机端口。
+      # 这类缺陷只在「第二个进程启动」时暴露，靠人工 override 记不住；静态检查是 CI 里
+      # 唯一能自动发现它的手段。每加一个服务/容器都应保持这里为 0 冲突。
+      - name: Validate no port conflicts
+        run: python3 scripts/ci/check_port_conflicts.py
+
+      # ecom 的 8 个 k8s 清单由脚本生成（数据库名/端口来自各自 application.yml）。
+      # --check 同时做两件事：表和代码是否一致，签入的清单是否已过期。
+      - name: Validate ecom k8s manifests are up to date
+        run: python3 scripts/gen_ecom_k8s_manifests.py --check
+
 
       - name: Initialize databases
         if: github.event_name == 'push'
@@ -192,6 +203,92 @@ jobs:
   #     every PR red; the gate stays on the SonarCloud side, this job only analyzes.
   #   - while `vars.SONAR_ORG` is unset the scan step is skipped and the job stays
   #     green — it must never become a permanently failing job.
+  # 覆盖率门禁（棘轮）。父 POM 里 jacoco.skip=true，所以 `mvn verify` 从不执行 JaCoCo
+  # 的 70%/60% 规则——门禁形同虚设。这里真正执行它，但按模块传入基线阈值：实测水位是
+  # 17%~72%，一刀切要求 70/60 会让构建长期变红，而长期红的门禁很快又会被关掉。
+  # 基线在 scripts/ci/coverage-baseline.tsv，只允许上调（见该文件头部规则）。
+  coverage-gate:
+    name: Coverage Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Install internal BOM
+        run: mvn install -B -DskipTests -f bom/pom.xml
+
+      # `com.scm.parent/pom.xml` IS `com.cognora:cognora-aura-platform` (packaging: pom),
+      # and every module below it declares it as its parent. Maven resolves a parent POM
+      # from the repository, not from the reactor, so on a clean runner the gated modules
+      # fail with "Could not find artifact com.cognora:cognora-aura-platform:pom:2.2.0"
+      # as soon as they are built with -pl instead of as part of a full reactor run.
+      # A developer's ~/.m2 usually has it from an earlier install, which is why this
+      # only shows up in CI.
+      - name: Install the root aggregator POM
+        run: mvn install -B -N -DskipTests -f com.scm.parent/pom.xml
+
+      # A gated module cannot resolve its internal dependencies from a bare reactor run,
+      # so install what the gated modules consume first (tests skipped; coverage only
+      # cares about the gated module's own bytecode).
+      #
+      # `-am` (also-make) pulls in each module's dependencies, including the `-api`
+      # siblings (ecom-payment-api, scm-order-api, platform-inventory-api, ...).
+      # Enumerating them by hand does not scale and was already the cause of a red job.
+      # It is safe for coverage: this step only installs, and the verify below stays
+      # scoped to one module, so JaCoCo reports on that module's bytecode alone.
+      - name: Install the modules the gated modules compile against
+        run: |
+          mvn install -B -DskipTests -q -f com.scm.parent/pom.xml -am \
+            -pl ../platform/gateway,../ecom/payment/service,../ecom/order-center/service,../platform/common/web
+
+      - name: Run coverage gate for every baseline entry
+        run: |
+          set -euo pipefail
+          status=0
+          # Skip comments and blank lines; one tab separates the three columns.
+          while IFS=$'\t' read -r module line_min branch_min; do
+            case "${module}" in
+              ''|'#'*) continue ;;
+            esac
+            echo "::group::coverage gate ${module} (line>=${line_min}, branch>=${branch_min})"
+            log="$(mktemp)"
+            if ! mvn verify -B -f com.scm.parent/pom.xml -pl "${module}" \
+                 -Djacoco.skip=false \
+                 -Djacoco.line.minimum="${line_min}" \
+                 -Djacoco.branch.minimum="${branch_min}" 2>&1 | tee "${log}"; then
+              # A dependency/build failure is not a coverage regression. Reporting one as
+              # "below its baseline" sends the reader looking for missing tests that would
+              # not have helped; say which it is.
+              if grep -qE 'Could not (resolve|collect|find) dependencies|Failed to read artifact descriptor|Could not find artifact' "${log}"; then
+                echo "::error title=Coverage gate could not build::${module} failed to resolve its dependencies, so coverage was never measured. This is a build/install problem, not a coverage regression — fix the module's install step (see 'Install the modules the gated modules compile against' above)."
+              else
+                echo "::error title=Coverage dropped::${module} is below its baseline (line>=${line_min}, branch>=${branch_min}). Add tests, or if this is a deliberate removal of tests/code, lower the row in scripts/ci/coverage-baseline.tsv in the same PR and say why there."
+              fi
+              status=1
+            fi
+            rm -f "${log}"
+            echo "::endgroup::"
+          done < scripts/ci/coverage-baseline.tsv
+          exit "${status}"
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-reports
+          if-no-files-found: ignore
+          path: |
+            **/target/site/jacoco/
+            **/target/site/jacoco-aggregate/
+
   code-quality:
     name: Code Quality Check
     runs-on: ubuntu-latest
