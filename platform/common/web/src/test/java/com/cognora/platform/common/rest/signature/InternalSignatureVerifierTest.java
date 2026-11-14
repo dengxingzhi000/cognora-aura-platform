@@ -86,6 +86,48 @@ class InternalSignatureVerifierTest {
         assertThat(verifier.hasValidSignature(request)).isTrue();
     }
 
+    /**
+     * The signer reads {@code URI.getQuery()}, which is already percent-decoded, so the verifier
+     * must decode the raw wire query too. Before this was fixed, a call whose {@code url} parameter
+     * contained {@code /} (encoded as {@code %2F} on the wire) was rejected with 403 even though
+     * both sides shared the same secret - the whole permission lookup channel failed closed.
+     */
+    @Test
+    void acceptsASignatureOverPercentEncodedParameters() {
+        InternalSignatureVerifier verifier = verifierWithSecret(SECRET);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", URI);
+        // Wire form the container receives: values are still percent-encoded.
+        request.setQueryString("url=%2Fapi%2Fv1%2Forders%2Fdashboard%2Fsummary&method=GET");
+        long timestamp = System.currentTimeMillis();
+        String nonce = "nonce-6";
+        request.addHeader("X-Timestamp", String.valueOf(timestamp));
+        request.addHeader("X-Nonce", nonce);
+        request.addHeader("X-App-Id", APP_ID);
+        // The caller signed the DECODED, sorted parameters.
+        request.addHeader("X-Signature",
+                sign(timestamp, nonce, APP_ID, URI, "method=GET&url=/api/v1/orders/dashboard/summary"));
+
+        assertThat(verifier.hasValidSignature(request)).isTrue();
+    }
+
+    @Test
+    void rejectsASignatureOverTheRawEncodedParameters() {
+        InternalSignatureVerifier verifier = verifierWithSecret(SECRET);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", URI);
+        request.setQueryString("url=%2Fapi%2Fv1%2Forders%2Fdashboard%2Fsummary&method=GET");
+        long timestamp = System.currentTimeMillis();
+        String nonce = "nonce-7";
+        request.addHeader("X-Timestamp", String.valueOf(timestamp));
+        request.addHeader("X-Nonce", nonce);
+        request.addHeader("X-App-Id", APP_ID);
+        // Signing the raw wire text must NOT validate: it is the mismatched convention.
+        request.addHeader("X-Signature",
+                sign(timestamp, nonce, APP_ID, URI,
+                        "method=GET&url=%2Fapi%2Fv1%2Forders%2Fdashboard%2Fsummary"));
+
+        assertThat(verifier.hasValidSignature(request)).isFalse();
+    }
+
     private static InternalSignatureVerifier verifierWithSecret(String secret) {
         MockEnvironment environment = new MockEnvironment();
         if (!secret.isEmpty()) {

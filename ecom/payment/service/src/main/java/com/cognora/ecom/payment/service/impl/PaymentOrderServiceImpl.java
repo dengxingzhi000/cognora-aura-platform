@@ -9,9 +9,11 @@ import com.cognora.ecom.payment.domain.PaymentAmount;
 import com.cognora.ecom.payment.domain.entity.PaymentOrder;
 import com.cognora.ecom.payment.mapper.PaymentOrderMapper;
 import com.cognora.ecom.payment.service.IPaymentOrderService;
+import com.cognora.ecom.payment.service.notify.PaymentPaidEvent;
 import com.cognora.platform.common.log.util.LogUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -29,6 +31,12 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
     private static final int STATUS_PAID = 2;
     private static final int STATUS_CANCELLED = 4;
     private static final int MAX_PAGE_SIZE = 100;
+
+    /**
+     * Publishes {@link PaymentPaidEvent} inside the paid transaction; the listener runs
+     * {@code AFTER_COMMIT} and calls order-center over the signed internal channel.
+     */
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Creates a payable payment order.
@@ -190,6 +198,15 @@ public class PaymentOrderServiceImpl extends ServiceImpl<PaymentOrderMapper, Pay
         payment.setPaidAt(LocalDateTime.now());
         payment.setUpdatedAt(LocalDateTime.now());
         updateById(payment);
+
+        // Advance the order only after this transaction commits (see PaymentPaidListener).
+        // Publishing here - rather than calling order-center inline - keeps the remote call and
+        // its failures out of the payment transaction, so a slow/unavailable order service can
+        // never roll back a payment the channel has already settled.
+        eventPublisher.publishEvent(new PaymentPaidEvent(
+                payment.getOrderNo(), payment.getPaymentNo(),
+                payment.getAmount(), transactionId));
+
         log.info("Payment callback handled: paymentNo={}, transactionId={}",
                 (payment.getPaymentNo() + "").replace("\r", "_").replace("\n", "_"),
                 (transactionId + "").replace("\r", "_").replace("\n", "_"));

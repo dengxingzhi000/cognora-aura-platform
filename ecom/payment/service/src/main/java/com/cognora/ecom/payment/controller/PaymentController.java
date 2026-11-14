@@ -24,6 +24,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,6 +48,7 @@ public class PaymentController {
 
     @Operation(summary = "分页查询支付单", description = "按订单号、用户、渠道与状态分页查询支付单。")
     @GetMapping("/page")
+    @PreAuthorize("hasAnyAuthority('payment:payment:page', 'order:payment:view')")
     public Page<PaymentOrder> page(
             @Parameter(description = "页码，默认 1") @RequestParam(defaultValue = "1") @Min(1) int page,
             @Parameter(description = "每页数量，默认 20，最大 100") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,

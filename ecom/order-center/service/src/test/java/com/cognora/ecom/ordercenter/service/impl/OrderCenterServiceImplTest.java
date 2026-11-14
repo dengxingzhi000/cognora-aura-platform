@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -66,11 +67,51 @@ class OrderCenterServiceImplTest {
     }
 
     @Test
-    void payOrderRejectsMissingPayableAmount() {
+    void applyVerifiedPaymentRejectsMissingPayableAmount() {
         OcOrder order = new OcOrder().setOrderNo("ORD-1").setStatus(1);
         when(orderMapper.selectOne(any(Wrapper.class), eq(true))).thenReturn(order);
 
-        assertThrows(IllegalStateException.class, () -> orderService.payOrder("ORD-1", "PAY-1"));
+        assertThrows(IllegalStateException.class,
+                () -> orderService.applyVerifiedPayment("ORD-1", "PAY-1", new BigDecimal("10.00"), "TX-1"));
+    }
+
+    /**
+     * The amount the channel actually charged must equal the order's payable amount. This is the
+     * business-level half of the guard: {@code ecom-payment} already compared the callback amount
+     * against its own record, and a mismatch here means the verified payment settled something
+     * else (another order, or a stale amount).
+     */
+    @Test
+    void applyVerifiedPaymentRejectsAmountMismatch() {
+        OcOrder order = new OcOrder().setOrderNo("ORD-1").setStatus(1)
+                .setPayableAmount(new BigDecimal("10.00"));
+        when(orderMapper.selectOne(any(Wrapper.class), eq(true))).thenReturn(order);
+
+        assertThrows(IllegalStateException.class,
+                () -> orderService.applyVerifiedPayment("ORD-1", "PAY-1", new BigDecimal("0.01"), "TX-1"));
+    }
+
+    @Test
+    void applyVerifiedPaymentRejectsMissingTransactionId() {
+        OcOrder order = new OcOrder().setOrderNo("ORD-1").setStatus(1)
+                .setPayableAmount(new BigDecimal("10.00"));
+        when(orderMapper.selectOne(any(Wrapper.class), eq(true))).thenReturn(order);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> orderService.applyVerifiedPayment("ORD-1", "PAY-1", new BigDecimal("10.00"), " "));
+    }
+
+    @Test
+    void applyVerifiedPaymentMarksOrderPaid() {
+        OcOrder order = new OcOrder().setOrderNo("ORD-1").setStatus(1)
+                .setPayableAmount(new BigDecimal("10.00"));
+        when(orderMapper.selectOne(any(Wrapper.class), eq(true))).thenReturn(order);
+
+        orderService.applyVerifiedPayment("ORD-1", "PAY-1", new BigDecimal("10.00"), "TX-1");
+
+        assertEquals(2, order.getStatus());
+        assertEquals(new BigDecimal("10.00"), order.getPaidAmount());
+        verify(orderMapper).updateById(order);
     }
 
     @Test

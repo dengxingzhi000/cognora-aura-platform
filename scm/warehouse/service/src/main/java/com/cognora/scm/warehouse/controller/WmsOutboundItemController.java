@@ -62,20 +62,4 @@ public class WmsOutboundItemController {
 
     @Operation(summary = "查询出库明细详情", description = "按主键查询出库明细，明细不存在或已删除时返回 404。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('warehouse:outbound-item:view')")
-    public ApiResponse<WmsOutboundItem> getById(@Parameter(description = "出库明细主键 ID") @PathVariable String id) {
-        WmsOutboundItem item = outboundItemQueryService.getById(id);
-        if (item == null || Boolean.TRUE.equals(item.getDeleted())) {
-            return ApiResponse.fail(404, "出库明细不存在");
-        }
-        return ApiResponse.success(item);
-    }
-
-    @Operation(summary = "查询出库单明细列表", description = "根据出库单 ID 查询该出库单下的全部明细行。")
-    @GetMapping("/list")
-    @PreAuthorize("hasAuthority('warehouse:outbound-item:list-by-outbound-id')")
-    public ApiResponse<List<WmsOutboundItem>> listByOutboundId(
-            @Parameter(description = "出库单主键 ID") @RequestParam String outboundId) {
-        return ApiResponse.success(outboundItemQueryService.listByOutboundId(outboundId));
-    }
-}
+    @PreAuthorize("hasAnyAuthority('warehouse:outbound-item:list-by-outbound-id', 'warehouse:outbound-item:view')")

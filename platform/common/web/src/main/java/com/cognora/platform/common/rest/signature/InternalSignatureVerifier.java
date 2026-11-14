@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HashMap;
@@ -62,6 +63,16 @@ public class InternalSignatureVerifier {
                 signature.getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Canonical query string used by the HMAC: keys and values are percent-DECODED before being
+     * sorted and joined.
+     *
+     * <p>This must match {@code RestClientRequestSignatureInterceptor} exactly. The interceptor
+     * reads {@code HttpRequest.getURI()}, whose {@code getQuery()} is already decoded, so signing
+     * the raw wire form here rejected every call whose parameters contained reserved characters
+     * (for example {@code url=/api/v1/...}). Percent-decoding both sides keeps the two halves of
+     * the channel in agreement; malformed escapes fall back to the raw text rather than throwing.
+     */
     static String sortAndConcatParams(String query) {
         if (!StringUtils.hasText(query)) {
             return "";
@@ -69,11 +80,21 @@ public class InternalSignatureVerifier {
         Map<String, String> params = new HashMap<>();
         for (String pair : query.split("&")) {
             String[] kv = pair.split("=", 2);
-            params.put(kv[0], kv.length > 1 ? kv[1] : "");
+            params.put(decode(kv[0]), kv.length > 1 ? decode(kv[1]) : "");
         }
         return params.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .map(entry -> entry.getKey() + "=" + entry.getValue())
                 .collect(Collectors.joining("&"));
+    }
+
+    private static String decode(String value) {
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException ex) {
+            // A malformed escape cannot be signed consistently; use the raw text so the
+            // signature simply fails closed instead of raising a 500 from the filter.
+            return value;
+        }
     }
 }

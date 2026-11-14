@@ -160,6 +160,12 @@ public class AuditWriteRequestGuard extends OncePerRequestFilter {
                 "ACCESS_DENIED", "Audit writes are restricted to internal services");
     }
 
+    /**
+     * Canonical query string used by the HMAC: keys and values are percent-DECODED before sorting
+     * and joining, matching {@code RestClientRequestSignatureInterceptor} (which reads the already
+     * decoded {@code URI.getQuery()}). Comparing against the raw wire form rejected every call
+     * whose parameters contained reserved characters.
+     */
     private String sortAndConcatParams(String query) {
         if (!StringUtils.hasText(query)) {
             return "";
@@ -167,12 +173,21 @@ public class AuditWriteRequestGuard extends OncePerRequestFilter {
         Map<String, String> params = new HashMap<>();
         for (String pair : query.split("&")) {
             String[] kv = pair.split("=", 2);
-            params.put(kv[0], kv.length > 1 ? kv[1] : "");
+            params.put(decode(kv[0]), kv.length > 1 ? decode(kv[1]) : "");
         }
         return params.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .map(entry -> entry.getKey() + "=" + entry.getValue())
                 .collect(Collectors.joining("&"));
+    }
+
+    private static String decode(String value) {
+        try {
+            return UriUtils.decode(value, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException ex) {
+            // Malformed escape: keep the raw text so the signature fails closed instead of 500.
+            return value;
+        }
     }
 
     private String sanitize(String value) {

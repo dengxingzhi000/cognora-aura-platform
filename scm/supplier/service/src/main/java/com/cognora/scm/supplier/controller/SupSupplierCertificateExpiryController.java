@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,6 +24,7 @@ public class SupSupplierCertificateExpiryController {
 
     @Operation(summary = "查询即将到期的资质", description = "按到期日升序返回未来 N 天内到期的资质证照。")
     @GetMapping("/expiring")
+    @PreAuthorize("hasAuthority('supplier:certificate:expiring')")
     public ApiResponse<Page<SupSupplierCertificate>> expiring(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
