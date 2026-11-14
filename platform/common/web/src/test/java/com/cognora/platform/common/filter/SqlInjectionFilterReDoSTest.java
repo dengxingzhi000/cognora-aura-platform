@@ -47,18 +47,45 @@ class SqlInjectionFilterReDoSTest {
 
         // "/*" repeated without a closing "*/" used to backtrack quadratically
         // through (?:.|[\n\r])*?. The scan input is now truncated to
-        // MAX_SCAN_LENGTH (4096) before matching, so this must return immediately.
-        String payload = "/*\n".repeat(20_000);
+        // MAX_SCAN_LENGTH (4096) before matching.
+        //
+        // The property that matters is *scaling*, not a wall-clock budget: once the
+        // input is truncated, quadrupling the payload must not cost more than about
+        // the same work. An absolute threshold (this test used to assert <200ms)
+        // measures the CI machine's mood as much as the filter — it passed alone and
+        // failed in the full suite, where the box is busy — and a flaky security test
+        // gets deleted rather than trusted.
+        String smallPayload = "/*\n".repeat(5_000);    // 15 KB, well past the 4 KB cap
+        String largePayload = "/*\n".repeat(20_000);   // 60 KB, 4x the input
+
+        long smallMillis = timeBlockedThrough(filter, smallPayload);
+        long largeMillis = timeBlockedThrough(filter, largePayload);
+
+        // Quadratic backtracking would make this ~16x; truncation keeps it flat.
+        // A generous 4x factor leaves room for GC and scheduling noise while still
+        // failing loudly if the cap is ever removed.
+        long allowed = Math.max(smallMillis, 50L) * 4L;
+        assertTrue(largeMillis <= allowed,
+                "Time grew with input size (15KB=" + smallMillis + "ms, 60KB=" + largeMillis
+                        + "ms, allowed " + allowed + "ms): the MAX_SCAN_LENGTH truncation is not"
+                        + " being applied, so the payload is reaching the regex untruncated.");
+
         MockHttpServletResponse response = new MockHttpServletResponse();
         AtomicBoolean proceeded = new AtomicBoolean(false);
+        filter.doFilter(queryRequest("q", largePayload), response, (request, filteredResponse) -> proceeded.set(true));
 
-        long startedAt = System.nanoTime();
-        filter.doFilter(queryRequest("q", payload), response, (request, filteredResponse) -> proceeded.set(true));
-        long elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000L;
-
-        assertTrue(elapsedMillis < 200, "Pathological payload took " + elapsedMillis + "ms, expected < 200ms");
         assertTrue(proceeded.get(), "An unterminated comment carries no injection signature, so it must pass through");
         assertEquals(HttpServletResponse.SC_OK, response.getStatus());
+    }
+
+    /** Runs the filter once over {@code payload} and returns how long it took, in ms. */
+    private static long timeBlockedThrough(SqlInjectionFilter filter, String payload)
+            throws ServletException, IOException {
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        long startedAt = System.nanoTime();
+        filter.doFilter(queryRequest("q", payload), response, (request, filteredResponse) -> {
+        });
+        return (System.nanoTime() - startedAt) / 1_000_000L;
     }
 
     @Test

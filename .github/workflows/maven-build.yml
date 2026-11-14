@@ -224,17 +224,21 @@ jobs:
 
       - name: Install shared modules the gated modules compile against
         run: |
-          # A gated module cannot resolve platform-common-* from a bare reactor run,
-          # so install the shared libraries first (tests skipped; coverage only cares
-          # about the gated module's own bytecode).
+          # A gated module cannot resolve its internal dependencies from a bare reactor run,
+          # so install the shared libraries and the api modules they consume first (tests
+          # skipped; coverage only cares about the gated module's own bytecode).
           #
-          # `../platform/common` must be in the list: the shared libraries declare it as
-          # their parent (the aggregator above installs the root one), and Maven resolves
-          # the parent POM from the repository, not from the reactor. Without it every -pl
-          # run below fails with "Failed to read artifact descriptor ...
-          # platform-common:pom" — and because the loop reports any failure as "below its
-          # baseline", that dependency error was being reported as a coverage regression.
-          mvn install -B -DskipTests -q -f com.scm.parent/pom.xml -pl ../platform/common,../platform/common/core,../platform/common/data,../platform/common/data-rw,../platform/common/cache,../platform/common/security/api,../platform/common/security/core,../platform/common/system-contract,../platform/common/web
+          # Enumerating them by hand does not scale — installing just the platform-common
+          # set left ecom-payment-service unable to find ecom-payment-api / scm-order-api,
+          # and each new gated module would need its own list. `-am` (also-make) pulls in
+          # whatever the listed modules depend on, so the list only has to name the four
+          # gated modules themselves.
+          #
+          # `-am` here is safe for coverage: this step only *installs*, and the verify run
+          # in the next step is still scoped to the single module, so JaCoCo reports on that
+          # module's bytecode alone.
+          mvn install -B -DskipTests -q -f com.scm.parent/pom.xml -am \
+            -pl ../platform/gateway,../ecom/payment/service,../ecom/order-center/service,../platform/common/web
 
       - name: Run coverage gate for every baseline entry
         run: |
