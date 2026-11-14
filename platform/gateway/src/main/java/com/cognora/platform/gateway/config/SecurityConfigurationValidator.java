@@ -1,6 +1,7 @@
 package com.cognora.platform.gateway.config;
 
 import com.cognora.platform.gateway.properties.ApiSignatureProperties;
+import com.cognora.platform.common.security.util.SecretPlaceholders;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,17 @@ public class SecurityConfigurationValidator {
 
     @Value("${security.identity.signature-secret:}")
     private String identitySignatureSecret;
+
+    /**
+     * The gateway decodes every access token with this key, so it has to meet the same bar as the
+     * services that sign them. Validated here because the gateway scans only its own package and
+     * therefore never picks up {@code common/web}'s StartupSecretValidator.
+     */
+    @Value("${jwt.secret:}")
+    private String jwtSecret;
+
+    @Value("${cognora.security.secrets.strict:}")
+    private String strictSecrets;
 
     @Value("${spring.profiles.active:dev}")
     private String activeProfile;
@@ -88,8 +100,52 @@ public class SecurityConfigurationValidator {
             }
         }
 
+        validateJwtSecret();
+
         // Validate clock skew configuration consistency
         validateClockSkewConfiguration();
+    }
+
+    /**
+     * 网关用 jwt.secret 校验所有访问令牌。占位符与长度不足都必须拒绝启动，否则任何人都能用仓库里
+     * 公开的常量伪造令牌。
+     */
+    private void validateJwtSecret() {
+        boolean strict = StringUtils.hasText(strictSecrets)
+                ? Boolean.parseBoolean(strictSecrets.trim())
+                : isProductionLikeEnvironment();
+
+        if (!StringUtils.hasText(jwtSecret)) {
+            if (strict) {
+                throw new IllegalStateException(
+                        "CRITICAL SECURITY ERROR: jwt.secret is not configured, so the gateway "
+                                + "cannot verify any access token. Set JWT_SECRET to the same value "
+                                + "the auth service signs with.");
+            }
+            log.warn("jwt.secret is not configured; access-token verification will fail.");
+            return;
+        }
+
+        if (SecretPlaceholders.isPlaceholder(jwtSecret)) {
+            String message = "jwt.secret is a placeholder that ships with this repository, so it "
+                    + "is public in git. Set JWT_SECRET to a random value of at least 64 bytes "
+                    + "(the same value on the auth service and every business service).";
+            if (strict) {
+                log.error("CRITICAL SECURITY ERROR: {}", message);
+                throw new IllegalStateException(message);
+            }
+            log.warn("SECURITY WARNING: {}", message);
+            return;
+        }
+
+        if (jwtSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8).length < 64) {
+            String message = "jwt.secret is shorter than the 512-bit HS512 requirement.";
+            if (strict) {
+                log.error("CRITICAL SECURITY ERROR: {}", message);
+                throw new IllegalStateException(message);
+            }
+            log.warn("SECURITY WARNING: {}", message);
+        }
     }
 
     /**
@@ -120,11 +176,18 @@ public class SecurityConfigurationValidator {
      * 纭畾褰撳墠鐜鏄惁闇€瑕佷弗鏍肩殑瀹夊叏楠岃瘉锟?
      */
     private boolean isProductionLikeEnvironment() {
-        return activeProfile != null &&
-                (activeProfile.contains("prod") ||
-                        activeProfile.contains("production") ||
-                        activeProfile.contains("staging") ||
-                        activeProfile.contains("uat"));
+        if (activeProfile == null) {
+            return false;
+        }
+        String profile = activeProfile.toLowerCase(java.util.Locale.ROOT);
+        // kubernetes/k8s must count as production-like: the k8s manifests set
+        // SPRING_PROFILES_ACTIVE=kubernetes, so omitting it silently skipped every strict check.
+        return profile.contains("prod") ||
+                profile.contains("production") ||
+                profile.contains("staging") ||
+                profile.contains("uat") ||
+                profile.contains("kubernetes") ||
+                profile.contains("k8s");
     }
 
     /**

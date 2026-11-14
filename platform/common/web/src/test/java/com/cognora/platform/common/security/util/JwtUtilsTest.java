@@ -263,15 +263,34 @@ class JwtUtilsTest {
     }
 
     @Test
-    @DisplayName("Should extract permissions from token")
-    void testGetPermissionsFromToken() {
+    @DisplayName("Access token must NOT embed the permission list (would push it past a cookie)")
+    void testAccessTokenOmitsPermissions() {
         String token = jwtUtils.generateAccessToken(
                 testUserId, testUsername, testRoles, testPermissions,
                 testDeviceId, testIpAddress
         );
 
+        // Permissions are resolved server-side; embedding them produced a ~26 KB token that a
+        // browser could not store in a cookie. The claim must be absent, so this returns empty.
         Set<String> extractedPermissions = jwtUtils.getPermissionsFromToken(token);
-        assertThat(extractedPermissions).containsExactlyInAnyOrderElementsOf(testPermissions);
+        assertThat(extractedPermissions).isEmpty();
+        assertThat(token).doesNotContain("\"permissions\"");
+    }
+
+    @Test
+    @DisplayName("Access token stays small enough for a browser cookie (<= 4096 bytes)")
+    void testAccessTokenFitsInACookie() {
+        Set<String> manyPermissions = java.util.stream.IntStream.range(0, 600)
+                .mapToObj(i -> "order:order:permission-" + i)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+
+        String token = jwtUtils.generateAccessToken(
+                testUserId, testUsername, testRoles, manyPermissions,
+                testDeviceId, testIpAddress
+        );
+
+        // 4 KB is the practical per-cookie limit; a larger value is silently dropped.
+        assertThat(token.length()).isLessThan(4096);
     }
 
     @Test
