@@ -125,7 +125,7 @@ public class SysUserController {
 
     @Operation(summary = "下载用户导入模板", description = "UTF-8 BOM CSV 模板。")
     @GetMapping(value = "/import/template", produces = "text/csv")
-    @PreAuthorize("hasAuthority('system:user:import')")
+    @PreAuthorize("hasAuthority('system:user:import:template')")
     public ResponseEntity<byte[]> importTemplate() {
         byte[] body = userImportExportService.template().getBytes(java.nio.charset.StandardCharsets.UTF_8);
         return csvResponse(body, "user-import-template.csv");
