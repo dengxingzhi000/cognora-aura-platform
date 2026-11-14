@@ -34,7 +34,7 @@ public class TenantController {
 
     @Operation(summary = "查询租户详情", description = "根据租户 ID 查询租户详细信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('tenant:tenant:view')")
+    @PreAuthorize("hasAnyAuthority('tenant:tenant:view', 'tenant:tenant:list-active', 'tenant:tenant:page')")
     public Tenant getById(@Parameter(description = "租户ID") @PathVariable String id) {
         log.info("[API] 查询租户: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantService.getById(id);
@@ -78,7 +78,7 @@ public class TenantController {
 
     @Operation(summary = "查询活跃租户列表", description = "查询当前状态为活跃的全部租户。")
     @GetMapping("/active")
-    @PreAuthorize("hasAuthority('tenant:tenant:list-active')")
+    @PreAuthorize("hasAnyAuthority('tenant:tenant:list-active', 'tenant:tenant:view')")
     public List<Tenant> listActive() {
         log.info("[API] 查询活跃租户");
         return tenantService.listActive();
@@ -86,7 +86,7 @@ public class TenantController {
 
     @Operation(summary = "分页查询租户", description = "按名称、类型和状态分页查询租户列表。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('tenant:tenant:page')")
+    @PreAuthorize("hasAnyAuthority('tenant:tenant:page', 'tenant:tenant:view')")
     public Page<Tenant> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

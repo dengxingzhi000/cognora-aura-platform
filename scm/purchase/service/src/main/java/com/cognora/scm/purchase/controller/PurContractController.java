@@ -25,7 +25,7 @@ public class PurContractController {
 
     @Operation(summary = "根据 ID 查询合同", description = "按主键查询采购合同的详细信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('purchase:contract:view')")
+    @PreAuthorize("hasAnyAuthority('purchase:contract:view', 'purchase:contract:list-by-status', 'purchase:contract:page')")
     public PurContract getById(@Parameter(description = "采购合同 ID") @PathVariable String id) {
         return purContractService.getById(id);
     }
@@ -39,7 +39,7 @@ public class PurContractController {
 
     @Operation(summary = "分页查询合同", description = "按状态、合同类型、供应商和关键字分页查询采购合同。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('purchase:contract:page')")
+    @PreAuthorize("hasAnyAuthority('purchase:contract:page', 'purchase:contract:view')")
     public Page<PurContract> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -52,7 +52,7 @@ public class PurContractController {
 
     @Operation(summary = "按状态查询合同列表", description = "查询指定状态下的全部采购合同。")
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('purchase:contract:list-by-status')")
+    @PreAuthorize("hasAnyAuthority('purchase:contract:list-by-status', 'purchase:contract:view')")
     public List<PurContract> listByStatus(@Parameter(description = "合同状态") @RequestParam Integer status) {
         return purContractService.listByStatus(status);
     }

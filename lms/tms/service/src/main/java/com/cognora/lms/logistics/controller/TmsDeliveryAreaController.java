@@ -26,7 +26,7 @@ public class TmsDeliveryAreaController {
 
     @Operation(summary = "查询配送区域详情", description = "根据配送区域主键 ID 获取区域详细信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('logistics:area:view')")
+    @PreAuthorize("hasAnyAuthority('logistics:area:view', 'logistics:area:check-coverage', 'logistics:area:page')")
     public ApiResponse<TmsDeliveryArea> getById(
             @Parameter(description = "配送区域主键 ID") @PathVariable String id) {
         TmsDeliveryArea area = deliveryAreaService.getById(id);
@@ -35,7 +35,7 @@ public class TmsDeliveryAreaController {
 
     @Operation(summary = "分页查询配送区域", description = "按承运商、省份和城市分页查询配送区域列表。")
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('logistics:area:page')")
+    @PreAuthorize("hasAnyAuthority('logistics:area:page', 'logistics:area:view')")
     public ApiResponse<Page<TmsDeliveryArea>> pageList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -57,7 +57,7 @@ public class TmsDeliveryAreaController {
 
     @Operation(summary = "校验配送覆盖", description = "判断指定承运商是否覆盖给定的省市区地址。")
     @GetMapping("/check-coverage")
-    @PreAuthorize("hasAuthority('logistics:area:check-coverage')")
+    @PreAuthorize("hasAnyAuthority('logistics:area:check-coverage', 'logistics:area:view')")
     public ApiResponse<Boolean> checkCoverage(
             @Parameter(description = "承运商主键 ID") @RequestParam String carrierId,
             @RequestParam String province,

@@ -25,7 +25,7 @@ public class PurQuotationController {
 
     @Operation(summary = "根据 ID 查询报价单", description = "按主键查询供应商报价单的详细信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('purchase:quotation:view')")
+    @PreAuthorize("hasAnyAuthority('purchase:quotation:view', 'purchase:quotation:page')")
     public PurQuotation getById(@Parameter(description = "报价单 ID") @PathVariable String id) {
         return purQuotationService.getById(id);
     }
@@ -39,7 +39,7 @@ public class PurQuotationController {
 
     @Operation(summary = "分页查询报价单", description = "按状态、供应商和关联询价单分页查询报价单。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('purchase:quotation:page')")
+    @PreAuthorize("hasAnyAuthority('purchase:quotation:page', 'purchase:quotation:view')")
     public Page<PurQuotation> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

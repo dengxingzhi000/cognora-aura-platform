@@ -31,6 +31,12 @@ CHECKER = Path(__file__).resolve().parent / "check_permission_annotation_drift.p
 CREATE_ROW = "('demo:thing:create','演示','menu:demo','/api/v1/things','POST',1,3)"
 LIST_ROW = "('demo:thing:list','演示','menu:demo','/api/v1/things/list','GET',1,1)"
 AUDIT_ROW = "('demo:thing:audit','演示','menu:demo','/api/v1/audit','GET',1,1)"
+# 运行时候选码（C1）用的两行：字面量行 `/things/page` 与模板行 `/things/{id}` 是
+# 两个不同的 (url, method) 行，但同一个请求 `/things/page` 会同时命中它们。
+VIEW_ROW = "('demo:thing:view','演示','menu:demo','/api/v1/things/{id}','GET',1,1)"
+PAGE_ROW = "('demo:thing:page','演示','menu:demo','/api/v1/things/page','GET',1,1)"
+# http_method='*' 的目录行：运行时（ApiPermissionMatcher.resolve）对任何方法都算候选。
+ANY_METHOD_ROW = "('demo:thing:page','演示','menu:demo','/api/v1/things/page','*',1,1)"
 
 SEED_HEADER = (
     "INSERT INTO sys_permission (\n"
@@ -143,6 +149,113 @@ class DriftCheckerFixtureTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1, output)
         self.assertIn("demo:thing:list", output)
         self.assertIn("expected demo:thing:create", output)
+
+    # --- C1：运行时候选码集合（filter 是 anyMatch） -----------------------
+    def test_single_code_on_multi_candidate_endpoint_is_an_error(self) -> None:
+        """字面量端点同时命中模板行时，单码注解会把 filter 已放行的用户挡成 403。"""
+        result = self.run_checker(
+            [PAGE_ROW, VIEW_ROW],
+            controller(
+                method('GetMapping("/things/page")', "hasAuthority('demo:thing:page')", "page")
+            ),
+        )
+        output = self.output(result)
+        self.assertEqual(result.returncode, 1, output)
+        # 期望值是**两个**候选码（含被模板行带来的 view）。
+        self.assertIn("demo:thing:view", output)
+        self.assertIn("demo:thing:page", output)
+
+    def test_any_authority_covering_all_candidates_passes(self) -> None:
+        """`hasAnyAuthority` 覆盖全部候选码 → 退出码 0，且计入 checked。"""
+        result = self.run_checker(
+            [PAGE_ROW, VIEW_ROW],
+            controller(
+                method(
+                    'GetMapping("/things/page")',
+                    "hasAnyAuthority('demo:thing:page', 'demo:thing:view')",
+                    "page",
+                )
+            ),
+        )
+        output = self.output(result)
+        self.assertEqual(result.returncode, 0, output)
+        self.assertNotIn("ERROR", output)
+        self.assertIn("checked=1", output)
+
+    def test_any_authority_with_extra_code_is_an_error(self) -> None:
+        """注解里的码多于运行时候选码 → 退出码 1（凭空要求一个无法解析的权限）。"""
+        result = self.run_checker(
+            [PAGE_ROW, VIEW_ROW, AUDIT_ROW],
+            controller(
+                method(
+                    'GetMapping("/things/page")',
+                    "hasAnyAuthority('demo:thing:page', 'demo:thing:view', 'demo:thing:audit')",
+                    "page",
+                )
+            ),
+        )
+        output = self.output(result)
+        self.assertEqual(result.returncode, 1, output)
+        self.assertIn("demo:thing:audit", output)
+
+    def test_multi_candidate_on_template_endpoint_requires_superset(self) -> None:
+        """模板端点的候选是保守超集：只覆盖自身那一码也要报 ERROR。"""
+        result = self.run_checker(
+            [VIEW_ROW, PAGE_ROW],
+            controller(
+                method('GetMapping("/things/{id}")', "hasAuthority('demo:thing:view')", "detail")
+            ),
+        )
+        output = self.output(result)
+        self.assertEqual(result.returncode, 1, output)
+        self.assertIn("demo:thing:page", output)
+
+    def test_literal_shadow_of_template_endpoint_stays_a_warning(self) -> None:
+        """目录只有字面量行、端点是模板 → 仍是 WARNING（legacy 分类优先）。
+
+        `GET /api/system/permissions/{id}` 就是这种形状：运行时候选码存在，但目录里
+        没有该端点形状的绑定。把它升成 ERROR 会改变既有 21 条 WARNING 的口径。
+        """
+        result = self.run_checker(
+            [PAGE_ROW],
+            controller(
+                method('GetMapping("/things/{id}")', "hasAuthority('demo:thing:page')", "detail")
+            ),
+        )
+        output = self.output(result)
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("WARNING", output)
+        self.assertNotIn("ERROR", output)
+
+    def test_method_wildcard_row_is_a_candidate(self) -> None:
+        """目录行 http_method='*' 时，它就是该端点的候选码（与运行时一致）。
+
+        `ApiPermissionMatcher.resolve` 对 `*` 方法行不做方法过滤，所以这样的目录行
+        对任何 HTTP 方法都是候选。
+        """
+        result = self.run_checker(
+            [ANY_METHOD_ROW],
+            controller(
+                method('GetMapping("/things/page")', "hasAuthority('demo:thing:page')", "page")
+            ),
+        )
+        output = self.output(result)
+        self.assertEqual(result.returncode, 0, output)
+        self.assertNotIn("ERROR", output)
+
+    def test_method_wildcard_row_participates_in_the_candidate_set(self) -> None:
+        """`*` 方法行必须进入候选集合，否则多码端点会被误判成单码。"""
+        result = self.run_checker(
+            [ANY_METHOD_ROW, VIEW_ROW],
+            controller(
+                method('GetMapping("/things/page")', "hasAuthority('demo:thing:view')", "page")
+            ),
+        )
+        output = self.output(result)
+        self.assertEqual(result.returncode, 1, output)
+        # 期望值是 `*` 方法行带来的 demo:thing:page + 模板行带来的 demo:thing:view。
+        self.assertIn("demo:thing:page", output)
+        self.assertIn("demo:thing:view", output)
 
     def test_annotation_on_exempt_endpoint_is_an_error(self) -> None:
         """豁免端点上的权限注解 → 退出码 1（防止注解被打回豁免端点）。"""

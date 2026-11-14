@@ -64,14 +64,14 @@ public class TaxRateController {
 
     @Operation(summary = "查询税率规则详情")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('finance:tax-rate:view')")
+    @PreAuthorize("hasAnyAuthority('finance:tax-rate:view', 'finance:tax-rate:page', 'finance:tax-rate:resolve')")
     public ApiResponse<TaxRate> getById(@Parameter(description = "规则 ID") @PathVariable String id) {
         return ApiResponse.success(taxRateService.getById(id));
     }
 
     @Operation(summary = "分页查询税率规则")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('finance:tax-rate:page')")
+    @PreAuthorize("hasAnyAuthority('finance:tax-rate:page', 'finance:tax-rate:view')")
     public ApiResponse<Page<TaxRate>> page(
             @Parameter(description = "页码，默认 1") @RequestParam(required = false) Integer page,
             @Parameter(description = "每页数量，默认 20") @RequestParam(required = false) Integer size,
@@ -86,7 +86,7 @@ public class TaxRateController {
             description = "按业务日期在生效区间内匹配品类/地区规则，取最新生效；未命中回退租户默认/配置默认。"
                     + "响应 source=RULE 表示命中规则，DEFAULT 表示默认值兜底。")
     @GetMapping("/resolve")
-    @PreAuthorize("hasAuthority('finance:tax-rate:resolve')")
+    @PreAuthorize("hasAnyAuthority('finance:tax-rate:resolve', 'finance:tax-rate:view')")
     public ApiResponse<TaxRateResolution> resolve(
             @Parameter(description = "品类编码，可为空") @RequestParam(required = false) String category,
             @Parameter(description = "地区编码，可为空") @RequestParam(required = false) String region,

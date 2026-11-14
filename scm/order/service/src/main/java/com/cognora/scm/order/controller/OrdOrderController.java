@@ -77,7 +77,7 @@ public class OrdOrderController {
      */
     @Operation(summary = "查询订单", description = "根据订单 ID 查询订单详情。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('order:order:view')")
+    @PreAuthorize("hasAnyAuthority('order:order:view', 'order-center:order:get-order', 'order-center:order:page')")
     public ApiResponse<OrderResponse> getById(@Parameter(description = "订单 ID") @PathVariable UUID id) {
         log.info("[API] 查询订单: id={}", id);
         return ApiResponse.success(queryService.getResponseById(String.valueOf(id)));

@@ -25,7 +25,7 @@ public class FreightRuleController {
 
     @Operation(summary = "查询运费规则详情", description = "根据规则 ID 查询运费规则的完整配置信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('finance:freight-rule:view')")
+    @PreAuthorize("hasAnyAuthority('finance:freight-rule:view', 'finance:freight-rule:calculate-freight', 'finance:freight-rule:list-active-rules')")
     public ApiResponse<FreightRule> getById(@Parameter(description = "运费规则 ID") @PathVariable String id) {
         FreightRule rule = freightRuleService.getById(id);
         return ApiResponse.success(rule);
@@ -60,7 +60,7 @@ public class FreightRuleController {
 
     @Operation(summary = "查询启用的运费规则", description = "获取当前所有处于启用状态的运费规则列表。")
     @GetMapping("/active")
-    @PreAuthorize("hasAuthority('finance:freight-rule:list-active-rules')")
+    @PreAuthorize("hasAnyAuthority('finance:freight-rule:list-active-rules', 'finance:freight-rule:view')")
     public ApiResponse<List<FreightRule>> listActiveRules() {
         List<FreightRule> rules = freightRuleService.listActiveRules();
         return ApiResponse.success(rules);
@@ -68,7 +68,7 @@ public class FreightRuleController {
 
     @Operation(summary = "试算运费", description = "按指定运费规则与重量、件数、体积、订单金额试算应付运费。")
     @GetMapping("/calculate")
-    @PreAuthorize("hasAuthority('finance:freight-rule:calculate-freight')")
+    @PreAuthorize("hasAnyAuthority('finance:freight-rule:calculate-freight', 'finance:freight-rule:view')")
     public ApiResponse<BigDecimal> calculateFreight(
             @Parameter(description = "运费规则 ID") @RequestParam String ruleId,
             @Parameter(description = "货物重量，用于按重量计费") @RequestParam(required = false) BigDecimal weight,

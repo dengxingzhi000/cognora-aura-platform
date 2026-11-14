@@ -26,7 +26,7 @@ public class TmsCarrierController {
 
     @Operation(summary = "查询承运商详情", description = "根据承运商主键 ID 获取承运商完整信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('logistics:carrier:view')")
+    @PreAuthorize("hasAnyAuthority('logistics:carrier:view', 'logistics:carrier:list-enabled', 'logistics:carrier:page')")
     public ApiResponse<TmsCarrier> getById(
             @Parameter(description = "承运商主键 ID") @PathVariable String id) {
         TmsCarrier carrier = carrierService.getById(id);
@@ -44,7 +44,7 @@ public class TmsCarrierController {
 
     @Operation(summary = "分页查询承运商", description = "按承运商名称、类型和启用状态分页查询承运商列表。")
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('logistics:carrier:page')")
+    @PreAuthorize("hasAnyAuthority('logistics:carrier:page', 'logistics:carrier:view')")
     public ApiResponse<Page<TmsCarrier>> pageList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -57,7 +57,7 @@ public class TmsCarrierController {
 
     @Operation(summary = "查询启用的承运商", description = "获取当前所有处于启用状态的承运商列表。")
     @GetMapping("/enabled")
-    @PreAuthorize("hasAuthority('logistics:carrier:list-enabled')")
+    @PreAuthorize("hasAnyAuthority('logistics:carrier:list-enabled', 'logistics:carrier:view')")
     public ApiResponse<List<TmsCarrier>> listEnabled() {
         List<TmsCarrier> list = carrierService.listEnabled();
         return ApiResponse.success(list);
@@ -66,7 +66,7 @@ public class TmsCarrierController {
     @Operation(summary = "新增承运商", description = "创建新的承运商档案并返回保存后的承运商信息。")
     @PostMapping
     @PreAuthorize("hasAuthority('logistics:carrier:create')")
-    @AuditLog(operation = "新增承运商", businessType = "LOGISTICS", riskLevel = 3)
+    @AuditLog(operation = "新增承运商", businessType = "LOGISTICS", riskLevel = 3, recordParams = false)
     public ApiResponse<TmsCarrier> create(@RequestBody TmsCarrier carrier) {
         TmsCarrier created = carrierService.createCarrier(carrier);
         return ApiResponse.success(created);
@@ -75,7 +75,7 @@ public class TmsCarrierController {
     @Operation(summary = "更新承运商", description = "根据主键 ID 更新承运商信息并返回更新后的数据。")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('logistics:carrier:update')")
-    @AuditLog(operation = "更新承运商", businessType = "LOGISTICS", riskLevel = 3)
+    @AuditLog(operation = "更新承运商", businessType = "LOGISTICS", riskLevel = 3, recordParams = false)
     public ApiResponse<TmsCarrier> update(@Parameter(description = "承运商主键 ID") @PathVariable String id,
                                           @RequestBody TmsCarrier carrier) {
         TmsCarrier updated = carrierService.updateCarrier(id, carrier);

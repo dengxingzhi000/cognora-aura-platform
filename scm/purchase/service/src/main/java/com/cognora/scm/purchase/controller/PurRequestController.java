@@ -48,14 +48,14 @@ public class PurRequestController {
 
     @Operation(summary = "根据 ID 查询采购申请", description = "按主键查询单张采购申请单的完整信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('purchase:request:view')")
+    @PreAuthorize("hasAnyAuthority('purchase:request:view', 'purchase:request:list-by-status', 'purchase:request:page')")
     public ApiResponse<PurRequest> getById(@Parameter(description = "采购申请单主键 ID") @PathVariable String id) {
         return ApiResponse.success(requireRequest(id));
     }
 
     @Operation(summary = "查询采购申请及明细", description = "一次返回申请单头和全部明细行，供详情与转单使用。")
     @GetMapping("/{id}/detail")
-    @PreAuthorize("hasAuthority('purchase:request:view-detail')")
+    @PreAuthorize("hasAnyAuthority('purchase:request:view-detail', 'purchase:request:get-by-request-no')")
     public ApiResponse<PurRequestDetailDTO> detail(
             @Parameter(description = "采购申请单主键 ID") @PathVariable String id) {
         PurRequest request = requireRequest(id);
@@ -65,7 +65,7 @@ public class PurRequestController {
 
     @Operation(summary = "根据申请单号查询", description = "按业务单号查询采购申请单，用于单据核对与追溯。")
     @GetMapping("/no/{requestNo}")
-    @PreAuthorize("hasAuthority('purchase:request:get-by-request-no')")
+    @PreAuthorize("hasAnyAuthority('purchase:request:get-by-request-no', 'purchase:request:view-detail')")
     public ApiResponse<PurRequest> getByRequestNo(
             @Parameter(description = "采购申请单业务单号") @PathVariable String requestNo) {
         PurRequest request = purRequestService.getByRequestNo(requestNo);
@@ -77,7 +77,7 @@ public class PurRequestController {
 
     @Operation(summary = "分页查询采购申请", description = "按状态、申请类型和关键字分页查询采购申请单。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('purchase:request:page')")
+    @PreAuthorize("hasAnyAuthority('purchase:request:page', 'purchase:request:view')")
     public ApiResponse<Page<PurRequest>> page(
             @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") int size,
@@ -89,7 +89,7 @@ public class PurRequestController {
 
     @Operation(summary = "按状态查询采购申请", description = "查询指定状态下的全部采购申请单，用于待办列表展示。")
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('purchase:request:list-by-status')")
+    @PreAuthorize("hasAnyAuthority('purchase:request:list-by-status', 'purchase:request:view')")
     public ApiResponse<List<PurRequest>> listByStatus(
             @Parameter(description = "申请单状态") @RequestParam Integer status) {
         return ApiResponse.success(purRequestService.listByStatus(status));

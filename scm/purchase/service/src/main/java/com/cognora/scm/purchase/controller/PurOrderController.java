@@ -34,7 +34,7 @@ public class PurOrderController {
 
     @Operation(summary = "分页查询采购订单", description = "按单号/供应商关键字、状态与供应商分页查询采购订单。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('purchase:order:page')")
+    @PreAuthorize("hasAnyAuthority('purchase:order:page', 'purchase:order:view')")
     public ApiResponse<Page<PurOrder>> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -46,7 +46,7 @@ public class PurOrderController {
 
     @Operation(summary = "查询采购订单详情", description = "按主键查询采购订单，不存在或已删除时返回 404。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('purchase:order:view')")
+    @PreAuthorize("hasAnyAuthority('purchase:order:view', 'purchase:order:page')")
     public ApiResponse<PurOrder> getById(@Parameter(description = "采购订单 ID") @PathVariable String id) {
         PurOrder order = purOrderQueryService.getById(id);
         if (order == null || Boolean.TRUE.equals(order.getDeleted())) {

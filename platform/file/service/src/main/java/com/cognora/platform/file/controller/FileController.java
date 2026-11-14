@@ -142,7 +142,7 @@ public class FileController {
 
     @Operation(summary = "校验文件是否存在", description = "根据文件 MD5 校验当前租户下文件是否已存在，用于秒传。")
     @GetMapping("/check/{md5}")
-    @PreAuthorize("hasAuthority('file:file:check')")
+    @PreAuthorize("hasAnyAuthority('file:file:check', 'file:file:download', 'file:file:preview', 'file:file:url')")
     public ApiResponse<FileMetadataDTO> checkExist(@Parameter(description = "文件 MD5 值") @PathVariable String md5) {
         try {
             Optional<FileMetadataDTO> existing = instantUploadService.checkExist(md5)
@@ -158,7 +158,7 @@ public class FileController {
 
     @Operation(summary = "获取文件访问地址", description = "根据文件 ID 生成临时预签名访问地址。")
     @GetMapping("/{id}/url")
-    @PreAuthorize("hasAuthority('file:file:url')")
+    @PreAuthorize("hasAnyAuthority('file:file:url', 'file:file:check')")
     public ApiResponse<Map<String, String>> presignedUrl(@Parameter(description = "文件 ID") @PathVariable String id) {
         try {
             String url = fileDownloadService.generatePresignedUrl(id);
@@ -173,14 +173,14 @@ public class FileController {
 
     @Operation(summary = "预览文件", description = "以 inline 方式输出文件内容，供浏览器直接预览图片、PDF 或文本。")
     @GetMapping("/{id}/preview")
-    @PreAuthorize("hasAuthority('file:file:preview')")
+    @PreAuthorize("hasAnyAuthority('file:file:preview', 'file:file:check')")
     public void preview(@Parameter(description = "文件 ID") @PathVariable String id, HttpServletResponse response) {
         streamContent(id, response, true);
     }
 
     @Operation(summary = "下载文件", description = "根据文件 ID 输出文件内容流供浏览器下载。")
     @GetMapping("/{id}/content")
-    @PreAuthorize("hasAuthority('file:file:download')")
+    @PreAuthorize("hasAnyAuthority('file:file:download', 'file:file:check')")
     public void download(@Parameter(description = "文件 ID") @PathVariable String id, HttpServletResponse response) {
         streamContent(id, response, false);
     }

@@ -309,9 +309,12 @@ no service overrides them.
   404 in total). The exemption list is the default value of
   `ApiAccessControlProperties` (`platform/common/web`): `whitelist` /
   `exemptPaths` / `exemptPathExclusions` / `internalSignaturePaths` /
-  `signatureOrPermissionPaths`. Exempt endpoints carry **neither** annotation —
-  an `@AuditLog` or an `@PreAuthorize` there breaks service-to-service calls,
-  payment callbacks and the search index. An endpoint with **no row in the
+  `signatureOrPermissionPaths`. This sweep added **neither** annotation to any
+  exempt endpoint — a `@PreAuthorize` there would 403 service-to-service calls and
+  payment callbacks (an `@AuditLog` would not break them, but it needlessly audits
+  internal traffic). Six `@AuditLog`s on exempt endpoints and one on a GET
+  (`GET /api/system/users/export`) predate the sweep and were left alone. An
+  endpoint with **no row in the
   permission catalog** deliberately carries **no `@PreAuthorize`** either; those
   endpoints are listed in the gap report
   `docs/superpowers/specs/2026-11-12-permission-catalog-gaps.md` and are already
@@ -319,6 +322,21 @@ no service overrides them.
   them changes nothing. `scripts/ci/check_permission_annotation_drift.py` runs in
   CI and fails the build when an `@PreAuthorize` code drifts from the catalog or
   an exempt endpoint carries an annotation.
+- **`@PreAuthorize` must match the *runtime* candidate set, not one catalog row.**
+  `ApiAccessControlFilter` authorises with `anyMatch` over every catalog row whose
+  `api_path` matches the request, and `ApiPermissionMatcher` resolves literal rows
+  *and* `{var}` templates. So `/api/v1/fulfillments/page` also matches
+  `/api/v1/fulfillments/{fulfillmentNo}`: a user holding either code passes the
+  filter. An annotation naming only one of them silently narrows access and 403s a
+  legitimate user. Where a request resolves to more than one code the annotation is
+  `hasAnyAuthority('<primary>', '<other>', ...)` — **140 endpoints** need it
+  (513 `hasAuthority` + 140 `hasAnyAuthority` = 653 authority annotations, plus the
+  20 pre-existing `isAuthenticated()`). The drift checker computes the same candidate
+  set and requires the annotation to equal it (template endpoints use a conservative
+  superset, which is safe because the filter runs first). When you add a catalog row
+  whose `api_path` shadows a literal one, re-run
+  `py -3 scripts/tools/permission_annotation_map.py --tracked-only` and update the
+  annotation it points at.
 
 ### 权限解析（短 Token 之后）与生产密钥守卫
 

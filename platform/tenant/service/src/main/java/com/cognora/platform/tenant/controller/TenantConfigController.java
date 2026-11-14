@@ -32,7 +32,7 @@ public class TenantConfigController {
 
     @Operation(summary = "查询配置详情", description = "根据配置 ID 查询租户配置详情。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('tenant:config:view')")
+    @PreAuthorize("hasAnyAuthority('tenant:config:view', 'tenant:config:page')")
     public TenantConfig getById(@Parameter(description = "配置ID") @PathVariable String id) {
         log.info("[API] 查询租户配置: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantConfigService.getById(id);
@@ -70,7 +70,7 @@ public class TenantConfigController {
             description = "scope=TENANT（默认）时仅返回当前租户的配置；scope=PLATFORM 时仅返回平台级配置"
                     + "（tenant_id 为空），且调用方必须是平台管理员，否则返回 403。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('tenant:config:page')")
+    @PreAuthorize("hasAnyAuthority('tenant:config:page', 'tenant:config:view')")
     public Page<TenantConfig> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

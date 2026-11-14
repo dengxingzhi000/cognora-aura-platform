@@ -27,7 +27,7 @@ public class DocumentFileController {
 
     @Operation(summary = "分页查询文档文件", description = "按名称关键字、来源类型和关联业务 ID 分页查询当前租户的文档文件。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('document:file:page')")
+    @PreAuthorize("hasAnyAuthority('document:file:page', 'document:file:view')")
     public ApiResponse<Page<DocumentFile>> page(
             @Parameter(description = "页码，默认 1") @RequestParam(required = false) Integer page,
             @Parameter(description = "每页数量，默认 20") @RequestParam(required = false) Integer size,
@@ -40,7 +40,7 @@ public class DocumentFileController {
 
     @Operation(summary = "查询文档文件", description = "根据文件 ID 查询当前租户下的文档文件元数据。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('document:file:view')")
+    @PreAuthorize("hasAnyAuthority('document:file:view', 'document:file:page')")
     public ApiResponse<DocumentFile> getById(@Parameter(description = "文档文件 ID") @PathVariable String id) {
         return documentFileService.findCurrentTenant(id)
                 .<ApiResponse<DocumentFile>>map(ApiResponse::success)

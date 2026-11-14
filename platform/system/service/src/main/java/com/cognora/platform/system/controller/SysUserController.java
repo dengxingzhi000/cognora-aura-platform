@@ -85,7 +85,7 @@ public class SysUserController {
 
     @Operation(summary = "批量启用用户", description = "逐行返回成功/失败，单行失败不影响其他行。")
     @PostMapping("/batch/enable")
-    @PreAuthorize("hasAuthority('system:user:batch:enable')")
+    @PreAuthorize("hasAnyAuthority('system:user:batch:enable', 'system:user:enable')")
     @AuditLog(operation = "批量启用用户", businessType = "USER", riskLevel = 3)
     public ApiResponse<BatchOperationResult> batchEnable(@Valid @RequestBody BatchUserRequest request) {
         return ApiResponse.success(batchUserCommandService.enable(request));
@@ -93,7 +93,7 @@ public class SysUserController {
 
     @Operation(summary = "批量禁用用户", description = "逐行返回成功/失败，单行失败不影响其他行。")
     @PostMapping("/batch/disable")
-    @PreAuthorize("hasAuthority('system:user:batch:disable')")
+    @PreAuthorize("hasAnyAuthority('system:user:batch:disable', 'system:user:disable')")
     @AuditLog(operation = "批量禁用用户", businessType = "USER", riskLevel = 3)
     public ApiResponse<BatchOperationResult> batchDisable(@Valid @RequestBody BatchUserRequest request) {
         return ApiResponse.success(batchUserCommandService.disable(request));
@@ -117,7 +117,7 @@ public class SysUserController {
 
     @Operation(summary = "批量授予角色", description = "逐行返回成功/失败，单行失败不影响其他行。")
     @PostMapping("/batch/grant-roles")
-    @PreAuthorize("hasAuthority('system:user:batch:grant')")
+    @PreAuthorize("hasAnyAuthority('system:user:batch:grant', 'system:user:grant')")
     @AuditLog(operation = "批量授予角色", businessType = "USER", riskLevel = 4)
     public ApiResponse<BatchOperationResult> batchGrantRoles(@Valid @RequestBody BatchUserRequest request) {
         return ApiResponse.success(batchUserCommandService.grantRoles(request));
@@ -143,7 +143,7 @@ public class SysUserController {
 
     @Operation(summary = "导出用户 CSV", description = "最多10000行；默认脱敏，持有导出敏感权限时可导出完整值。")
     @GetMapping(value = "/export", produces = "text/csv")
-    @PreAuthorize("hasAuthority('system:user:export')")
+    @PreAuthorize("hasAnyAuthority('system:user:export', 'system:user:detail')")
     @AuditLog(operation = "导出用户", businessType = "USER", riskLevel = 2)
     public ResponseEntity<byte[]> exportUsers(@Valid @ModelAttribute UserQueryRequest request,
                                               @RequestParam(defaultValue = "false") boolean includeSensitive) {
@@ -156,7 +156,7 @@ public class SysUserController {
      */
     @Operation(summary = "查询用户详情", description = "根据用户 ID 查询用户的详细信息；无 system:user:view:sensitive 权限时敏感字段脱敏。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('system:user:detail')")
+    @PreAuthorize("hasAnyAuthority('system:user:detail', 'system:user:export')")
     public ApiResponse<UserDetailDTO> getById(@Parameter(description = "用户 ID") @PathVariable UUID id) {
         userReadAccessGuard.requireReadable(id);
         UserDetailDTO detail = userQueryService.getUserDetail(id);
@@ -264,7 +264,7 @@ public class SysUserController {
      */
     @Operation(summary = "授予角色", description = "为指定用户重新绑定角色，原有角色关系会被清除后写入。")
     @PostMapping("/{id}/grant-roles")
-    @PreAuthorize("hasAuthority('system:user:grant')")
+    @PreAuthorize("hasAnyAuthority('system:user:grant', 'system:user:batch:grant')")
     @AuditLog(
             operation = "授权角色",
             businessType = "USER",
@@ -278,7 +278,7 @@ public class SysUserController {
 
     @Operation(summary = "启用用户", description = "将禁用/锁定账号恢复为启用，并清空锁定信息与登录失败次数。")
     @PostMapping("/{id}/enable")
-    @PreAuthorize("hasAuthority('system:user:enable')")
+    @PreAuthorize("hasAnyAuthority('system:user:enable', 'system:user:batch:enable')")
     @AuditLog(operation = "启用用户", businessType = "USER", riskLevel = 3)
     public ApiResponse<Void> enableUser(@Parameter(description = "用户 ID") @PathVariable UUID id) {
         userCommandService.enableUser(id);
@@ -287,7 +287,7 @@ public class SysUserController {
 
     @Operation(summary = "禁用用户", description = "禁用账号并强制下线。")
     @PostMapping("/{id}/disable")
-    @PreAuthorize("hasAuthority('system:user:disable')")
+    @PreAuthorize("hasAnyAuthority('system:user:disable', 'system:user:batch:disable')")
     @AuditLog(operation = "禁用用户", businessType = "USER", riskLevel = 3)
     public ApiResponse<Void> disableUser(@Parameter(description = "用户 ID") @PathVariable UUID id,
                                          @Valid @RequestBody(required = false) DisableUserRequest request) {

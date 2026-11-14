@@ -5,23 +5,36 @@
   py -3 scripts/ci/check_permission_annotation_drift.py          # Windows
   python3 scripts/ci/check_permission_annotation_drift.py        # CI (Linux)
   py -3 scripts/ci/check_permission_annotation_drift.py \
-      --catalog <seed 目录> --controllers <controller 目录> [--root <仓库根>]
+      --catalog <seed 目录> --controllers <controller 目录> [--root <仓库根>] \
+      [--tracked-only]
+
+`--tracked-only` 只检查 git 索引里的 controller：本地工作副本可能同时带着另一条
+工作流的未跟踪文件，CI 的干净检出不会有它们，用这个开关让本地结论与 CI 一致。
 
 退出码：0 = 没有 error（允许 warning）；1 = 有 error，或目录/源码解析失败。
 
 检查规则（与 `scripts/tools/permission_annotation_map.py` 使用同一套目录解析、
 controller 解析与豁免规则；两个脚本有意各自独立、**不互相 import**，改动规则时
 必须同步两边，常量也必须同步）：
-  * 只检查 `@PreAuthorize("hasAuthority('<code>')")`。
+  * 只检查 `@PreAuthorize` 的权限码形态：
+    `hasAuthority('<code>')` 与 `hasAnyAuthority('<a>', '<b>', ...)`。
     - `isAuthenticated()` 与其它 SpEL 形态一律**完全忽略**：不检查、不报告、不计数
       （平台既有 20 处 `isAuthenticated()`，其中多条落在豁免端点上，它们是合法的；
       其它 SpEL 形态不猜语义，也不当成违规）。
-    - `hasAuthority(...)` 但绑定不到任何 request mapping（类级注解、写法异常）→
-      CONCERN：无法判定它保护哪个端点，交人工确认（本仓库当前为 0 条）。
+    - 绑定不到任何 request mapping（类级注解、写法异常）→ CONCERN：无法判定它保护
+      哪个端点，交人工确认（本仓库当前为 0 条）。
+  * `hasAnyAuthority` 只用于「目录本身表达多码」的端点：运行时的 filter 是
+    **anyMatch**，一个具体请求 URL 可能同时命中字面量行和模板行
+    （`/api/v1/fulfillments/page` 也命中 `/api/v1/fulfillments/{fulfillmentNo}`），
+    用户持有其中任意一个码即被 filter 放行。这类端点的注解码集合必须**等于**运行时
+    候选集合（多一个码 = 凭空要求一个无法解析的权限，少一个码 = 把 filter 已放行的
+    合法用户挡成 403）。模板端点（controller 路径带 `{var}`）的候选集是保守超集。
   * 权限码在目录里完全不存在 → ERROR。
-  * 端点 (path, httpMethod) 在目录里有绑定、但权限码不同 → ERROR（打印 expected）。
+  * 端点 (path, httpMethod) 在目录里有绑定、但注解码集合 ≠ 运行时候选集合 → ERROR
+    （打印 expected；单码端点即「权限码不同」）。
   * 权限码存在、但该 (path, httpMethod) 没有目录绑定 → WARNING（目录缺口，只报告，
-    不失败，也不在本脚本里补目录数据）。
+    不失败，也不在本脚本里补目录数据）。既有的 21 条 legacy WARNING 由这条规则保留：
+    它们描述的是「目录里没有该端点的绑定」，与候选集无关。
   * 端点命中豁免清单 → ERROR（防止后续把权限注解打回豁免端点）。
 
 诊断格式：`file:line code expected ...`（error / warning / concern 各一段，按 file:line
@@ -34,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -194,6 +208,29 @@ MAPPING_ANNOTATION = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping\b")
 CLASS_REQUEST_MAPPING = re.compile(r"@RequestMapping\b")
 PRE_AUTHORIZE = re.compile(r"@PreAuthorize\b")
 HAS_AUTHORITY = re.compile(r"^hasAuthority\(\s*'([^']*)'\s*\)$")
+HAS_ANY_AUTHORITY = re.compile(r"^hasAnyAuthority\(\s*((?:'[^']*'\s*,?\s*)*)\)$")
+
+
+def annotation_codes(spel: str) -> set[str] | None:
+    """解析 `hasAuthority('x')` / `hasAnyAuthority('a','b')` 的码集合。
+
+    其它 SpEL 形态返回 None（与检查器的既有策略一致：不猜语义）。
+    """
+    single = HAS_AUTHORITY.match(spel)
+    if single is not None:
+        return {single.group(1)}
+    multiple = HAS_ANY_AUTHORITY.match(spel)
+    if multiple is not None:
+        return set(re.findall(r"'([^']*)'", multiple.group(1)))
+    return None
+
+
+def _describe_codes(codes: set[str]) -> str:
+    """注解/目录码集合的可读形式；单码保持旧格式，避免诊断信息无谓变化。"""
+    ordered = sorted(codes)
+    if len(ordered) == 1:
+        return ordered[0]
+    return "[" + ", ".join(ordered) + "]"
 
 # mapping 注解之后向前找方法声明的窗口（字符数）。javadoc / 注解块很长时容易超出，
 # 窗口不足会误判「找不到方法声明」，因此放宽；仍然找不到就跳过该端点而不是中断整轮检查。
@@ -297,6 +334,124 @@ def ant_matches(pattern: str, path: str) -> bool:
 
 def matches_any(path: str, patterns: list[str]) -> bool:
     return any(ant_matches(pattern, path) for pattern in patterns if pattern)
+
+
+def runtime_segment_matches(pattern: str, value: str) -> bool:
+    """运行时（Spring `AntPathMatcher`）段匹配：`{var}` 命中任意一段。"""
+    if is_placeholder(pattern):
+        return True
+    return segment_matches(pattern, value)
+
+
+def runtime_matches(pattern: str, request: str) -> bool:
+    """把目录模板按**运行时**语义匹配具体请求路径。
+
+    与 `ant_matches` 的区别：`ant_matches` 用于把目录模板与 controller 的映射
+    模板做结构对齐（`{id}` ↔ `{id}`）；这里模拟 `ApiPermissionMatcher` 使用的
+    Spring `AntPathMatcher`——`{id}` 命中任意一段字面量（`/page` 也命中 `/{id}`），
+    `*` 段内通配、`**` 跨段、`?` 单字符。
+    """
+    pattern_segments = split_segments(pattern)
+    request_segments = split_segments(request)
+    memo: dict[tuple[int, int], bool] = {}
+
+    def walk(pi: int, si: int) -> bool:
+        key = (pi, si)
+        if key in memo:
+            return memo[key]
+        if pi == len(pattern_segments):
+            result = si == len(request_segments)
+        elif pattern_segments[pi] == "**":
+            result = walk(pi + 1, si) or (
+                si < len(request_segments) and walk(pi, si + 1)
+            )
+        elif si == len(request_segments):
+            result = False
+        else:
+            result = runtime_segment_matches(
+                pattern_segments[pi], request_segments[si]
+            ) and walk(pi + 1, si + 1)
+        memo[key] = result
+        return result
+
+    return walk(0, 0)
+
+
+def segments_overlap(left: str, right: str) -> bool:
+    """两段模板是否存在共同的具体取值。"""
+    if is_placeholder(left) or is_placeholder(right):
+        return True
+    if left == right:
+        return True
+    if "*" in left or "?" in left:
+        return runtime_segment_matches(left, right)
+    if "*" in right or "?" in right:
+        return runtime_segment_matches(right, left)
+    return False
+
+
+def templates_overlap(left: str, right: str) -> bool:
+    """两条路径模板是否存在共同的具体请求路径（两边都可能带 `{var}` / 通配）。"""
+    left_segments = split_segments(left)
+    right_segments = split_segments(right)
+    memo: dict[tuple[int, int], bool] = {}
+
+    def walk(li: int, ri: int) -> bool:
+        key = (li, ri)
+        if key in memo:
+            return memo[key]
+        if li == len(left_segments):
+            result = ri == len(right_segments)
+        elif left_segments[li] == "**":
+            result = walk(li + 1, ri) or (
+                ri < len(right_segments) and walk(li, ri + 1)
+            )
+        elif ri == len(right_segments):
+            result = False
+        elif right_segments[ri] == "**":
+            result = walk(li, ri + 1) or (
+                li < len(left_segments) and walk(li + 1, ri)
+            )
+        else:
+            result = segments_overlap(
+                left_segments[li], right_segments[ri]
+            ) and walk(li + 1, ri + 1)
+        memo[key] = result
+        return result
+
+    return walk(0, 0)
+
+
+def is_template(path: str) -> bool:
+    return any(
+        is_placeholder(segment) or "*" in segment or "?" in segment
+        for segment in split_segments(path)
+    )
+
+
+def runtime_candidates(
+    index: dict[tuple[str, str], dict], path: str, method: str
+) -> set[str]:
+    """端点可能命中的全部权限码（运行时 filter `anyMatch` 的候选集合）。
+
+    - 字面量端点：目录模板按运行时语义命中它（`/page` 也命中 `/{id}`）；
+    - 模板端点（controller 路径带 `{var}`）：收集所有可能命中同一具体请求的
+      模板行（两条模板重叠即可）。模板端点的候选是保守超集——任意具体取值
+      只会命中其中一个子集；注解覆盖全集才不会把 filter 已放行的请求挡在方法级。
+    """
+    candidates: set[str] = set()
+    template_endpoint = is_template(path)
+    for (url, row_method), row in index.items():
+        if row_method != "*" and row_method != method:
+            continue
+        matched = (
+            templates_overlap(url, path)
+            if template_endpoint
+            else runtime_matches(url, path)
+        )
+        if matched:
+            candidates.add(row["code"])
+    return candidates
 
 
 def _placeholder_probe_path(path: str) -> str:
@@ -519,12 +674,16 @@ def _display_path(path: Path, root: Path) -> str:
         return path.resolve().as_posix()
 
 
-def controller_files(controllers_dir: Path, root: Path) -> list[Path]:
+def controller_files(
+    controllers_dir: Path, root: Path, tracked: set[str] | None = None
+) -> list[Path]:
     """扫描 controller 源文件。
 
     `--controllers` 指向仓库根时只扫 platform/scm/ecom/lms 四域；指向具体目录时
     递归扫该目录。`.vmcheck` / `enterprise-agent` / `cognora-aura-web` / `target` /
     `node_modules` / `.git` / `.superpowers` 下的文件一律排除。
+    `tracked` 非空时只保留 git 索引里的文件（`--tracked-only`；CI 的干净检出与
+    本地有未跟踪文件的区别就靠它消除）。
     """
     if controllers_dir.resolve() == root.resolve():
         search_roots = [root / domain for domain in DOMAINS if (root / domain).is_dir()]
@@ -541,8 +700,35 @@ def controller_files(controllers_dir: Path, root: Path) -> list[Path]:
                 parts = path.resolve().parts
             if any(part in EXCLUDED_FRAGMENTS for part in parts):
                 continue
+            if tracked is not None:
+                try:
+                    rel = path.resolve().relative_to(root.resolve()).as_posix()
+                except ValueError:
+                    rel = ""
+                if rel not in tracked:
+                    continue
             files.append(path)
     return sorted(files)
+
+
+def git_tracked_files(root: Path) -> set[str] | None:
+    """`git ls-files` 的相对路径集合；git 不可用（如导出的源码包）时返回 None。"""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "ls-files"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    return {
+        line.strip().replace("\\", "/")
+        for line in result.stdout.splitlines()
+        if line.strip()
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -726,15 +912,15 @@ def evaluate(
     spel = annotation["spel"]
     endpoint = annotation["endpoint"]
 
-    authority = HAS_AUTHORITY.match(spel)
-    if authority is None:
+    annotated = annotation_codes(spel)
+    if annotated is None:
         # `isAuthenticated()` 与其它 SpEL 形态：完全忽略（不猜语义，也不当成违规）。
         return "ok", ""
+    label = _describe_codes(annotated)
 
-    code = authority.group(1)
     if endpoint is None:
         return SEVERITY_CONCERN, (
-            f"{where} {code} expected <none: @PreAuthorize 未绑定到任何 request mapping>"
+            f"{where} {label} expected <none: @PreAuthorize 未绑定到任何 request mapping>"
         )
 
     http_method = endpoint["httpMethod"]
@@ -743,24 +929,34 @@ def evaluate(
     reason = exemption(path)
     if reason is not None:
         return SEVERITY_ERROR, (
-            f"{where} {code} expected <none: {http_method} {path} 命中豁免清单 "
+            f"{where} {label} expected <none: {http_method} {path} 命中豁免清单 "
             f"{reason}，不应有权限注解>"
         )
 
     row = catalog_lookup(index, path, http_method)
     if row is not None:
-        if row["code"] != code:
+        # 运行时的 filter 是 anyMatch：一个请求 URL 可能同时命中字面量行和模板行
+        # （`/fulfillments/page` 也命中 `/fulfillments/{fulfillmentNo}`），用户持有
+        # 其中任意一个码就会被放行。方法级注解必须覆盖全部候选码，否则会把 filter
+        # 已放行的合法用户挡在 403（这正是本检查要防的回归）。
+        candidates = runtime_candidates(index, path, http_method)
+        if not candidates:
+            # 兜底：两个匹配器对同一端点给出不同结论（当前仓库 0 例，已用脚本核对）。
+            # 此时退回「比一条目录行」，即修复前的口径——不会比修复前更宽松。
+            candidates = {row["code"]}
+        if annotated != candidates:
+            detail = "运行时候选码" if len(candidates) > 1 else "目录"
             return SEVERITY_ERROR, (
-                f"{where} {code} expected {row['code']} "
-                f"（{http_method} {path}，目录 {row['file']}）"
+                f"{where} {label} expected {_describe_codes(candidates)} "
+                f"（{http_method} {path} 的{detail}，目录 {row['file']}）"
             )
         return "ok", ""
 
-    if code in codes:
+    if annotated & codes:
         return SEVERITY_WARNING, (
-            f"{where} {code} expected <none: 目录里没有 {http_method} {path} 的绑定>"
+            f"{where} {label} expected <none: 目录里没有 {http_method} {path} 的绑定>"
         )
-    return SEVERITY_ERROR, f"{where} {code} expected <none: 目录里不存在该权限码>"
+    return SEVERITY_ERROR, f"{where} {label} expected <none: 目录里不存在该权限码>"
 
 
 def _force_utf8_output() -> None:
@@ -793,6 +989,11 @@ def main(argv: list[str] | None = None) -> int:
         help="controller 扫描目录（默认 <root>，只扫 platform/scm/ecom/lms 四域）",
     )
     parser.add_argument("--root", type=Path, help="仓库根（用于相对路径与默认值）")
+    parser.add_argument(
+        "--tracked-only",
+        action="store_true",
+        help="只检查 git 索引里的 controller（本地有未跟踪文件时与 CI 对齐）",
+    )
     options = parser.parse_args(argv)
 
     root = (options.root or ROOT).resolve()
@@ -809,10 +1010,18 @@ def main(argv: list[str] | None = None) -> int:
     try:
         _self_check_exempt_lists()
         _PARSE_WARNINGS.clear()
+        tracked = None
+        if options.tracked_only:
+            tracked = git_tracked_files(root)
+            if tracked is None:
+                print(
+                    "NOTE --tracked-only：读不到 git 索引，退回扫描工作副本"
+                    "（结果可能含未跟踪文件）"
+                )
         index, codes, catalog_notes, catalog_rows, skipped_literals = parse_catalog(catalog_dir)
         annotations: list[dict] = []
         endpoint_count = 0
-        for java_file in controller_files(controllers_dir, root):
+        for java_file in controller_files(controllers_dir, root, tracked):
             endpoints, file_annotations = parse_controller(java_file, root)
             endpoint_count += len(endpoints)
             annotations.extend(file_annotations)
@@ -836,7 +1045,7 @@ def main(argv: list[str] | None = None) -> int:
     checked = 0
     for annotation in annotations:
         severity, message = evaluate(annotation, index, codes)
-        if HAS_AUTHORITY.match(annotation["spel"]):
+        if annotation_codes(annotation["spel"]) is not None:
             checked += 1
         if severity != "ok":
             diagnostics.append((severity, message, annotation["line"]))
@@ -863,7 +1072,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"CONCERN {message}")
 
     print(
-        f"checked={checked} hasAuthority annotations, endpoints={endpoint_count}, "
+        f"checked={checked} authority annotations (hasAuthority + hasAnyAuthority), "
+        f"endpoints={endpoint_count}, "
         f"catalog_rows={catalog_rows} (url+method), unique_pairs={len(index)}, "
         f"catalog_codes={len(codes)} (incl. api_path NULL), "
         f"errors={len(errors)}, warnings={len(warnings)}, concerns={len(concerns)}"

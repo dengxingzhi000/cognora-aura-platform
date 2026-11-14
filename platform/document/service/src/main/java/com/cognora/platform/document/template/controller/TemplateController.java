@@ -34,7 +34,7 @@ public class TemplateController {
 
     @Operation(summary = "分页查询模板", description = "按名称/编码关键字、类型、分类和状态分页查询文档模板。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('document:template:page')")
+    @PreAuthorize("hasAnyAuthority('document:template:page', 'document:template:view')")
     public ApiResponse<Page<DocTemplate>> page(
             @Parameter(description = "页码，默认 1") @RequestParam(required = false) Integer page,
             @Parameter(description = "每页数量，默认 20") @RequestParam(required = false) Integer size,
@@ -48,7 +48,7 @@ public class TemplateController {
 
     @Operation(summary = "查询模板", description = "根据模板 ID 查询当前租户的文档模板详情。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('document:template:view')")
+    @PreAuthorize("hasAnyAuthority('document:template:view', 'document:template:page')")
     public ApiResponse<DocTemplate> getById(@Parameter(description = "模板 ID") @PathVariable String id) {
         return templateService.findCurrentTenant(id)
                 .<ApiResponse<DocTemplate>>map(ApiResponse::success)

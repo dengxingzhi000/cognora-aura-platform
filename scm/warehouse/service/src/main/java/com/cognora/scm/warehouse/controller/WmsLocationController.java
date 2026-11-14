@@ -67,7 +67,7 @@ public class WmsLocationController {
 
     @Operation(summary = "查询库位详情", description = "按主键查询库位，库位不存在或已删除时返回 404。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('warehouse:location:view')")
+    @PreAuthorize("hasAnyAuthority('warehouse:location:view', 'warehouse:location:list-by-warehouse-id', 'warehouse:location:page')")
     public ApiResponse<WmsLocation> getById(@Parameter(description = "库位主键 ID") @PathVariable String id) {
         WmsLocation location = locationQueryService.getById(id);
         if (location == null || Boolean.TRUE.equals(location.getDeleted())) {
@@ -78,7 +78,7 @@ public class WmsLocationController {
 
     @Operation(summary = "查询仓库库位列表", description = "根据仓库 ID 查询该仓库下的全部库位。")
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('warehouse:location:list-by-warehouse-id')")
+    @PreAuthorize("hasAnyAuthority('warehouse:location:list-by-warehouse-id', 'warehouse:location:view')")
     public ApiResponse<List<WmsLocation>> listByWarehouseId(
             @Parameter(description = "仓库主键 ID") @RequestParam String warehouseId) {
         return ApiResponse.success(locationQueryService.listByWarehouseId(warehouseId));
@@ -86,7 +86,7 @@ public class WmsLocationController {
 
     @Operation(summary = "分页查询库位", description = "按仓库、库位类型与状态分页查询库位列表。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('warehouse:location:page')")
+    @PreAuthorize("hasAnyAuthority('warehouse:location:page', 'warehouse:location:view')")
     public ApiResponse<Page<WmsLocation>> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

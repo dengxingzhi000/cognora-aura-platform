@@ -31,7 +31,7 @@ public class TmsTrackingController {
 
     @Operation(summary = "查询轨迹详情", description = "根据轨迹主键 ID 获取单条物流轨迹记录。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('logistics:tracking:view')")
+    @PreAuthorize("hasAnyAuthority('logistics:tracking:view', 'logistics:tracking:page')")
     public ApiResponse<TmsTracking> getById(
             @Parameter(description = "轨迹记录主键 ID") @PathVariable String id) {
         TmsTracking tracking = trackingService.getById(id);
@@ -58,7 +58,7 @@ public class TmsTrackingController {
 
     @Operation(summary = "分页查询轨迹", description = "按运单号和轨迹状态分页查询物流轨迹记录。")
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('logistics:tracking:page')")
+    @PreAuthorize("hasAnyAuthority('logistics:tracking:page', 'logistics:tracking:view')")
     public ApiResponse<Page<TmsTracking>> pageList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

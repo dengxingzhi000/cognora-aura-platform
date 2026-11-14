@@ -25,7 +25,7 @@ public class PurPriceComparisonController {
 
     @Operation(summary = "根据 ID 查询比价单", description = "按主键查询比价单的详细信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('purchase:comparison:view')")
+    @PreAuthorize("hasAnyAuthority('purchase:comparison:view', 'purchase:comparison:page')")
     public PurPriceComparison getById(@Parameter(description = "比价单 ID") @PathVariable String id) {
         return purPriceComparisonService.getById(id);
     }
@@ -39,7 +39,7 @@ public class PurPriceComparisonController {
 
     @Operation(summary = "分页查询比价单", description = "按状态和关联询价单分页查询比价单。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('purchase:comparison:page')")
+    @PreAuthorize("hasAnyAuthority('purchase:comparison:page', 'purchase:comparison:view')")
     public Page<PurPriceComparison> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

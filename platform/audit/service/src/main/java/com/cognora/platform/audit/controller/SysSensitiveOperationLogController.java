@@ -24,7 +24,7 @@ public class SysSensitiveOperationLogController {
 
     @Operation(summary = "查询敏感操作日志", description = "根据日志 ID 查询敏感操作日志详情。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('audit:sensitive:view')")
+    @PreAuthorize("hasAnyAuthority('audit:sensitive:view', 'audit:sensitive:page')")
     public SysSensitiveOperationLog getById(@Parameter(description = "敏感操作日志 ID") @PathVariable String id) {
         log.info("[API] 查询敏感操作日志: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return sensitiveOperationLogService.getById(id);
@@ -48,7 +48,7 @@ public class SysSensitiveOperationLogController {
 
     @Operation(summary = "分页查询敏感操作日志", description = "按用户、操作类型和风险分值分页查询敏感操作日志。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('audit:sensitive:page')")
+    @PreAuthorize("hasAnyAuthority('audit:sensitive:page', 'audit:sensitive:view')")
     public Page<SysSensitiveOperationLog> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

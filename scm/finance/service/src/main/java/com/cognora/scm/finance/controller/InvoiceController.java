@@ -26,7 +26,7 @@ public class InvoiceController {
 
     @Operation(summary = "查询发票详情", description = "根据发票 ID 查询发票的完整开票信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('finance:invoice:view')")
+    @PreAuthorize("hasAnyAuthority('finance:invoice:view', 'finance:invoice:page-by-party-id')")
     public ApiResponse<Invoice> getById(@Parameter(description = "发票 ID") @PathVariable String id) {
         Invoice invoice = invoiceService.getById(id);
         return ApiResponse.success(invoice);
@@ -63,7 +63,7 @@ public class InvoiceController {
 
     @Operation(summary = "分页查询发票", description = "按往来方 ID 分页查询发票；partyId 为空时返回当前租户全部发票。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('finance:invoice:page-by-party-id')")
+    @PreAuthorize("hasAnyAuthority('finance:invoice:page-by-party-id', 'finance:invoice:view')")
     public ApiResponse<Page<Invoice>> pageByPartyId(
             @Parameter(description = "往来方 ID，即开票对象（客户或供应商），不传则查询全部") @RequestParam(required = false) String partyId,
             @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int pageNum,

@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """权限目录 ↔ Controller 端点映射工具（D1 缺口报告产出）。
 
-用法：py -3 scripts/tools/permission_annotation_map.py
+用法：py -3 scripts/tools/permission_annotation_map.py [--tracked-only]
+
+`--tracked-only` 只扫 git 索引里的 controller：工作副本里可能同时存在另一条
+工作流的未跟踪文件，生成入库产物时用它保证「同一提交 → 同一结果」。
 
 产出（均入库）：
   * docs/superpowers/specs/2026-11-12-permission-mapping.json
@@ -15,6 +18,11 @@
   * `code` = seed 目录行里的权限码。目录行的唯一事实源是 `scripts/db/seed/*.sql`：
     行内同时出现 URL 与 HTTP 方法（GET/POST/PUT/DELETE/PATCH/*）才算目录行，
     角色、菜单等其它 insert 不会被误当成目录；
+  * `codes` = **运行时候选码集合**：同一个请求 URL 可能同时命中字面量行与模板行
+    （`/api/v1/fulfillments/page` 也命中 `/api/v1/fulfillments/{fulfillmentNo}`），
+    `ApiAccessControlFilter` 对候选码是 `anyMatch`。`codes` 多于一个时，
+    `@PreAuthorize` 必须写成 `hasAnyAuthority(...)` 覆盖全部候选，否则会把 filter
+    已放行的合法用户挡成 403（模板端点的候选是保守超集）；
   * `exempt` = 命中 `ApiAccessControlProperties` 的 whitelist / exempt-paths /
     internal-signature-paths / signature-or-permission-paths（Ant 匹配）；
   * 缺口 = `code is None and exempt is False`。
@@ -26,8 +34,10 @@ CI 护栏 `scripts/ci/check_permission_annotation_drift.py` 用同一套目录/c
 """
 from __future__ import annotations
 
+import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -275,6 +285,122 @@ def matches_any(path: str, patterns: list[str]) -> bool:
     return any(ant_matches(pattern, path) for pattern in patterns if pattern)
 
 
+def runtime_segment_matches(pattern: str, value: str) -> bool:
+    """运行时（Spring `AntPathMatcher`）段匹配：`{var}` 命中任意一段。"""
+    if is_placeholder(pattern):
+        return True
+    return segment_matches(pattern, value)
+
+
+def runtime_matches(pattern: str, request: str) -> bool:
+    """把目录模板按**运行时**语义匹配具体请求路径。
+
+    与 `ant_matches` 的区别：`ant_matches` 用于把目录模板与 controller 的映射
+    模板做结构对齐（`{id}` ↔ `{id}`）；这里模拟 `ApiPermissionMatcher` 使用的
+    Spring `AntPathMatcher`——`{id}` 命中任意一段字面量（`/page` 也命中 `/{id}`），
+    `*` 段内通配、`**` 跨段、`?` 单字符。
+    """
+    pattern_segments = split_segments(pattern)
+    request_segments = split_segments(request)
+    memo: dict[tuple[int, int], bool] = {}
+
+    def walk(pi: int, si: int) -> bool:
+        key = (pi, si)
+        if key in memo:
+            return memo[key]
+        if pi == len(pattern_segments):
+            result = si == len(request_segments)
+        elif pattern_segments[pi] == "**":
+            result = walk(pi + 1, si) or (
+                si < len(request_segments) and walk(pi, si + 1)
+            )
+        elif si == len(request_segments):
+            result = False
+        else:
+            result = runtime_segment_matches(
+                pattern_segments[pi], request_segments[si]
+            ) and walk(pi + 1, si + 1)
+        memo[key] = result
+        return result
+
+    return walk(0, 0)
+
+
+def segments_overlap(left: str, right: str) -> bool:
+    """两段模板是否存在共同的具体取值。"""
+    if is_placeholder(left) or is_placeholder(right):
+        return True
+    if left == right:
+        return True
+    if "*" in left or "?" in left:
+        return runtime_segment_matches(left, right)
+    if "*" in right or "?" in right:
+        return runtime_segment_matches(right, left)
+    return False
+
+
+def templates_overlap(left: str, right: str) -> bool:
+    """两条路径模板是否存在共同的具体请求路径（两边都可能带 `{var}` / 通配）。"""
+    left_segments = split_segments(left)
+    right_segments = split_segments(right)
+    memo: dict[tuple[int, int], bool] = {}
+
+    def walk(li: int, ri: int) -> bool:
+        key = (li, ri)
+        if key in memo:
+            return memo[key]
+        if li == len(left_segments):
+            result = ri == len(right_segments)
+        elif left_segments[li] == "**":
+            result = walk(li + 1, ri) or (
+                ri < len(right_segments) and walk(li, ri + 1)
+            )
+        elif ri == len(right_segments):
+            result = False
+        elif right_segments[ri] == "**":
+            result = walk(li, ri + 1) or (
+                li < len(left_segments) and walk(li + 1, ri)
+            )
+        else:
+            result = segments_overlap(
+                left_segments[li], right_segments[ri]
+            ) and walk(li + 1, ri + 1)
+        memo[key] = result
+        return result
+
+    return walk(0, 0)
+
+
+def is_template(path: str) -> bool:
+    return any(
+        is_placeholder(segment) or "*" in segment or "?" in segment
+        for segment in split_segments(path)
+    )
+
+
+def runtime_candidates(catalog: dict, path: str, method: str) -> set[str]:
+    """端点可能命中的全部权限码（运行时 filter `anyMatch` 的候选集合）。
+
+    - 字面量端点：目录模板按运行时语义命中它（`/page` 也命中 `/{id}`）；
+    - 模板端点（controller 路径带 `{var}`）：收集所有可能命中同一具体请求的
+      模板行（两条模板重叠即可）。模板端点的候选是保守超集——任意具体取值
+      只会命中其中一个子集；注解覆盖全集才不会把 filter 已放行的请求挡在方法级。
+    """
+    candidates: set[str] = set()
+    template_endpoint = is_template(path)
+    for (url, row_method), row in catalog.items():
+        if row_method != "*" and row_method != method:
+            continue
+        matched = (
+            templates_overlap(url, path)
+            if template_endpoint
+            else runtime_matches(url, path)
+        )
+        if matched:
+            candidates.add(row["code"])
+    return candidates
+
+
 # ---------------------------------------------------------------------------
 # Java 源码解析
 # ---------------------------------------------------------------------------
@@ -424,7 +550,7 @@ def parse_controller(path: Path) -> tuple[str, list[dict]]:
     return rel, endpoints
 
 
-def controller_files() -> list[Path]:
+def controller_files(tracked: set[str] | None = None) -> list[Path]:
     files: list[Path] = []
     for domain in DOMAINS:
         domain_dir = ROOT / domain
@@ -434,8 +560,30 @@ def controller_files() -> list[Path]:
             rel_parts = path.relative_to(ROOT).parts
             if any(part in EXCLUDED_FRAGMENTS for part in rel_parts):
                 continue
+            if tracked is not None and path.relative_to(ROOT).as_posix() not in tracked:
+                continue
             files.append(path)
     return sorted(files)
+
+
+def git_tracked_files() -> set[str] | None:
+    """`git ls-files` 的相对路径集合；git 不可用（如导出的源码包）时返回 None。"""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-files"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    return {
+        line.strip().replace("\\", "/")
+        for line in result.stdout.splitlines()
+        if line.strip()
+    }
 
 
 def service_dir(rel_file: str) -> str:
@@ -630,7 +778,7 @@ def _self_check_exempt_lists() -> None:
 # ---------------------------------------------------------------------------
 # 报告
 # ---------------------------------------------------------------------------
-def build_mapping() -> tuple[dict, list[str], dict[str, int]]:
+def build_mapping(tracked_only: bool = False) -> tuple[dict, list[str], dict[str, int]]:
     catalog_rows, catalog_notes = parse_catalog()
     catalog = build_catalog_index(catalog_rows)
     catalog_stats = {
@@ -639,8 +787,14 @@ def build_mapping() -> tuple[dict, list[str], dict[str, int]]:
         "codes": len({row["code"] for row in catalog_rows}),
     }
 
+    tracked = None
+    if tracked_only:
+        tracked = git_tracked_files()
+        if tracked is None:
+            warn("--tracked-only：读不到 git 索引，退回扫描工作副本（结果可能含未跟踪文件）")
+
     services: dict[str, dict] = {}
-    for java_file in controller_files():
+    for java_file in controller_files(tracked):
         rel, endpoints = parse_controller(java_file)
         service = service_dir(rel)
         bucket = services.setdefault(service, {"endpoints": []})
@@ -651,6 +805,9 @@ def build_mapping() -> tuple[dict, list[str], dict[str, int]]:
                 {
                     **endpoint,
                     "code": row["code"] if row else None,
+                    "codes": sorted(
+                        runtime_candidates(catalog, endpoint["path"], endpoint["httpMethod"])
+                    ),
                     "exempt": reason is not None,
                     "exemptReason": reason,
                 }
@@ -722,6 +879,13 @@ def render_report(mapping: dict, catalog_notes: list[str], catalog_stats: dict[s
         "（`unregistered-endpoint-policy` 默认 `DENY`）；未解析出用户的请求会直接放行"
         "（过滤器在无用户上下文时跳过端点登记校验）。本轮不为它们补 `@PreAuthorize`。"
     )
+    lines.append(
+        "- JSON 里的 `codes` 是**运行时候选码集合**：filter 对候选码是 `anyMatch`，"
+        "同一个请求 URL 可能同时命中字面量行与模板行（`/api/v1/fulfillments/page` "
+        "也命中 `/api/v1/fulfillments/{fulfillmentNo}`）。`len(codes) > 1` 的端点，"
+        "`@PreAuthorize` 必须写成 `hasAnyAuthority(...)` 覆盖全部候选，否则会把 filter "
+        "已放行的合法用户挡成 403。模板端点（路径带 `{var}`）的 `codes` 是保守超集。"
+    )
     lines.append("")
     lines.append("## 总览")
     lines.append("")
@@ -729,6 +893,9 @@ def render_report(mapping: dict, catalog_notes: list[str], catalog_stats: dict[s
     lines.append("| --- | ---: |")
     lines.append(f"| 服务（有 controller 的模块） | {len(services)} |")
     lines.append(f"| 端点总数 | {total} |")
+    lines.append(
+        f"| 运行时候选码 > 1 的端点 | {sum(1 for e in all_endpoints if len(e['codes']) > 1)} |"
+    )
     lines.append(f"| seed 目录行 / 唯一 (url, method) 对 | {catalog_stats['rows']} / {catalog_stats['pairs']} |")
     lines.append(f"| 已映射到权限码 | {len(mapped)} |")
     lines.append(f"| 豁免端点 | {len(exempt)} |")
@@ -802,9 +969,19 @@ def render_report(mapping: dict, catalog_notes: list[str], catalog_stats: dict[s
     return "\n".join(lines).rstrip() + "\n"
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="生成权限目录 ↔ Controller 端点映射与 D1 缺口报告"
+    )
+    parser.add_argument(
+        "--tracked-only",
+        action="store_true",
+        help="只扫 git 索引里的 controller（工作副本里的未跟踪文件不计入）",
+    )
+    options = parser.parse_args(argv)
+
     _self_check_exempt_lists()
-    mapping, catalog_notes, catalog_stats = build_mapping()
+    mapping, catalog_notes, catalog_stats = build_mapping(tracked_only=options.tracked_only)
 
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(

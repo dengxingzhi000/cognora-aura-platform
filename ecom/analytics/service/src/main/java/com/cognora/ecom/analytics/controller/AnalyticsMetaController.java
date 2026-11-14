@@ -204,7 +204,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "按编码查询数据集", description = "根据数据集编码查询对应的数据集定义。")
     @GetMapping("/datasets/code/{code}")
-    @PreAuthorize("hasAuthority('analytics:metadata:get-dataset-by-code')")
+    @PreAuthorize("hasAnyAuthority('analytics:metadata:get-dataset-by-code', 'analytics:metadata:list-fields')")
     public ApiResponse<DatasetDefinition> getDatasetByCode(@Parameter(description = "数据集编码") @PathVariable String code) {
         return ApiResponse.success(datasetService.getByCode(code));
     }
@@ -260,7 +260,7 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "查询数据集字段列表", description = "查询指定数据集下登记的全部字段定义。")
     @GetMapping("/datasets/{datasetId}/fields")
-    @PreAuthorize("hasAuthority('analytics:metadata:list-fields')")
+    @PreAuthorize("hasAnyAuthority('analytics:metadata:list-fields', 'analytics:metadata:get-dataset-by-code')")
     public ApiResponse<List<DatasetFieldDefinition>> listFields(@Parameter(description = "数据集 ID") @PathVariable UUID datasetId) {
         return ApiResponse.success(datasetFieldService.listByDataset(datasetId));
     }

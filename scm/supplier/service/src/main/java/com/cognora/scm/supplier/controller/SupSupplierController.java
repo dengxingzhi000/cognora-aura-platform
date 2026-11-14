@@ -43,7 +43,7 @@ public class SupSupplierController {
 
     @Operation(summary = "查询供应商详情", description = "根据供应商ID查询未删除的供应商详情。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('supplier:supplier:view')")
+    @PreAuthorize("hasAnyAuthority('supplier:supplier:view', 'supplier:supplier:list-active', 'supplier:supplier:search-by-name', 'supplier:supplier:stats')")
     public ApiResponse<SupSupplier> getById(@Parameter(description = "供应商ID") @PathVariable String id) {
         log.info("[API] 查询供应商详情 id={}", LogUtils.sanitizeForLog(id));
         SupSupplier supplier = supplierService.getById(id);
@@ -103,7 +103,7 @@ public class SupSupplierController {
 
     @Operation(summary = "查询供应商统计", description = "返回供应商总数、启用数、合作中、待审核、黑名单与资质到期数量。")
     @GetMapping("/stats")
-    @PreAuthorize("hasAuthority('supplier:supplier:stats')")
+    @PreAuthorize("hasAnyAuthority('supplier:supplier:stats', 'supplier:supplier:view')")
     public ApiResponse<SupplierStatsVO> stats() {
         return ApiResponse.success(supplierService.getStats());
     }
@@ -111,7 +111,7 @@ public class SupSupplierController {
     @Operation(summary = "创建供应商", description = "新增供应商主数据，初始化为草稿准入状态并自动生成编码。")
     @PostMapping
     @PreAuthorize("hasAuthority('supplier:supplier:create')")
-    @AuditLog(operation = "创建供应商", businessType = "SUPPLIER", riskLevel = 3)
+    @AuditLog(operation = "创建供应商", businessType = "SUPPLIER", riskLevel = 3, recordParams = false)
     public ApiResponse<SupSupplier> create(@Valid @RequestBody SupplierUpsertRequest request) {
         log.info("[API] 创建供应商 name={}", LogUtils.sanitizeForLog(request.getSupplierName()));
         return ApiResponse.success(supplierService.createSupplier(request));
@@ -120,7 +120,7 @@ public class SupSupplierController {
     @Operation(summary = "更新供应商", description = "更新供应商主数据；准入状态、黑名单与评分由流程维护。")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('supplier:supplier:update')")
-    @AuditLog(operation = "更新供应商", businessType = "SUPPLIER", riskLevel = 3)
+    @AuditLog(operation = "更新供应商", businessType = "SUPPLIER", riskLevel = 3, recordParams = false)
     public ApiResponse<SupSupplier> update(@Parameter(description = "供应商ID") @PathVariable String id,
                                            @Valid @RequestBody SupplierUpsertRequest request) {
         log.info("[API] 更新供应商 id={}", LogUtils.sanitizeForLog(id));
@@ -163,14 +163,14 @@ public class SupSupplierController {
 
     @Operation(summary = "查询可合作供应商", description = "查询启用、准入通过、非黑名单且合作中的供应商。")
     @GetMapping("/active")
-    @PreAuthorize("hasAuthority('supplier:supplier:list-active')")
+    @PreAuthorize("hasAnyAuthority('supplier:supplier:list-active', 'supplier:supplier:view')")
     public ApiResponse<List<SupSupplier>> listActive() {
         return ApiResponse.success(supplierService.listActive());
     }
 
     @Operation(summary = "搜索供应商", description = "根据供应商名称关键字模糊搜索供应商。")
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('supplier:supplier:search-by-name')")
+    @PreAuthorize("hasAnyAuthority('supplier:supplier:search-by-name', 'supplier:supplier:view')")
     public ApiResponse<List<SupSupplier>> searchByName(
             @Parameter(description = "供应商名称关键字") @RequestParam String name) {
         return ApiResponse.success(supplierService.searchByName(name));
