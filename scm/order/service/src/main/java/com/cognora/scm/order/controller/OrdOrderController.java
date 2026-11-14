@@ -1,6 +1,7 @@
 package com.cognora.scm.order.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.scm.order.dto.OrderCancelRequest;
 import com.cognora.scm.order.dto.OrderCreateRequest;
@@ -20,6 +21,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -75,6 +77,7 @@ public class OrdOrderController {
      */
     @Operation(summary = "查询订单", description = "根据订单 ID 查询订单详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('order:order:view', 'order-center:order:get-order', 'order-center:order:page')")
     public ApiResponse<OrderResponse> getById(@Parameter(description = "订单 ID") @PathVariable UUID id) {
         log.info("[API] 查询订单: id={}", id);
         return ApiResponse.success(queryService.getResponseById(String.valueOf(id)));
@@ -88,6 +91,8 @@ public class OrdOrderController {
      */
     @Operation(summary = "分页查询订单", description = "按条件分页查询订单，支持订单号、用户、状态、来源及时间区间过滤。")
     @PostMapping("/query")
+    @PreAuthorize("hasAuthority('order:order:query')")
+    @AuditLog(operation = "分页查询订单", businessType = "ORDER", riskLevel = 2)
     public ApiResponse<Page<OrderResponse>> query(@RequestBody @Valid OrderQueryRequest request) {
         log.info("[API] 分页查询订单: {}", (request + "").replace("\r", "_").replace("\n", "_"));
 
@@ -102,6 +107,7 @@ public class OrdOrderController {
      */
     @Operation(summary = "查询订单看板聚合", description = "按时间范围聚合营收、订单量、日趋势、状态分布与待处理计数，支持环比/同比。")
     @GetMapping("/dashboard/summary")
+    @PreAuthorize("hasAuthority('order:order:dashboard-summary')")
     public ApiResponse<OrderDashboardSummaryResponse> dashboardSummary(
             @Parameter(description = "时间范围") @RequestParam(defaultValue = "LAST_7_DAYS") OrderDashboardRange range,
             @Parameter(description = "对比基准") @RequestParam(defaultValue = "PREVIOUS_PERIOD") OrderDashboardCompare compare) {
@@ -113,6 +119,7 @@ public class OrdOrderController {
      */
     @Operation(summary = "查询订单明细", description = "根据订单 ID 查询该订单下的全部明细项。")
     @GetMapping("/{id}/items")
+    @PreAuthorize("hasAuthority('order:order:get-items')")
     public ApiResponse<List<OrderItemResponse>> getItems(@Parameter(description = "订单 ID") @PathVariable UUID id) {
         log.info("[API] 查询订单明细: id={}", id);
         return ApiResponse.success(queryService.listItemResponses(id));
@@ -125,6 +132,8 @@ public class OrdOrderController {
      */
     @Operation(summary = "创建订单", description = "创建新订单并同时写入订单明细。")
     @PostMapping
+    @PreAuthorize("hasAuthority('order-center:order:create-order')")
+    @AuditLog(operation = "创建订单", businessType = "ORDER", riskLevel = 3)
     public ApiResponse<OrderResponse> createOrder(@RequestBody @Valid OrderCreateRequest request) {
         log.info("[API] 创建订单: orderNo={}, userId={}", (request.getOrderNo() + "").replace("\r", "_").replace("\n", "_"), (request.getUserId() + "").replace("\r", "_").replace("\n", "_"));
 
@@ -139,6 +148,8 @@ public class OrdOrderController {
      */
     @Operation(summary = "订单状态流转", description = "按状态机规则更新订单状态，非法流转将被拒绝。")
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('order:order:update-status')")
+    @AuditLog(operation = "更新订单状态", businessType = "ORDER", riskLevel = 3)
     public ApiResponse<OrderResponse> updateStatus(@Parameter(description = "订单 ID") @PathVariable UUID id,
                                                    @RequestBody @Valid OrderStatusUpdateRequest request) {
         log.info("[API] 更新订单状态: id={}, target={}", id, request.getTargetStatus());
@@ -159,6 +170,8 @@ public class OrdOrderController {
      */
     @Operation(summary = "取消订单", description = "取消待支付或已支付的订单并记录取消原因。")
     @PutMapping("/{id}/cancel")
+    @PreAuthorize("hasAuthority('order:order:cancel')")
+    @AuditLog(operation = "取消订单", businessType = "ORDER", riskLevel = 3)
     public ApiResponse<OrderResponse> cancel(@Parameter(description = "订单 ID") @PathVariable UUID id,
                                              @RequestBody @Valid OrderCancelRequest request) {
         log.info("[API] 取消订单: id={}, reason={}", (id + "").replace("\r", "_").replace("\n", "_"), (request.getReason() + "").replace("\r", "_").replace("\n", "_"));

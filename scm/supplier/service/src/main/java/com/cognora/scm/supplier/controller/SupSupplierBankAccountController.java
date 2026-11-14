@@ -1,5 +1,6 @@
 package com.cognora.scm.supplier.controller;
 
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.scm.supplier.domain.entity.SupSupplierBankAccount;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +33,7 @@ public class SupSupplierBankAccountController {
 
     @Operation(summary = "查询银行账户列表", description = "查询指定供应商的全部银行账户，默认账户置顶。")
     @GetMapping
+    @PreAuthorize("hasAuthority('supplier:bank-account:list')")
     public ApiResponse<List<SupSupplierBankAccount>> list(
             @Parameter(description = "供应商ID") @PathVariable String supplierId) {
         return ApiResponse.success(bankAccountService.listBySupplierId(supplierId));
@@ -38,6 +41,8 @@ public class SupSupplierBankAccountController {
 
     @Operation(summary = "新增银行账户", description = "新增供应商银行账户；首个账户自动成为默认账户。")
     @PostMapping
+    @PreAuthorize("hasAuthority('supplier:bank-account:create')")
+    @AuditLog(operation = "新增供应商银行账户", businessType = "SUPPLIER", riskLevel = 4, recordParams = false)
     public ApiResponse<SupSupplierBankAccount> create(
             @Parameter(description = "供应商ID") @PathVariable String supplierId,
             @RequestBody SupSupplierBankAccount account) {
@@ -47,6 +52,8 @@ public class SupSupplierBankAccountController {
 
     @Operation(summary = "更新银行账户", description = "更新银行账户；设为默认时会自动取消其他默认账户。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:bank-account:update')")
+    @AuditLog(operation = "更新供应商银行账户", businessType = "SUPPLIER", riskLevel = 4, recordParams = false)
     public ApiResponse<SupSupplierBankAccount> update(
             @Parameter(description = "银行账户ID") @PathVariable String id,
             @RequestBody SupSupplierBankAccount account) {
@@ -55,6 +62,8 @@ public class SupSupplierBankAccountController {
 
     @Operation(summary = "删除银行账户", description = "删除银行账户；若为默认账户则自动提升下一位账户。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:bank-account:delete')")
+    @AuditLog(operation = "删除供应商银行账户", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> delete(
             @Parameter(description = "银行账户ID") @PathVariable String id) {
         boolean success = bankAccountService.delete(id);
@@ -63,6 +72,8 @@ public class SupSupplierBankAccountController {
 
     @Operation(summary = "设置默认账户", description = "将指定账户设为默认结算账户，同步供应商档案银行信息。")
     @PutMapping("/{id}/default")
+    @PreAuthorize("hasAuthority('supplier:bank-account:set-default')")
+    @AuditLog(operation = "设置默认结算账户", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> setDefault(
             @Parameter(description = "银行账户ID") @PathVariable String id) {
         bankAccountService.setDefault(id);

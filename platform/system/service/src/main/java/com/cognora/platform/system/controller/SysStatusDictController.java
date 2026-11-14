@@ -1,5 +1,6 @@
 package com.cognora.platform.system.controller;
 
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.system.domain.entity.SysStatusDict;
 import com.cognora.platform.system.domain.entity.SysStatusTransition;
@@ -43,6 +44,7 @@ public class SysStatusDictController {
     @Operation(summary = "新增状态字典", description = "新增一条业务状态定义，主键由系统自动生成。")
     @PostMapping("/dict")
     @PreAuthorize("hasAuthority('system:status:add')")
+    @AuditLog(operation = "新增业务状态字典", businessType = "STATUS_DICT", riskLevel = 3)
     public ApiResponse<Void> createStatusDict(@RequestBody SysStatusDict entity) {
         statusDictService.createStatusDict(entity);
         return ApiResponse.success(null);
@@ -51,6 +53,7 @@ public class SysStatusDictController {
     @Operation(summary = "修改状态字典", description = "更新已有业务状态定义的信息。")
     @PutMapping("/dict")
     @PreAuthorize("hasAuthority('system:status:edit')")
+    @AuditLog(operation = "修改业务状态字典", businessType = "STATUS_DICT", riskLevel = 3)
     public ApiResponse<Void> updateStatusDict(@RequestBody SysStatusDict entity) {
         statusDictService.updateStatusDict(entity);
         return ApiResponse.success(null);
@@ -59,6 +62,7 @@ public class SysStatusDictController {
     @Operation(summary = "删除状态字典", description = "根据状态 ID 删除该业务状态定义。")
     @DeleteMapping("/dict/{id}")
     @PreAuthorize("hasAuthority('system:status:delete')")
+    @AuditLog(operation = "删除业务状态字典", businessType = "STATUS_DICT", riskLevel = 4)
     public ApiResponse<Void> deleteStatusDict(@Parameter(description = "状态定义 ID") @PathVariable String id) {
         statusDictService.deleteStatusDict(id);
         return ApiResponse.success(null);
@@ -74,6 +78,7 @@ public class SysStatusDictController {
     @Operation(summary = "新增状态流转规则", description = "新增一条状态流转规则，主键由系统自动生成。")
     @PostMapping("/transitions")
     @PreAuthorize("hasAuthority('system:status:add')")
+    @AuditLog(operation = "新增状态流转规则", businessType = "STATUS_TRANSITION", riskLevel = 3)
     public ApiResponse<Void> createTransition(@RequestBody SysStatusTransition entity) {
         statusDictService.createTransition(entity);
         return ApiResponse.success(null);
@@ -82,6 +87,7 @@ public class SysStatusDictController {
     @Operation(summary = "修改状态流转规则", description = "更新已有状态流转规则的起始状态、目标状态与动作等信息。")
     @PutMapping("/transitions")
     @PreAuthorize("hasAuthority('system:status:edit')")
+    @AuditLog(operation = "修改状态流转规则", businessType = "STATUS_TRANSITION", riskLevel = 3)
     public ApiResponse<Void> updateTransition(@RequestBody SysStatusTransition entity) {
         statusDictService.updateTransition(entity);
         return ApiResponse.success(null);
@@ -90,6 +96,7 @@ public class SysStatusDictController {
     @Operation(summary = "删除状态流转规则", description = "根据流转规则 ID 删除该状态流转规则。")
     @DeleteMapping("/transitions/{id}")
     @PreAuthorize("hasAuthority('system:status:delete')")
+    @AuditLog(operation = "删除状态流转规则", businessType = "STATUS_TRANSITION", riskLevel = 4)
     public ApiResponse<Void> deleteTransition(@Parameter(description = "状态流转规则 ID") @PathVariable String id) {
         statusDictService.deleteTransition(id);
         return ApiResponse.success(null);
@@ -106,6 +113,8 @@ public class SysStatusDictController {
 
     @Operation(summary = "执行状态流转", description = "按业务类型、当前状态与动作编码执行一次状态流转并返回流转结果。")
     @PostMapping("/transition")
+    @PreAuthorize("hasAuthority('system:status:execute-transition')")
+    @AuditLog(operation = "执行业务状态流转", businessType = "STATUS_TRANSITION", riskLevel = 3)
     public ApiResponse<TransitionResult> executeTransition(
             @Parameter(description = "业务类型，如 ORDER、PURCHASE、APPROVAL") @RequestParam String bizType,
             @Parameter(description = "当前状态编码") @RequestParam String fromStatus,

@@ -3,6 +3,7 @@ package com.cognora.platform.audit.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.audit.domain.entity.SysAuditLog;
 import com.cognora.platform.audit.service.ISysAuditLogService;
@@ -38,6 +39,7 @@ public class SysAuditLogController {
 
     @Operation(summary = "查询审计日志", description = "根据日志 ID 查询审计日志详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('audit:log:view', 'audit:log:page')")
     public SysAuditLog getById(@Parameter(description = "审计日志 ID") @PathVariable String id) {
         log.info("[API] 查询审计日志: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return auditLogService.getById(id);
@@ -45,6 +47,7 @@ public class SysAuditLogController {
 
     @Operation(summary = "按用户查询审计日志", description = "查询指定用户产生的全部审计日志。")
     @GetMapping("/user/{userId}")
+    @PreAuthorize("hasAuthority('audit:log:list-by-user-id')")
     public List<SysAuditLog> listByUserId(@Parameter(description = "用户 ID") @PathVariable String userId) {
         log.info("[API] 查询用户审计日志: userId={}", (userId + "").replace("\r", "_").replace("\n", "_"));
         return auditLogService.listByUserId(userId);
@@ -52,6 +55,7 @@ public class SysAuditLogController {
 
     @Operation(summary = "按模块查询审计日志", description = "查询指定业务模块的审计日志。")
     @GetMapping("/module/{module}")
+    @PreAuthorize("hasAuthority('audit:log:list-by-module')")
     public List<SysAuditLog> listByModule(@Parameter(description = "业务模块名称") @PathVariable String module) {
         log.info("[API] 查询模块审计日志: module={}", (module + "").replace("\r", "_").replace("\n", "_"));
         return auditLogService.listByModule(module);
@@ -59,6 +63,7 @@ public class SysAuditLogController {
 
     @Operation(summary = "按业务类型查询审计日志", description = "查询指定业务类型的审计日志。")
     @GetMapping("/business-type/{businessType}")
+    @PreAuthorize("hasAuthority('audit:log:list-by-business-type')")
     public List<SysAuditLog> listByBusinessType(@Parameter(description = "业务类型") @PathVariable String businessType) {
         log.info("[API] 查询业务类型审计日志: businessType={}", (businessType + "").replace("\r", "_").replace("\n", "_"));
         return auditLogService.listByBusinessType(businessType);
@@ -67,6 +72,7 @@ public class SysAuditLogController {
     @Operation(summary = "分页查询审计日志",
             description = "按用户、操作类型、模块、业务类型、风险等级与创建时间范围分页查询审计日志；时间范围在数据库侧下推。")
     @GetMapping("/page")
+    @PreAuthorize("hasAnyAuthority('audit:log:page', 'audit:log:view')")
     public Page<SysAuditLog> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
