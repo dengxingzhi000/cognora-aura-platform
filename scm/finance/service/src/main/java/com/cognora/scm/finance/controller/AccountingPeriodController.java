@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +35,7 @@ public class AccountingPeriodController {
 
     @Operation(summary = "开启账期", description = "按 YYYY-MM 开启账期，起止日期由月份自动推导。")
     @PostMapping
+    @PreAuthorize("hasAuthority('finance:accounting-period:open')")
     @AuditLog(operation = "开启账期", businessType = "FINANCE_ACCOUNTING_PERIOD", riskLevel = 3)
     public ApiResponse<AccountingPeriod> open(
             @Parameter(description = "账期，格式 YYYY-MM") @RequestParam String periodCode) {
@@ -42,6 +44,7 @@ public class AccountingPeriodController {
 
     @Operation(summary = "关闭账期", description = "将未结账/已重开账期置为已结账，非法流转返回 409。")
     @PostMapping("/{id}/close")
+    @PreAuthorize("hasAuthority('finance:accounting-period:close')")
     @AuditLog(operation = "关闭账期", businessType = "FINANCE_ACCOUNTING_PERIOD", riskLevel = 3)
     public ApiResponse<AccountingPeriod> close(
             @Parameter(description = "账期 ID") @PathVariable String id,
@@ -53,6 +56,7 @@ public class AccountingPeriodController {
             description = "将已结账账期重开（唯一合法回退路径），必须记录操作人、原因与时间；"
                     + "仅「已结账 → 已重开」合法，其余流转返回 409。")
     @PostMapping("/{id}/reopen")
+    @PreAuthorize("hasAuthority('finance:accounting-period:reopen')")
     @AuditLog(operation = "重开账期", businessType = "FINANCE_ACCOUNTING_PERIOD", riskLevel = 3)
     public ApiResponse<AccountingPeriod> reopen(
             @Parameter(description = "账期 ID") @PathVariable String id,
@@ -63,18 +67,21 @@ public class AccountingPeriodController {
 
     @Operation(summary = "查询账期详情", description = "根据账期 ID 查询账期状态与起止日期。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:accounting-period:view')")
     public ApiResponse<AccountingPeriod> getById(@Parameter(description = "账期 ID") @PathVariable String id) {
         return ApiResponse.success(accountingPeriodService.getById(id));
     }
 
     @Operation(summary = "查询当前账期", description = "返回当前自然月对应的账期；当月尚未开账时 data 为空。")
     @GetMapping("/current")
+    @PreAuthorize("hasAuthority('finance:accounting-period:current')")
     public ApiResponse<AccountingPeriod> current() {
         return ApiResponse.success(accountingPeriodService.getCurrentPeriod());
     }
 
     @Operation(summary = "查询已关账期列表", description = "返回当前租户下所有已关账账期，按账期编码倒序。")
     @GetMapping("/closed")
+    @PreAuthorize("hasAuthority('finance:accounting-period:closed')")
     public ApiResponse<List<AccountingPeriod>> closed() {
         return ApiResponse.success(accountingPeriodService.listClosedPeriods());
     }
@@ -83,6 +90,7 @@ public class AccountingPeriodController {
             description = "按结账口径（业务日期 / 含未开票已发货 / 排除已驳回）汇总本期纳入的结算明细与发票；"
                     + "各类别金额分开列示，不跨类别求和。")
     @GetMapping("/{id}/close-inclusion")
+    @PreAuthorize("hasAuthority('finance:accounting-period:close-inclusion')")
     public ApiResponse<CloseInclusionSummary> closeInclusion(
             @Parameter(description = "账期 ID") @PathVariable String id) {
         return ApiResponse.success(periodCloseInclusionQueryService.preview(id));
@@ -90,6 +98,7 @@ public class AccountingPeriodController {
 
     @Operation(summary = "分页查询账期", description = "按状态分页查询账期，状态为空时查询全部。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('finance:accounting-period:page')")
     public ApiResponse<Page<AccountingPeriod>> page(
             @Parameter(description = "页码，默认 1") @RequestParam(required = false) Integer page,
             @Parameter(description = "每页数量，默认 20") @RequestParam(required = false) Integer size,

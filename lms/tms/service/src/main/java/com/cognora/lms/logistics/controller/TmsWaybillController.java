@@ -5,6 +5,7 @@ import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.lms.logistics.domain.entity.TmsWaybill;
 import com.cognora.lms.logistics.service.ITmsWaybillService;
@@ -25,6 +26,7 @@ public class TmsWaybillController {
 
     @Operation(summary = "查询运单详情", description = "根据运单主键 ID 获取运单详细信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('logistics:waybill:view')")
     public ApiResponse<TmsWaybill> getById(
             @Parameter(description = "运单主键 ID") @PathVariable String id) {
         TmsWaybill waybill = waybillService.getById(id);
@@ -33,6 +35,7 @@ public class TmsWaybillController {
 
     @Operation(summary = "按运单号查询", description = "根据运单号获取对应的运单信息。")
     @GetMapping("/no/{waybillNo}")
+    @PreAuthorize("hasAuthority('logistics:waybill:get-by-waybill-no')")
     public ApiResponse<TmsWaybill> getByWaybillNo(
             @Parameter(description = "运单号") @PathVariable String waybillNo) {
         TmsWaybill waybill = waybillService.getByWaybillNo(waybillNo);
@@ -41,6 +44,7 @@ public class TmsWaybillController {
 
     @Operation(summary = "分页查询运单", description = "按运单号、运单状态和承运商分页查询运单列表。")
     @GetMapping("/list")
+    @PreAuthorize("hasAuthority('logistics:waybill:page')")
     public ApiResponse<Page<TmsWaybill>> pageList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -53,6 +57,7 @@ public class TmsWaybillController {
 
     @Operation(summary = "按订单查询运单", description = "根据订单主键 ID 获取关联的全部运单。")
     @GetMapping("/order/{orderId}")
+    @PreAuthorize("hasAuthority('logistics:waybill:list-by-order-id')")
     public ApiResponse<List<TmsWaybill>> listByOrderId(
             @Parameter(description = "订单主键 ID") @PathVariable String orderId) {
         List<TmsWaybill> list = waybillService.listByOrderId(orderId);
@@ -61,6 +66,7 @@ public class TmsWaybillController {
 
     @Operation(summary = "按订单号查询运单", description = "根据订单号获取关联的全部运单。")
     @GetMapping("/order-no/{orderNo}")
+    @PreAuthorize("hasAuthority('logistics:waybill:list-by-order-no')")
     public ApiResponse<List<TmsWaybill>> listByOrderNo(
             @Parameter(description = "订单号") @PathVariable String orderNo) {
         List<TmsWaybill> list = waybillService.listByOrderNo(orderNo);
@@ -69,6 +75,7 @@ public class TmsWaybillController {
 
     @Operation(summary = "创建运单", description = "根据订单与承运商信息创建运单并返回创建结果。")
     @PostMapping
+    @PreAuthorize("hasAuthority('logistics:waybill:create')")
     @AuditLog(operation = "创建物流运单", businessType = "LOGISTICS", riskLevel = 2)
     public ApiResponse<TmsWaybill> create(@RequestBody TmsWaybill waybill) {
         log.info("Create waybill: orderNo={}, carrierId={}", (waybill.getOrderNo() + "").replace("\r", "_").replace("\n", "_"), (waybill.getCarrierId() + "").replace("\r", "_").replace("\n", "_"));
@@ -78,6 +85,7 @@ public class TmsWaybillController {
 
     @Operation(summary = "更新运单状态", description = "按目标状态更新指定运单的状态，可记录操作人。")
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('logistics:waybill:update-status')")
     @AuditLog(operation = "更新物流运单状态", businessType = "LOGISTICS", riskLevel = 3)
     public ApiResponse<Void> updateStatus(
             @Parameter(description = "运单主键 ID") @PathVariable String id,
@@ -90,6 +98,7 @@ public class TmsWaybillController {
 
     @Operation(summary = "取消运单", description = "取消指定运单并记录取消原因与操作人。")
     @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAuthority('logistics:waybill:cancel')")
     @AuditLog(operation = "取消物流运单", businessType = "LOGISTICS", riskLevel = 3)
     public ApiResponse<Void> cancel(
             @Parameter(description = "运单主键 ID") @PathVariable String id,
@@ -102,6 +111,7 @@ public class TmsWaybillController {
 
     @Operation(summary = "删除运单", description = "根据主键 ID 逻辑删除指定运单。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('logistics:waybill:delete')")
     @AuditLog(operation = "删除物流运单", businessType = "LOGISTICS", riskLevel = 3)
     public ApiResponse<Void> delete(@Parameter(description = "运单主键 ID") @PathVariable String id) {
         waybillService.deleteWaybill(id);

@@ -2,9 +2,11 @@ package com.cognora.platform.product.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.platform.common.domain.PageResult;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.product.domain.entity.ProdAttributeTemplate;
 import com.cognora.platform.product.service.IProdAttributeTemplateService;
@@ -24,6 +26,7 @@ public class ProdAttributeTemplateController {
 
     @Operation(summary = "分页查询属性模板", description = "按分类筛选并分页查询未删除的属性模板列表。")
     @GetMapping
+    @PreAuthorize("hasAuthority('product:attribute:list')")
     public ApiResponse<PageResult<ProdAttributeTemplate>> list(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
@@ -36,6 +39,7 @@ public class ProdAttributeTemplateController {
 
     @Operation(summary = "查询属性模板详情", description = "根据模板ID查询属性模板的详细信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('product:attribute:view')")
     public ApiResponse<ProdAttributeTemplate> getById(@Parameter(description = "属性模板ID") @PathVariable String id) {
         ProdAttributeTemplate template = attributeTemplateService.getById(id);
         return ApiResponse.success(template);
@@ -43,6 +47,7 @@ public class ProdAttributeTemplateController {
 
     @Operation(summary = "按分类查询属性模板", description = "查询指定商品分类下配置的全部属性模板。")
     @GetMapping("/category/{categoryId}")
+    @PreAuthorize("hasAuthority('product:attribute:list-by-category-id')")
     public ApiResponse<List<ProdAttributeTemplate>> listByCategoryId(@Parameter(description = "商品分类ID") @PathVariable String categoryId) {
         List<ProdAttributeTemplate> result = attributeTemplateService.listByCategoryId(categoryId);
         return ApiResponse.success(result);
@@ -50,6 +55,8 @@ public class ProdAttributeTemplateController {
 
     @Operation(summary = "创建属性模板", description = "新增属性模板，自动生成ID并初始化创建与更新时间。")
     @PostMapping
+    @PreAuthorize("hasAuthority('product:attribute:create')")
+    @AuditLog(operation = "创建属性模板", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> create(@RequestBody ProdAttributeTemplate template) {
         attributeTemplateService.createTemplate(template);
         return ApiResponse.success();
@@ -57,6 +64,8 @@ public class ProdAttributeTemplateController {
 
     @Operation(summary = "更新属性模板", description = "根据模板ID更新属性模板内容并刷新更新时间。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('product:attribute:update')")
+    @AuditLog(operation = "修改属性模板", businessType = "PRODUCT", riskLevel = 3)
     public ApiResponse<Void> update(@Parameter(description = "属性模板ID") @PathVariable String id, @RequestBody ProdAttributeTemplate template) {
         attributeTemplateService.updateTemplate(id, template);
         return ApiResponse.success();
@@ -64,6 +73,8 @@ public class ProdAttributeTemplateController {
 
     @Operation(summary = "删除属性模板", description = "根据模板ID逻辑删除属性模板。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('product:attribute:delete')")
+    @AuditLog(operation = "删除属性模板", businessType = "PRODUCT", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "属性模板ID") @PathVariable String id) {
         attributeTemplateService.deleteTemplate(id);
         return ApiResponse.success();

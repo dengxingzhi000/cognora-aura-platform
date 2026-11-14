@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -25,6 +26,7 @@ public class InvoiceController {
 
     @Operation(summary = "查询发票详情", description = "根据发票 ID 查询发票的完整开票信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:invoice:view')")
     public ApiResponse<Invoice> getById(@Parameter(description = "发票 ID") @PathVariable String id) {
         Invoice invoice = invoiceService.getById(id);
         return ApiResponse.success(invoice);
@@ -32,6 +34,7 @@ public class InvoiceController {
 
     @Operation(summary = "创建发票", description = "根据请求参数创建一张新的发票记录。")
     @PostMapping
+    @PreAuthorize("hasAuthority('finance:invoice:create')")
     @AuditLog(operation = "创建发票", businessType = "FINANCE_INVOICE", riskLevel = 3)
     public ApiResponse<Invoice> create(@RequestBody @Valid CreateInvoiceRequest request) {
         Invoice invoice = invoiceService.create(request);
@@ -40,6 +43,7 @@ public class InvoiceController {
 
     @Operation(summary = "更新发票", description = "按发票 ID 更新发票中允许修改的开票信息。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:invoice:update')")
     @AuditLog(operation = "修改发票", businessType = "FINANCE_INVOICE", riskLevel = 3)
     public ApiResponse<Invoice> update(
             @Parameter(description = "发票 ID") @PathVariable String id,
@@ -50,6 +54,7 @@ public class InvoiceController {
 
     @Operation(summary = "删除发票", description = "按发票 ID 删除对应的发票记录。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:invoice:delete')")
     @AuditLog(operation = "删除发票", businessType = "FINANCE_INVOICE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "发票 ID") @PathVariable String id) {
         invoiceService.delete(id);
@@ -58,6 +63,7 @@ public class InvoiceController {
 
     @Operation(summary = "分页查询发票", description = "按往来方 ID 分页查询发票；partyId 为空时返回当前租户全部发票。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('finance:invoice:page-by-party-id')")
     public ApiResponse<Page<Invoice>> pageByPartyId(
             @Parameter(description = "往来方 ID，即开票对象（客户或供应商），不传则查询全部") @RequestParam(required = false) String partyId,
             @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int pageNum,
@@ -68,6 +74,7 @@ public class InvoiceController {
 
     @Operation(summary = "开具发票", description = "按发票 ID 与开票人姓名将发票置为已开具状态。")
     @PostMapping("/{id}/issue")
+    @PreAuthorize("hasAuthority('finance:invoice:issue')")
     @AuditLog(operation = "开具发票", businessType = "FINANCE_INVOICE", riskLevel = 3)
     public ApiResponse<Invoice> issue(
             @Parameter(description = "发票 ID") @PathVariable String id,
@@ -78,6 +85,7 @@ public class InvoiceController {
 
     @Operation(summary = "作废发票", description = "将指定发票作废，作废后该发票不可继续使用。")
     @PostMapping("/{id}/void")
+    @PreAuthorize("hasAuthority('finance:invoice:void-invoice')")
     @AuditLog(operation = "作废发票", businessType = "FINANCE_INVOICE", riskLevel = 4)
     public ApiResponse<Invoice> voidInvoice(@Parameter(description = "发票 ID") @PathVariable String id) {
         Invoice invoice = invoiceService.voidInvoice(id);
@@ -86,6 +94,7 @@ public class InvoiceController {
 
     @Operation(summary = "发票红冲", description = "对指定发票执行红冲，生成用于冲销原发票的负数记录。")
     @PostMapping("/{id}/red-flush")
+    @PreAuthorize("hasAuthority('finance:invoice:red-flush')")
     @AuditLog(operation = "发票红冲", businessType = "FINANCE_INVOICE", riskLevel = 4)
     public ApiResponse<Invoice> redFlush(@Parameter(description = "发票 ID") @PathVariable String id) {
         Invoice invoice = invoiceService.redFlushInvoice(id);
