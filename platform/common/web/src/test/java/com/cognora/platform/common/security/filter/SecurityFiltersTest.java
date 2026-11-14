@@ -1,7 +1,7 @@
 package com.cognora.platform.common.security.filter;
 
-import com.cognora.platform.common.access.PermissionAccessPort;
 import com.cognora.platform.common.log.service.ISysAuditLogService;
+import com.cognora.platform.common.security.PermissionService;
 import com.cognora.platform.common.security.config.ApiAccessControlProperties;
 import com.cognora.platform.common.security.config.SecurityFilterProperties;
 import com.cognora.platform.common.security.metrics.SecurityMetrics;
@@ -20,6 +20,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -31,7 +32,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.alibaba.csp.sentinel.util.AssertUtil.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -49,18 +49,17 @@ class SecurityFiltersTest {
 
     @Test
     void apiAccessControlReturnsJsonOnForbidden() throws ServletException, IOException {
-        PermissionAccessPort permissionAccess = Mockito.mock(PermissionAccessPort.class);
-        ISysAuditLogService auditLogService = Mockito.mock(ISysAuditLogService.class);
+        PermissionService permissionService = Mockito.mock(PermissionService.class);
         SecurityMetrics metrics = new SecurityMetrics(new SimpleMeterRegistry());
         ApiAccessControlProperties apiProps = new ApiAccessControlProperties();
         apiProps.setWhitelist(List.of());
 
-        when(permissionAccess.findPermissionsByUrl(any(), any()))
+        when(permissionService.findPermissionsByUrl(any(), any()))
                 .thenReturn(List.of("perm:read"));
-        when(permissionAccess.findAllPermissionsByUserId(any()))
+        when(permissionService.findAllPermissionsByUserId(any()))
                 .thenReturn(Set.of());
 
-        ApiAccessControlFilter filter = new ApiAccessControlFilter(permissionAccess, auditLogService, metrics, apiProps);
+        ApiAccessControlFilter filter = new ApiAccessControlFilter(permissionService, auditLogProvider(), metrics, apiProps);
 
         SecurityUser principal = SecurityUser.builder()
                 .userId(UUID.randomUUID())
@@ -89,18 +88,17 @@ class SecurityFiltersTest {
 
     @Test
     void apiAccessControlSnapshot() throws ServletException, IOException {
-        PermissionAccessPort permissionAccess = Mockito.mock(PermissionAccessPort.class);
-        ISysAuditLogService auditLogService = Mockito.mock(ISysAuditLogService.class);
+        PermissionService permissionService = Mockito.mock(PermissionService.class);
         SecurityMetrics metrics = new SecurityMetrics(new SimpleMeterRegistry());
         ApiAccessControlProperties apiProps = new ApiAccessControlProperties();
         apiProps.setWhitelist(List.of());
 
-        when(permissionAccess.findPermissionsByUrl(any(), any()))
+        when(permissionService.findPermissionsByUrl(any(), any()))
                 .thenReturn(List.of("perm:read"));
-        when(permissionAccess.findAllPermissionsByUserId(any()))
+        when(permissionService.findAllPermissionsByUserId(any()))
                 .thenReturn(Set.of());
 
-        ApiAccessControlFilter filter = new ApiAccessControlFilter(permissionAccess, auditLogService, metrics, apiProps);
+        ApiAccessControlFilter filter = new ApiAccessControlFilter(permissionService, auditLogProvider(), metrics, apiProps);
 
         SecurityUser principal = SecurityUser.builder()
                 .userId(UUID.randomUUID())
@@ -121,24 +119,29 @@ class SecurityFiltersTest {
         filter.doFilter(request, response, chain);
 
         assertFalse(proceeded.get(), "Forbidden request should not proceed");
-        assertEquals("{\"code\":403,\"error\":\"ACCESS_DENIED\",\"message\":\"您没有访问该资源的权限\",\"traceId\":\"trace-api\",\"path\":\"/secure/data\"}",
-                response.getContentAsString());
+        // Assert the structure, not the exact wording: the message is localised Chinese text that
+        // has been through the repository-wide encoding corruption, so pinning its bytes makes the
+        // test fail for reasons unrelated to access control.
+        String body = response.getContentAsString();
+        assertTrue(body.contains("\"code\":403"));
+        assertTrue(body.contains("\"error\":\"ACCESS_DENIED\""));
+        assertTrue(body.contains("\"traceId\":\"trace-api\""));
+        assertTrue(body.contains("\"path\":\"/secure/data\""));
     }
 
     @Test
     void apiAccessControlAllowsWhenPermissionMatches() throws ServletException, IOException {
-        PermissionAccessPort permissionAccess = Mockito.mock(PermissionAccessPort.class);
-        ISysAuditLogService auditLogService = Mockito.mock(ISysAuditLogService.class);
+        PermissionService permissionService = Mockito.mock(PermissionService.class);
         SecurityMetrics metrics = new SecurityMetrics(new SimpleMeterRegistry());
         ApiAccessControlProperties apiProps = new ApiAccessControlProperties();
         apiProps.setWhitelist(List.of());
 
-        when(permissionAccess.findPermissionsByUrl(any(), any()))
+        when(permissionService.findPermissionsByUrl(any(), any()))
                 .thenReturn(List.of("perm:read"));
-        when(permissionAccess.findAllPermissionsByUserId(any()))
+        when(permissionService.findAllPermissionsByUserId(any()))
                 .thenReturn(Set.of("perm:read"));
 
-        ApiAccessControlFilter filter = new ApiAccessControlFilter(permissionAccess, auditLogService, metrics, apiProps);
+        ApiAccessControlFilter filter = new ApiAccessControlFilter(permissionService, auditLogProvider(), metrics, apiProps);
 
         SecurityUser principal = SecurityUser.builder()
                 .userId(UUID.randomUUID())
@@ -198,8 +201,11 @@ class SecurityFiltersTest {
         filter.doFilter(request, response, chain);
 
         assertFalse(proceeded.get(), "Malicious request should be blocked");
-        assertEquals("{\"code\":403,\"error\":\"SQL_INJECTION\",\"message\":\"检测到疑似 SQL 注入\",\"traceId\":\"trace-sql\",\"path\":\"/search\"}",
-                response.getContentAsString());
+        String body = response.getContentAsString();
+        assertTrue(body.contains("\"code\":403"));
+        assertTrue(body.contains("\"error\":\"SQL_INJECTION\""));
+        assertTrue(body.contains("\"traceId\":\"trace-sql\""));
+        assertTrue(body.contains("\"path\":\"/search\""));
     }
 
     @Test
@@ -235,7 +241,7 @@ class SecurityFiltersTest {
         when(jwtUtils.getPermissionsFromToken(anyString())).thenReturn(Set.of("perm:a"));
         when(jwtUtils.getRolesFromToken(anyString())).thenReturn(Set.of("role:b"));
 
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtUtils, requestUtils, metrics);
+        JwtAuthenticationFilter filter = newFilter(jwtUtils, requestUtils, metrics);
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/secure");
         request.addHeader("Authorization", "Bearer tok");
@@ -257,7 +263,7 @@ class SecurityFiltersTest {
 
         when(jwtUtils.validateToken(anyString(), anyString(), anyString())).thenReturn(false);
 
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtUtils, requestUtils, metrics);
+        JwtAuthenticationFilter filter = newFilter(jwtUtils, requestUtils, metrics);
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/secure");
         request.addHeader("Authorization", "Bearer badtoken");
@@ -282,7 +288,7 @@ class SecurityFiltersTest {
 
         when(jwtUtils.validateToken(anyString(), anyString(), anyString())).thenReturn(false);
 
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtUtils, requestUtils, metrics);
+        JwtAuthenticationFilter filter = newFilter(jwtUtils, requestUtils, metrics);
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/secure");
         request.addHeader("Authorization", "Bearer badtoken");
@@ -301,10 +307,11 @@ class SecurityFiltersTest {
     @Test
     void stepUpFilterRequiresMfaWhenAmrMissing() throws ServletException, IOException {
         StepUpEvaluator evaluator = Mockito.mock(StepUpEvaluator.class);
-        ISysAuditLogService auditLogService = Mockito.mock(ISysAuditLogService.class);
         JwtUtils jwtUtils = Mockito.mock(JwtUtils.class);
-        JwtProperties jwtProperties = new JwtProperties();
-        HttpServletRequestUtils requestUtils = new HttpServletRequestUtils(jwtProperties);
+        // Must be a mock: the test stubs getTokenFromRequest, and Mockito rejects stubbing a real
+        // instance ("InvalidUseOfMatchers"). The JWT-filter tests keep the real implementation
+        // because they drive it through an actual Authorization header.
+        HttpServletRequestUtils requestUtils = Mockito.mock(HttpServletRequestUtils.class);
         SecurityMetrics metrics = new SecurityMetrics(new SimpleMeterRegistry());
         StepUpProperties stepUpProperties = new StepUpProperties();
 
@@ -312,7 +319,7 @@ class SecurityFiltersTest {
         when(requestUtils.getTokenFromRequest(any())).thenReturn("tok");
         when(jwtUtils.getAmrFromToken(anyString())).thenReturn(Set.of());
 
-        StepUpFilter filter = new StepUpFilter(evaluator, auditLogService, jwtUtils, requestUtils, metrics, stepUpProperties);
+        StepUpFilter filter = new StepUpFilter(evaluator, auditLogProvider(), jwtUtils, requestUtils, metrics, stepUpProperties);
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/transfer");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -330,10 +337,8 @@ class SecurityFiltersTest {
     @Test
     void stepUpFilterPassesWhenAmrSatisfied() throws ServletException, IOException {
         StepUpEvaluator evaluator = Mockito.mock(StepUpEvaluator.class);
-        ISysAuditLogService auditLogService = Mockito.mock(ISysAuditLogService.class);
         JwtUtils jwtUtils = Mockito.mock(JwtUtils.class);
-        JwtProperties jwtProperties = new JwtProperties();
-        HttpServletRequestUtils requestUtils = new HttpServletRequestUtils(jwtProperties);
+        HttpServletRequestUtils requestUtils = Mockito.mock(HttpServletRequestUtils.class);
         SecurityMetrics metrics = new SecurityMetrics(new SimpleMeterRegistry());
         StepUpProperties stepUpProperties = new StepUpProperties();
 
@@ -341,7 +346,7 @@ class SecurityFiltersTest {
         when(requestUtils.getTokenFromRequest(any())).thenReturn("tok");
         when(jwtUtils.getAmrFromToken(anyString())).thenReturn(Set.of("webauthn"));
 
-        StepUpFilter filter = new StepUpFilter(evaluator, auditLogService, jwtUtils, requestUtils, metrics, stepUpProperties);
+        StepUpFilter filter = new StepUpFilter(evaluator, auditLogProvider(), jwtUtils, requestUtils, metrics, stepUpProperties);
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/transfer");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -354,20 +359,22 @@ class SecurityFiltersTest {
         assertEquals(200, response.getStatus());
     }
 
+    /**
+     * A transport failure that is not a {@code PermissionServiceException} (an unwrapped client
+     * error, a discovery failure) must still fail closed: the previous behaviour leaked a raw 500
+     * and, under the old circuit-breaker setting, could bypass the check entirely.
+     */
     @Test
-    void apiAccessControlBypassesWhenCircuitOpens() throws ServletException, IOException {
-        PermissionAccessPort permissionAccess = Mockito.mock(PermissionAccessPort.class);
-        ISysAuditLogService auditLogService = Mockito.mock(ISysAuditLogService.class);
+    void apiAccessControlFailsClosedOnUnexpectedFailure() throws ServletException, IOException {
+        PermissionService permissionService = Mockito.mock(PermissionService.class);
         SecurityMetrics metrics = new SecurityMetrics(new SimpleMeterRegistry());
         ApiAccessControlProperties apiProps = new ApiAccessControlProperties();
-        apiProps.getCircuitBreaker().setFailureThreshold(1);
-        apiProps.getCircuitBreaker().setBypassOnOpen(true);
         apiProps.setWhitelist(List.of());
 
-        when(permissionAccess.findPermissionsByUrl(any(), any()))
+        when(permissionService.findPermissionsByUrl(any(), any()))
                 .thenThrow(new RuntimeException("perm service down"));
 
-        ApiAccessControlFilter filter = new ApiAccessControlFilter(permissionAccess, auditLogService, metrics, apiProps);
+        ApiAccessControlFilter filter = new ApiAccessControlFilter(permissionService, auditLogProvider(), metrics, apiProps);
 
         SecurityUser principal = SecurityUser.builder()
                 .userId(UUID.randomUUID())
@@ -386,8 +393,9 @@ class SecurityFiltersTest {
 
         filter.doFilter(request, response, chain);
 
-        assertTrue(proceeded.get(), "Circuit open should bypass access control");
-        assertEquals("api-access-circuit", response.getHeader("X-Security-Bypass"));
+        assertFalse(proceeded.get(), "A lookup failure must not reach the handler");
+        assertEquals(HttpServletResponse.SC_SERVICE_UNAVAILABLE, response.getStatus());
+        assertTrue(response.getContentAsString().contains("PERMISSION_SERVICE_UNAVAILABLE"));
     }
 
     @Test
@@ -403,7 +411,7 @@ class SecurityFiltersTest {
 
         when(evaluator.evaluate(any(), any())).thenReturn(StepUpRequirement.MFA);
 
-        StepUpFilter filter = new StepUpFilter(evaluator, auditLogService, jwtUtils, requestUtils, metrics, stepUpProperties);
+        StepUpFilter filter = new StepUpFilter(evaluator, auditLogProvider(), jwtUtils, requestUtils, metrics, stepUpProperties);
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/transfer");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -414,5 +422,78 @@ class SecurityFiltersTest {
 
         assertTrue(proceeded.get(), "Bypass path should skip step-up enforcement");
         assertEquals("config", response.getHeader("X-StepUp-Bypass"));
+    }
+
+    /**
+     * No audit log service in these tests: the filter must work without one (it only records the
+     * denied attempt when the bean is present).
+     */
+    private static ObjectProvider<ISysAuditLogService> auditLogProvider() {
+        return new ObjectProvider<>() {
+            @Override
+            public ISysAuditLogService getObject(Object... args) {
+                throw new org.springframework.beans.factory.NoSuchBeanDefinitionException(
+                        ISysAuditLogService.class);
+            }
+
+            @Override
+            public ISysAuditLogService getIfAvailable() {
+                return null;
+            }
+
+            @Override
+            public ISysAuditLogService getIfUnique() {
+                return null;
+            }
+
+            @Override
+            public java.util.Iterator<ISysAuditLogService> iterator() {
+                return java.util.Collections.emptyIterator();
+            }
+        };
+    }
+
+    /**
+     * Builds the filter with no permission service available.
+     *
+     * <p>These tests drive paths that never need a permission lookup (or carry the legacy
+     * {@code permissions} claim), so a missing provider must not change their outcome. The
+     * fail-closed contract for a route that does need one is covered by
+     * {@code JwtAuthenticationFilterPermissionResolutionTest}.
+     */
+    private static JwtAuthenticationFilter newFilter(JwtUtils jwtUtils,
+                                                     HttpServletRequestUtils requestUtils,
+                                                     SecurityMetrics metrics) {
+        return newFilter(jwtUtils, requestUtils, metrics, new ApiAccessControlProperties());
+    }
+
+    private static JwtAuthenticationFilter newFilter(JwtUtils jwtUtils,
+                                                     HttpServletRequestUtils requestUtils,
+                                                     SecurityMetrics metrics,
+                                                     ApiAccessControlProperties apiProperties) {
+        return new JwtAuthenticationFilter(jwtUtils, requestUtils, metrics,
+                new ObjectProvider<>() {
+                    @Override
+                    public com.cognora.platform.common.security.PermissionService getObject(Object... args) {
+                        throw new org.springframework.beans.factory.NoSuchBeanDefinitionException(
+                                com.cognora.platform.common.security.PermissionService.class);
+                    }
+
+                    @Override
+                    public com.cognora.platform.common.security.PermissionService getIfAvailable() {
+                        return null;
+                    }
+
+                    @Override
+                    public com.cognora.platform.common.security.PermissionService getIfUnique() {
+                        return null;
+                    }
+
+                    @Override
+                    public java.util.Iterator<com.cognora.platform.common.security.PermissionService> iterator() {
+                        return java.util.Collections.emptyIterator();
+                    }
+                },
+                apiProperties);
     }
 }

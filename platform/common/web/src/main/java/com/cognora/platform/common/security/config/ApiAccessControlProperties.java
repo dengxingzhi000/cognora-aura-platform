@@ -107,7 +107,19 @@ public class ApiAccessControlProperties {
             // 业务服务的 ApiAccessControlFilter 逐请求查询 URL 权限；调用方（common/web 的
             // RestClient）已统一带服务间 HMAC 签名。该端点属于纯内部通道，不登记权限目录，
             // 否则默认拒绝策略会把它挡掉，导致所有业务接口 fail-closed 返回 503。
-            "/api/system/permissions/find-by-url"
+            "/api/system/permissions/find-by-url",
+            // 访问令牌不再内嵌权限清单（内嵌后 token 约 26KB，超过浏览器单 cookie 上限），
+            // 改由 JwtAuthenticationFilter 逐请求解析用户权限。这条同样是纯内部通道，
+            // 只允许带服务间 HMAC 签名的调用；不登记权限目录否则会被默认拒绝策略挡掉。
+            "/api/system/permissions/user/**",
+            // platform-inventory 的补货计算读取采购在途量，用于 available+inTransit 的
+            // 触发判定。纯服务间只读通道，不登记用户权限码；必须验签而不是放进
+            // exemptPaths，否则任何人都能拉取全租户采购在途。
+            "/api/v1/pur-order/in-transit",
+            // 订单中心的「支付成功」回写：唯一合法调用方是 ecom-payment 在渠道验签通过之后。
+            // 只认服务间 HMAC 签名，浏览器与任意登录用户都进不来——在此之前该口径是
+            // 「任意登录用户传一个 paymentNo 就能把订单置为已支付」。
+            "/api/v1/orders/*/pay"
     ));
 
     /**

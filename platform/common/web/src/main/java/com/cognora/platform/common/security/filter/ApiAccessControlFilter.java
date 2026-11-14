@@ -1,7 +1,6 @@
 package com.cognora.platform.common.security.filter;
 
 import com.cognora.platform.common.security.PermissionService;
-import com.cognora.platform.common.security.PermissionService.PermissionServiceException;
 import com.cognora.platform.common.log.enums.SecurityEventType;
 import com.cognora.platform.common.log.service.ISysAuditLogService;
 import com.cognora.platform.common.security.config.ApiAccessControlProperties;
@@ -22,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -47,6 +48,7 @@ import java.util.UUID;
 @Slf4j
 @RequiredArgsConstructor
 @NullMarked
+@Order(Ordered.HIGHEST_PRECEDENCE + 30)
 public class ApiAccessControlFilter extends OncePerRequestFilter {
     private final PermissionService permissionService;
     private final ObjectProvider<ISysAuditLogService> auditLogProvider;
@@ -101,11 +103,13 @@ public class ApiAccessControlFilter extends OncePerRequestFilter {
         }
 
         // Permission lookup is fail-closed. A discovery/transport failure answers 503 here
-        // because exceptions raised in the filter chain bypass @RestControllerAdvice.
+        // because exceptions raised in the filter chain bypass @RestControllerAdvice. Catching
+        // RuntimeException as well as PermissionServiceException keeps a client that fails before
+        // it can wrap the failure from leaking a raw 500.
         List<String> requiredPermissions;
         try {
             requiredPermissions = permissionService.findPermissionsByUrl(requestUri, method);
-        } catch (PermissionServiceException ex) {
+        } catch (RuntimeException ex) {
             writePermissionServiceUnavailable(request, response, requestUri, method, ex);
             return;
         }
@@ -116,11 +120,22 @@ public class ApiAccessControlFilter extends OncePerRequestFilter {
         }
 
         Set<String> userPermissions;
-        try {
-            userPermissions = permissionService.findAllPermissionsByUserId(userId);
-        } catch (PermissionServiceException ex) {
-            writePermissionServiceUnavailable(request, response, requestUri, method, ex);
-            return;
+        if (principal != null && principal.getPermissions() != null
+                && Boolean.TRUE.equals(request.getAttribute(
+                        JwtAuthenticationFilter.PERMISSIONS_RESOLVED_ATTRIBUTE))) {
+            // JwtAuthenticationFilter resolved this user's permissions earlier in the same
+            // request. Reusing that set halves the cross-service calls per request (access tokens
+            // no longer carry the permission list), and the value is the same authoritative
+            // lookup it would make here.
+            userPermissions = principal.getPermissions();
+            securityMetrics.increment("security.access.permissions.reused");
+        } else {
+            try {
+                userPermissions = permissionService.findAllPermissionsByUserId(userId);
+            } catch (RuntimeException ex) {
+                writePermissionServiceUnavailable(request, response, requestUri, method, ex);
+                return;
+            }
         }
 
         boolean hasPermission = requiredPermissions.stream()
@@ -252,7 +267,7 @@ public class ApiAccessControlFilter extends OncePerRequestFilter {
     }
 
     private void writePermissionServiceUnavailable(HttpServletRequest request, HttpServletResponse response,
-                                                    String requestUri, String method, PermissionServiceException ex)
+                                                    String requestUri, String method, RuntimeException ex)
             throws IOException {
         securityMetrics.increment("security.access.permission_service_unavailable");
         log.error("Permission service unavailable: traceId={}, uri={}, method={}, reason={}",
