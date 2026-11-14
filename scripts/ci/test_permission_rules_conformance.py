@@ -359,6 +359,29 @@ class PermissionRulesConformanceTest(unittest.TestCase):
             self.checker.parse_catalog, self.checker.SEED_DIR
         )
 
+        # 先断言两侧扫到的是**同一个端点集合**：否则下面的逐端点比对可能只覆盖了
+        # 一侧的子集，漏掉的那些永远比不到（测试自己必须先证明可比的是同一批东西）。
+        map_endpoints_by_key: dict[tuple[str, str], str] = {}
+        for path in quiet(self.mapping.controller_files):
+            rel, endpoints = quiet(self.mapping.parse_controller, path)
+            for endpoint in endpoints:
+                map_endpoints_by_key[(endpoint["httpMethod"], endpoint["path"])] = rel
+        checker_endpoints_by_key: dict[tuple[str, str], str] = {}
+        for path in quiet(
+            self.checker.controller_files, self.checker.ROOT, self.checker.ROOT, None
+        ):
+            # 检查器的 parse_controller 返回 (endpoints, annotations)，映射工具返回 (rel, endpoints)
+            checker_endpoints, _checker_annotations = quiet(
+                self.checker.parse_controller, path, self.checker.ROOT
+            )
+            for endpoint in checker_endpoints:
+                checker_endpoints_by_key[(endpoint["httpMethod"], endpoint["path"])] = path.name
+        self.assertEqual(
+            set(map_endpoints_by_key),
+            set(checker_endpoints_by_key),
+            "两个脚本扫到的端点集合不同：下面的候选码比对只覆盖了一侧的子集",
+        )
+
         compared = 0
         multi = 0
         for path in quiet(self.mapping.controller_files):

@@ -37,6 +37,11 @@ VIEW_ROW = "('demo:thing:view','演示','menu:demo','/api/v1/things/{id}','GET',
 PAGE_ROW = "('demo:thing:page','演示','menu:demo','/api/v1/things/page','GET',1,1)"
 # http_method='*' 的目录行：运行时（ApiPermissionMatcher.resolve）对任何方法都算候选。
 ANY_METHOD_ROW = "('demo:thing:page','演示','menu:demo','/api/v1/things/page','*',1,1)"
+# 两侧都带通配符的目录行：`/api/v1/things/a*b` 与 `/api/v1/things/a*c` 的语言交集非空
+# （`abc` 同时命中两行）。拿一侧当模式去匹配另一侧的字面文本会得出「无交集」——
+# 那是 fail-open：候选集合算得比运行时小，漏码的注解反而被判定为正确。
+WILD_A_ROW = "('demo:thing:a','演示','menu:demo','/api/v1/things/a*b','GET',1,1)"
+WILD_B_ROW = "('demo:thing:b','演示','menu:demo','/api/v1/things/a*c','GET',1,1)"
 
 SEED_HEADER = (
     "INSERT INTO sys_permission (\n"
@@ -256,6 +261,23 @@ class DriftCheckerFixtureTest(unittest.TestCase):
         # 期望值是 `*` 方法行带来的 demo:thing:page + 模板行带来的 demo:thing:view。
         self.assertIn("demo:thing:page", output)
         self.assertIn("demo:thing:view", output)
+
+    def test_two_wildcard_rows_that_overlap_are_both_candidates(self) -> None:
+        """两侧都带通配符且语言重叠时，两个目录行都是候选码。
+
+        `/api/v1/things/a*b` 与 `/api/v1/things/a*c` 都能被具体路径 `/api/v1/things/abc`
+        命中，所以运行时两个码都会放行；候选集合若漏掉一个，漏码的注解就会被误判为正确。
+        """
+        result = self.run_checker(
+            [WILD_A_ROW, WILD_B_ROW],
+            controller(
+                method('GetMapping("/things/a*b")', "hasAuthority('demo:thing:a')", "wild")
+            ),
+        )
+        output = self.output(result)
+        self.assertEqual(result.returncode, 1, output)
+        self.assertIn("demo:thing:a", output)
+        self.assertIn("demo:thing:b", output)
 
     def test_annotation_on_exempt_endpoint_is_an_error(self) -> None:
         """豁免端点上的权限注解 → 退出码 1（防止注解被打回豁免端点）。"""

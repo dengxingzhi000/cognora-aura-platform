@@ -207,22 +207,34 @@ JAVA_METHOD_DECL = re.compile(
 MAPPING_ANNOTATION = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping\b")
 CLASS_REQUEST_MAPPING = re.compile(r"@RequestMapping\b")
 PRE_AUTHORIZE = re.compile(r"@PreAuthorize\b")
-HAS_AUTHORITY = re.compile(r"^hasAuthority\(\s*'([^']*)'\s*\)$")
-HAS_ANY_AUTHORITY = re.compile(r"^hasAnyAuthority\(\s*((?:'[^']*'\s*,?\s*)*)\)$")
+HAS_AUTHORITY = re.compile(r"^hasAuthority\(\s*[\"']([^\"']*)[\"']\s*\)$")
+HAS_ANY_AUTHORITY = re.compile(r"^hasAnyAuthority\(\s*((?:[\"'][^\"']*[\"']\s*,?\s*)*)\)$")
+# 形如 `hasAuthority(...)` / `hasAnyAuthority(...)` 但解析不出码集合的写法。
+# 这类注解**不能静默跳过**：否则一个拼错的注解等于没有护栏。报 CONCERN 交人工确认。
+AUTHORITY_SHAPE = re.compile(r"^has(Any)?Authority\b")
 
 
 def annotation_codes(spel: str) -> set[str] | None:
     """解析 `hasAuthority('x')` / `hasAnyAuthority('a','b')` 的码集合。
 
-    其它 SpEL 形态返回 None（与检查器的既有策略一致：不猜语义）。
+    单引号与双引号都接受（SpEL 里两种写法都合法）。其它 SpEL 形态返回 None
+    （与检查器的既有策略一致：不猜语义）。
     """
     single = HAS_AUTHORITY.match(spel)
     if single is not None:
         return {single.group(1)}
     multiple = HAS_ANY_AUTHORITY.match(spel)
     if multiple is not None:
-        return set(re.findall(r"'([^']*)'", multiple.group(1)))
+        codes = set()
+        for match in re.finditer(r"[\"']([^\"']*)[\"']", multiple.group(1)):
+            codes.add(match.group(1))
+        return codes
     return None
+
+
+def is_unparsed_authority_shape(spel: str) -> bool:
+    """`hasAuthority` / `hasAnyAuthority` 形态但解析不出码（写法异常或引号不匹配）。"""
+    return AUTHORITY_SHAPE.match(spel) is not None
 
 
 def _describe_codes(codes: set[str]) -> str:
@@ -350,6 +362,14 @@ def runtime_matches(pattern: str, request: str) -> bool:
     模板做结构对齐（`{id}` ↔ `{id}`）；这里模拟 `ApiPermissionMatcher` 使用的
     Spring `AntPathMatcher`——`{id}` 命中任意一段字面量（`/page` 也命中 `/{id}`），
     `*` 段内通配、`**` 跨段、`?` 单字符。
+
+    与运行时**已知的三处差异**（都只会让本模型比运行时更宽，方向安全）：
+      1. Spring 的 `/a/*` 能匹配 `/a/`（尾斜杠），本模型会丢掉空段；
+      2. `platform-system` 的 SQL 预筛只放行 `api_path` 含 `{` 或 `*`（或等于 URL）
+         的行，所以只有 `?` 的目录行根本到不了匹配器；本模型仍把它算作候选
+         （多一个码，filter 先跑，不会放宽访问）；
+      3. 运行时按原始 `request.getRequestURI()` 匹配，本模型先归一化路径
+         （合并重复斜杠、去掉空段）。
     """
     pattern_segments = split_segments(pattern)
     request_segments = split_segments(request)
@@ -378,14 +398,24 @@ def runtime_matches(pattern: str, request: str) -> bool:
 
 
 def segments_overlap(left: str, right: str) -> bool:
-    """两段模板是否存在共同的具体取值。"""
+    """两段模板是否存在共同的具体取值。
+
+    两侧都带通配符时一律判为「有交集」：`a*b` 与 `a*c` 的语言交集非空（`abc`），
+    但拿一侧当模式去匹配另一侧的**字面文本**会得出「无交集」——那是 fail-open：
+    候选集合会算得比运行时小，C1 那类「注解漏码」反而被判定为正确。
+    超集方向是安全的一侧（filter 先跑，多列的码不会放宽访问）。
+    """
     if is_placeholder(left) or is_placeholder(right):
         return True
     if left == right:
         return True
-    if "*" in left or "?" in left:
+    left_wild = "*" in left or "?" in left
+    right_wild = "*" in right or "?" in right
+    if left_wild and right_wild:
+        return True
+    if left_wild:
         return runtime_segment_matches(left, right)
-    if "*" in right or "?" in right:
+    if right_wild:
         return runtime_segment_matches(right, left)
     return False
 
@@ -914,6 +944,12 @@ def evaluate(
 
     annotated = annotation_codes(spel)
     if annotated is None:
+        if is_unparsed_authority_shape(spel):
+            # `hasAuthority(...)` / `hasAnyAuthority(...)` 形态却解析不出码：
+            # 静默跳过等于没有护栏，交人工确认（不失败）。
+            return SEVERITY_CONCERN, (
+                f"{where} {spel} expected <none: 权限注解形态无法解析出权限码>"
+            )
         # `isAuthenticated()` 与其它 SpEL 形态：完全忽略（不猜语义，也不当成违规）。
         return "ok", ""
     label = _describe_codes(annotated)
@@ -941,9 +977,14 @@ def evaluate(
         # 已放行的合法用户挡在 403（这正是本检查要防的回归）。
         candidates = runtime_candidates(index, path, http_method)
         if not candidates:
-            # 兜底：两个匹配器对同一端点给出不同结论（当前仓库 0 例，已用脚本核对）。
-            # 此时退回「比一条目录行」，即修复前的口径——不会比修复前更宽松。
-            candidates = {row["code"]}
+            # 两个口径对同一端点给出不同结论（`catalog_lookup` 找到行、运行时匹配没找到）。
+            # 这说明检查器自身的候选计算与目录解析不一致——**不能**退回「比一条目录行」：
+            # 那正是修复前的弱口径，会让「注解漏码」这类 C1 缺陷被判定为正确。
+            # 按本文件的一贯原则「宁可失败，也不产出错误的检查结论」，直接失败。
+            raise ParseError(
+                f"{where} 运行时候选码为空，但目录里有 {http_method} {path} 的绑定"
+                f"（{row['file']}）：检查器的候选计算与目录解析不一致，拒绝给出结论"
+            )
         if annotated != candidates:
             detail = "运行时候选码" if len(candidates) > 1 else "目录"
             return SEVERITY_ERROR, (
@@ -1043,12 +1084,16 @@ def main(argv: list[str] | None = None) -> int:
 
     diagnostics: list[tuple[str, str, int]] = []
     checked = 0
-    for annotation in annotations:
-        severity, message = evaluate(annotation, index, codes)
-        if annotation_codes(annotation["spel"]) is not None:
-            checked += 1
-        if severity != "ok":
-            diagnostics.append((severity, message, annotation["line"]))
+    try:
+        for annotation in annotations:
+            severity, message = evaluate(annotation, index, codes)
+            if annotation_codes(annotation["spel"]) is not None:
+                checked += 1
+            if severity != "ok":
+                diagnostics.append((severity, message, annotation["line"]))
+    except ParseError as exc:
+        print(f"ERROR parse: {exc}")
+        return 1
 
     # 解析阶段的告警（跳过端点等）并入同一张表：这样
     #   * 摘要里的 warnings 数 == 打印出来的 WARNING 行数；

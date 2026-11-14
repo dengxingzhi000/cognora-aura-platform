@@ -83,6 +83,12 @@ jobs:
       - name: Test permission rules conformance
         run: python3 scripts/ci/test_permission_rules_conformance.py
 
+      # The checked-in permission mapping artifacts must match the current
+      # controllers and permission catalogue: a stale artefact means the
+      # generator was not re-run after a controller or catalogue change.
+      - name: Validate the checked-in permission mapping artifacts
+        run: python3 scripts/tools/permission_annotation_map.py --tracked-only --check
+
 
       - name: Initialize databases
         if: github.event_name == 'push'

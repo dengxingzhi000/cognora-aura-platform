@@ -1,6 +1,14 @@
 # 主从读写分离配置（可选 profile，默认不激活）
 #
-# 激活方式：
+# ⚠ 已过时：本文件是 baomidou dynamic-datasource 形态的**遗留模板**，不是现行标准形态。
+#   现行标准形态见 docs/guides/READ_WRITE_SEPARATION_GUIDE.md 第 3 节：
+#   `spring.datasource.dynamic.enabled=false` + `spring.datasource.rw.*`（`default-target: MASTER`）。
+#   scm-order 已在自己的 application.yml 里启用标准形态，所以**不需要**这个 profile。
+#   这里的 `spring.datasource.dynamic.primary: order` 属于被放弃的形态：它假设
+#   dynamic-datasource 仍然开启，与标准形态的 `dynamic.enabled=false` 相互矛盾。
+#   保留它只为留档，不要按下面的方式激活。
+#
+# 激活方式（**不建议**）：
 #   java -jar app.jar --spring.profiles.active=readwrite
 #   或 SPRING_PROFILES_ACTIVE=readwrite
 #

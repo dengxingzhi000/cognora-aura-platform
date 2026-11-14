@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """权限目录 ↔ Controller 端点映射工具（D1 缺口报告产出）。
 
-用法：py -3 scripts/tools/permission_annotation_map.py [--tracked-only]
+用法：py -3 scripts/tools/permission_annotation_map.py [--tracked-only] [--check]
 
 `--tracked-only` 只扫 git 索引里的 controller：工作副本里可能同时存在另一条
 工作流的未跟踪文件，生成入库产物时用它保证「同一提交 → 同一结果」。
+
+`--check` 不写文件，只比对入库产物与当前 controller / 权限目录是否一致：
+不一致就退出 1。CI 用它挡住「产物过期」（controller 或目录改了却忘了重新生成）。
 
 产出（均入库）：
   * docs/superpowers/specs/2026-11-12-permission-mapping.json
@@ -299,6 +302,14 @@ def runtime_matches(pattern: str, request: str) -> bool:
     模板做结构对齐（`{id}` ↔ `{id}`）；这里模拟 `ApiPermissionMatcher` 使用的
     Spring `AntPathMatcher`——`{id}` 命中任意一段字面量（`/page` 也命中 `/{id}`），
     `*` 段内通配、`**` 跨段、`?` 单字符。
+
+    与运行时**已知的三处差异**（都只会让本模型比运行时更宽，方向安全）：
+      1. Spring 的 `/a/*` 能匹配 `/a/`（尾斜杠），本模型会丢掉空段；
+      2. `platform-system` 的 SQL 预筛只放行 `api_path` 含 `{` 或 `*`（或等于 URL）
+         的行，所以只有 `?` 的目录行根本到不了匹配器；本模型仍把它算作候选
+         （多一个码，filter 先跑，不会放宽访问）；
+      3. 运行时按原始 `request.getRequestURI()` 匹配，本模型先归一化路径
+         （合并重复斜杠、去掉空段）。
     """
     pattern_segments = split_segments(pattern)
     request_segments = split_segments(request)
@@ -327,14 +338,24 @@ def runtime_matches(pattern: str, request: str) -> bool:
 
 
 def segments_overlap(left: str, right: str) -> bool:
-    """两段模板是否存在共同的具体取值。"""
+    """两段模板是否存在共同的具体取值。
+
+    两侧都带通配符时一律判为「有交集」：`a*b` 与 `a*c` 的语言交集非空（`abc`），
+    但拿一侧当模式去匹配另一侧的**字面文本**会得出「无交集」——那是 fail-open：
+    候选集合会算得比运行时小，C1 那类「注解漏码」反而被判定为正确。
+    超集方向是安全的一侧（filter 先跑，多列的码不会放宽访问）。
+    """
     if is_placeholder(left) or is_placeholder(right):
         return True
     if left == right:
         return True
-    if "*" in left or "?" in left:
+    left_wild = "*" in left or "?" in left
+    right_wild = "*" in right or "?" in right
+    if left_wild and right_wild:
+        return True
+    if left_wild:
         return runtime_segment_matches(left, right)
-    if "*" in right or "?" in right:
+    if right_wild:
         return runtime_segment_matches(right, left)
     return False
 
@@ -978,16 +999,41 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="只扫 git 索引里的 controller（工作副本里的未跟踪文件不计入）",
     )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="只比对入库产物是否与当前 controller / 权限目录一致，不写文件（CI 用）",
+    )
     options = parser.parse_args(argv)
 
     _self_check_exempt_lists()
     mapping, catalog_notes, catalog_stats = build_mapping(tracked_only=options.tracked_only)
 
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
-    OUT_JSON.write_text(
-        json.dumps(mapping, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
-    OUT_MD.write_text(render_report(mapping, catalog_notes, catalog_stats), encoding="utf-8")
+    json_text = json.dumps(mapping, ensure_ascii=False, indent=2) + "\n"
+    md_text = render_report(mapping, catalog_notes, catalog_stats)
+
+    if options.check:
+        # 只比对、不落盘：产物入库后如果 controller 或目录变了，这里会失败，
+        # 提醒重新生成并提交（CI 用；用法同 scripts/gen_ecom_k8s_manifests.py --check）。
+        stale: list[str] = []
+        for path, text in ((OUT_JSON, json_text), (OUT_MD, md_text)):
+            rel = path.relative_to(ROOT).as_posix()
+            if not path.exists():
+                stale.append(f"{rel}: 产物不存在，请生成后提交")
+                continue
+            current = path.read_text(encoding="utf-8")
+            if current != text:
+                stale.append(f"{rel}: 与当前 controller / 权限目录不一致，请重新生成后提交")
+        if stale:
+            for line in stale:
+                print(f"ERROR {line}")
+            return 1
+        print("产物与当前 controller / 权限目录一致")
+        return 0
+
+    OUT_JSON.write_text(json_text, encoding="utf-8")
+    OUT_MD.write_text(md_text, encoding="utf-8")
 
     services = mapping["services"]
     total = sum(len(bucket["endpoints"]) for bucket in services.values())

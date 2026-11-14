@@ -337,6 +337,12 @@ no service overrides them.
   whose `api_path` shadows a literal one, re-run
   `py -3 scripts/tools/permission_annotation_map.py --tracked-only` and update the
   annotation it points at.
+  **The superset depends on the filter running first.** `ApiAccessControlFilter` is
+  `HIGHEST_PRECEDENCE + 30`, so only requests it admits ever reach the method-level
+  `@PreAuthorize` — extra codes in a template endpoint's annotation therefore grant
+  nothing. If `cognora.security.api-filter.enabled` is ever turned off, those
+  supersets become real over-grants and the annotations must be tightened back to
+  the single code the URL resolves to.
 
 ### 权限解析（短 Token 之后）与生产密钥守卫
 
@@ -400,7 +406,12 @@ primary** — no replica infrastructure is needed to run it. All seven expose th
 `readwrite` actuator endpoint (`GET /actuator/readwrite`), and each of the six
 Phase 1 services pins the YAML shape with a `ReadWriteApplicationConfigTest`
 (CI never boots a Spring context, so that static test is the only automated
-guard). Routing semantics, fallback and observability are documented in
+guard). **Caveat: the `platform-inventory` and `scm-purchase` copies of that test
+cannot run yet** — those two modules do not compile until the in-flight types land
+(tracked files reference types that are not in the repository), so for those two
+services the YAML shape is currently unguarded in CI. Check them by hand, or
+re-check once the modules compile. Routing semantics, fallback and observability
+are documented in
 `docs/guides/READ_WRITE_SEPARATION_GUIDE.md`; the VM verification checklist is
 in `docs/operations/OPERATIONS_MANUAL.md` (`scm-order` still ships an
 unactivated `application-readwrite.yml` template).
