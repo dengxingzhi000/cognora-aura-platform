@@ -1,5 +1,7 @@
 server:
-  port: 8209
+  # 8209 is approval's port (platform-message moved to 8215). Keep the placeholder so a
+  # side-by-side run can still be overridden without editing the file.
+  port: ${SERVER_PORT:8209}
 
 spring:
   application:

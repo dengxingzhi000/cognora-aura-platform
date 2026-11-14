@@ -125,8 +125,8 @@ Read from each module's `application.yml`.
 | Service | Port | Service | Port |
 |---------|------|---------|------|
 | Gateway | 8761 | Finance | 8208 |
-| Auth | 8106 | Message | 8209 ⚠ |
-| System | 8081 | Approval | 8209 ⚠ |
+| Auth | 8106 | Message | 8215 |
+| System | 8081 | Approval | 8209 |
 | Product | 8201 | Audit | 8210 |
 | File | 8214 | Notify | 8211 |
 | Inventory | 8202 | Tenant | 8212 |
@@ -140,12 +140,13 @@ Read from each module's `application.yml`.
 | | | Search | 8307 |
 | | | Analytics | 8308 |
 
-Real collisions in the checked-in config — override `server.port` before running
-both halves of a pair:
-
-- `platform-message` ↔ `platform-approval` — both 8209
-- Grafana ↔ `cognora-aura-web` dev server — both 3000 (`docker-compose.yml` maps `3000:3000`)
-- `schema-registry` ↔ `platform-system` — both 8081
+**No port collisions remain.** Four used to exist and are fixed in the config
+itself (do not re-add the old numbers): `platform-message` → **8215**
+(`platform-approval` keeps 8209); `schema-registry` publishes host **18081**
+(container 8081) so `platform-system` can own 8081; Grafana publishes host
+**13000** (container 3000) so the `cognora-aura-web` dev server can own 3000;
+`alertmanager` publishes host **9094** (container 9093) so Kafka can own 9093.
+`scripts/ci/check_port_conflicts.py` fails the build if a new one appears.
 
 Infra: Nacos 8848 (+9848/9849), Redis 6379, PostgreSQL 5432, PgBouncer 6432,
 Kafka 9092/9093, RabbitMQ 5672/15672, Elasticsearch 9200, ClickHouse 8123,
@@ -303,6 +304,53 @@ no service overrides them.
 - `SysSensitiveOperationLog.realName` / `.deptName` are
   `@TableField(exist = false)`: `db_audit` has no such columns, and mapping them
   broke every read of that table.
+- **Write endpoints are annotated across all four domains.** `@AuditLog` now
+  covers the write endpoints of ecom/scm/platform/lms — 305 annotations added on
+  top of the pre-existing ones (ecom +34, scm +145, platform +114, lms-tms +12;
+  404 in total). The exemption list is the default value of
+  `ApiAccessControlProperties` (`platform/common/web`): `whitelist` /
+  `exemptPaths` / `exemptPathExclusions` / `internalSignaturePaths` /
+  `signatureOrPermissionPaths`. Exempt endpoints carry **neither** annotation —
+  an `@AuditLog` or an `@PreAuthorize` there breaks service-to-service calls,
+  payment callbacks and the search index. An endpoint with **no row in the
+  permission catalog** deliberately carries **no `@PreAuthorize`** either; those
+  endpoints are listed in the gap report
+  `docs/superpowers/specs/2026-11-12-permission-catalog-gaps.md` and are already
+  denied by `ApiAccessControlFilter` (`API_NOT_REGISTERED`), so not annotating
+  them changes nothing. `scripts/ci/check_permission_annotation_drift.py` runs in
+  CI and fails the build when an `@PreAuthorize` code drifts from the catalog or
+  an exempt endpoint carries an annotation.
+
+### 权限解析（短 Token 之后）与生产密钥守卫
+
+- **访问令牌不再内嵌权限清单**（一个租户管理员有数百条权限码，token 会涨到约
+  26KB，超过浏览器单 cookie 的 ~4KB 上限）。`JwtAuthenticationFilter` 逐请求调用
+  `PermissionService.findAllPermissionsByUserId` 解析，成功后挂到请求属性
+  `cognora.security.permissions-resolved`，`ApiAccessControlFilter` 复用它
+  （`security.access.permissions.reused`），每请求一次查询而不是两次。
+- **失败语义是「拒绝」，写进了契约**：需要权限的路由在权限服务不可用时返回
+  `503 PERMISSION_SERVICE_UNAVAILABLE`（不是静默降级为「仅角色」，也不是 403）；
+  只有明确不需要权限的路由（`whitelist` / `exemptPaths` / 已验签的服务间通道，
+  例如登出、会话自助、改密、支付回调）才继续。完整契约见
+  `docs/security/PERMISSION_RESOLUTION_CONTRACT.md`。
+- **旧 token** 仍带 `permissions` 声明，命中即用，但**不**标记为已解析，端点级校验
+  仍会自己做一次权威查询——撤销的权限不会因为 token 未过期而继续生效。
+- **启动守卫**（`platform/common/web` 的 `StartupSecretValidator`，网关的
+  `SecurityConfigurationValidator`）拒绝用仓库里公开的占位密钥启动：生产类 profile
+  （`prod*`/`staging`/`uat`/**`kubernetes`**/`k8s`）下 `jwt.secret` 是占位符或短于
+  64 字节即启动失败；非生产下只有打包在 `application.yaml` 里的那个 dev 默认值允许
+  （打 WARN），k8s 清单 / `.env.example` 的值仍然拒绝。`cognora.security.secrets.strict`
+  可显式收紧或放宽。k8s 清单与 docker-compose 的 ecom 服务都会注入 `JWT_SECRET` 与
+  `API_SECRET_INTERNAL_SERVICE`。
+- **订单中心置「已支付」只有一条路，且已闭环**：`POST /api/v1/orders/{orderNo}/pay` 只认服务间
+  HMAC 签名（`internalSignaturePaths`），必须带 `paidAmount`（要与订单 `payableAmount` 相等）与
+  `transactionId`；不带金额/交易号的旧口径已删除（`OrderCenterPaymentContractTest` 会失败）。
+  调用方是 `ecom-payment` 的 `SignedOrderPaidNotifier`：`PaymentPaidListener` 在支付事务
+  **提交之后**（`@TransactionalEventListener(AFTER_COMMIT)`）通过带签名的 `@LoadBalanced
+  RestClient` 回调。用事件而非事务内直接调用，是为了避免「本地事务回滚但订单已被推进」；
+  回调失败只记 `ORDER_PAID_NOT_DELIVERED` + ERROR，不打断支付（钱已到账），由对账补偿。
+  两侧契约由 `OrderPaidNotificationContractTest`（支付侧）与 `OrderCenterPaymentContractTest`
+  （订单侧）共同锁死。
 
 ### Datasource routing (`@DS`)
 
@@ -324,11 +372,25 @@ those DBs touches several services.
 (`com.cognora.platform.common.data.rw.annotation`); `platform/common/data-rw-stub` is a
 no-op variant for editions without replicas. Query services → `@Slave`, command
 services → `@Master`. **The whole auto-configuration is gated on
-`spring.datasource.rw.enabled=true`.** `platform-product` is the only service that
-sets it, together with `spring.datasource.dynamic.enabled=false`; every other
-service keeps the inert single-datasource behaviour. Routing semantics, fallback
-and observability are documented in `docs/guides/READ_WRITE_SEPARATION_GUIDE.md`
-(`scm-order` still ships an unactivated `application-readwrite.yml` template).
+`spring.datasource.rw.enabled=true`.** The **platform-product form is now the
+standard form**: `spring.datasource.dynamic.enabled=false` (baomidou
+dynamic-datasource off) plus a `spring.datasource.rw.*` block with
+`default-target: MASTER` and one group per service. Seven services run it —
+`platform-product` (group `product`, `db_product`) plus the six Phase 1
+activations: `scm-order` (`order`, `db_order`), `platform-inventory`
+(`inventory`, `db_inventory`), `scm-warehouse` (`warehouse`, `db_warehouse`),
+`scm-supplier` (`supplier`, `db_supplier`), `scm-purchase` (`purchase`,
+`db_purchase`), `lms-tms` (`logistics`, `db_logistics`). Every other service
+keeps the inert single-datasource behaviour. The slave URL defaults to
+`${DB_SLAVE_HOST:${DB_HOST:localhost}}`, so **with no replica the reads hit the
+primary** — no replica infrastructure is needed to run it. All seven expose the
+`readwrite` actuator endpoint (`GET /actuator/readwrite`), and each of the six
+Phase 1 services pins the YAML shape with a `ReadWriteApplicationConfigTest`
+(CI never boots a Spring context, so that static test is the only automated
+guard). Routing semantics, fallback and observability are documented in
+`docs/guides/READ_WRITE_SEPARATION_GUIDE.md`; the VM verification checklist is
+in `docs/operations/OPERATIONS_MANUAL.md` (`scm-order` still ships an
+unactivated `application-readwrite.yml` template).
 
 ### CQRS
 
@@ -560,6 +622,19 @@ scripts/db/quality/check-quality.sh
 `inv_reservation` lives in `db_inventory` and `sup_purchase_order` in
 `db_supplier` — not `db_order`.
 
+**The four scripts are now scheduled.** `deploy/maintenance/run-maintenance.sh`
+only calls them (it never inlines SQL): the compose service `db-maintenance`
+under the `maintenance` profile runs it in `loop` mode (monthly cycle
+create + create-audit, weekly cycle drop + retention), and
+`deploy/k8s/db-maintenance-cronjob.yml` ships two CronJobs — monthly `0 3 1 * *`
+(`once all`) and weekly `0 3 * * 1` (`once drop` then `once retention`, both
+always run, non-zero exit if either failed). The k8s ConfigMap
+`db-maintenance-scripts` is a **copy** of the repo scripts — changing a script
+means refreshing it. The runner's env names are the ones the scripts actually
+read (`DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD`, plus `CH_*`), not the
+`PG*` names. Runbook and VM verification checklist:
+`docs/operations/OPERATIONS_MANUAL.md`.
+
 ## Frontend (`cognora-aura-web`)
 
 Next.js 16.4 App Router / React 19 / TypeScript, `next-intl` for i18n.
@@ -749,9 +824,19 @@ npm run test:e2e     # Playwright
   names are deprecated shims).
 - The POM's `<excludedGroups>` wins over `-DexcludedGroups=`, so re-enabling
   integration tests means editing the parent POM or adding a profile.
-- **No CI job ever boots a Spring context** (`mvn clean test-compile test` only
-  runs Mockito units), so bean-wiring defects ship silently. Verified locally on
-  `scm-order`: a business service needs PostgreSQL, Redis, RabbitMQ (the
+- **CI still does not boot a Spring context.** `build` runs only Mockito units.
+  A `@ContextSmokeTest` mechanism (real `@SpringBootApplication` + in-memory H2)
+  was written and then **withdrawn**, because the contexts it booted for
+  `ecom-payment` and `ecom-order-center` could not start: those services need
+  wiring that the exclusion list did not cover, so the job was red for reasons
+  unrelated to the change under test. The H2 driver and `dubbo-registry-multicast`
+  stay on the test classpath (parent POM) and `@ContextSmokeTest` is the design
+  recorded in `docs/development/COVERAGE_GATE.md`; re-introduce it only together
+  with a context that actually starts.
+  The defect class it was meant to catch is real and still uncovered: CI never
+  constructs beans, so a missing `@Service`, an ambiguous bean or an unsatisfied
+  dependency ships silently. When you touch wiring, boot the service locally.
+  `scm-order` is the hardest case: it needs PostgreSQL, Redis, RabbitMQ (the
   `RabbitAdmin` declares queues at startup), a Nacos registry (Dubbo consumers
   such as `InventoryDubboService`) and a reachable XXL-Job admin
   (`XxlJobConfig` refuses an empty `xxl.job.admin.addresses`). It also needs
@@ -769,6 +854,28 @@ npm run test:e2e     # Playwright
   auto-configured types.
 - CI runs `mvn clean test-compile test` on PRs and `mvn clean verify` on
   pushes.
+- **Coverage is gated by a ratchet, not a single threshold.**
+  `jacoco.skip=true` is still the default, so a plain `mvn verify` does NOT run
+  the coverage rules. The `coverage-gate` CI job passes
+  `-Djacoco.skip=false` plus `-Djacoco.line.minimum` / `-Djacoco.branch.minimum`
+  per module, reading them from `scripts/ci/coverage-baseline.tsv`. Measured
+  2026-11-14: gateway 71.9%/55.0%, payment 62.4%/57.6%, order-center 44.7%/44.1%,
+  common-web 28.8%/26.1% — a flat 70/60 gate would be red forever and then get
+  switched off again. **A module's numbers may only go up**: add tests, then
+  raise that row. Modules absent from the TSV are not gated yet.
+  See `docs/development/COVERAGE_GATE.md`.
+
+### 端口冲突与覆盖率相关脚本
+
+`python3 scripts/ci/check_port_conflicts.py` fails the build when two services
+declare the same `server.port` or two compose services publish the same host
+port. It runs in the `build` job. **Ports already resolved** (do not re-add the
+old numbers): `platform-message` is **8215** (approval keeps 8209);
+`schema-registry` publishes host **18081** (container 8081, for
+`platform-system`); Grafana publishes host **13000** (container 3000, for the
+Next.js dev server); `alertmanager` publishes host **9094** (container 9093, for
+Kafka). Each was previously the second process to start losing the bind.
+
 
 ## Kubernetes
 
@@ -788,10 +895,34 @@ order/warehouse/finance/supplier/purchase, `lms-tms*` for logistics):
 - Shared: `_helpers.tpl`, `configmap.yml`, `namespace.yml`, `secrets.yml`,
   `multi-az-topology-spread.yaml`.
 
-No manifests exist for the e-commerce layer (member, promotion, payment,
-order-center, fulfillment, search, analytics). Helm charts live in
-`deploy/helm/cognora-aura-platform`, ArgoCD in `deploy/argocd`. Health endpoint:
-`/actuator/health` on each service's port.
+Helm charts live in `deploy/helm/cognora-aura-platform`, ArgoCD in
+`deploy/argocd`. Health endpoint: `/actuator/health` on each service's port.
+
+**The e-commerce manifests exist now, but they are generated — do not hand-edit.**
+The 8 `deploy/k8s/ecom-*.yaml` files come from
+`scripts/gen_ecom_k8s_manifests.py`, which derives each service's port, database
+and extra env from its own `application.yml` and cross-checks them against a
+table in the script. Regenerate instead of editing:
+
+```bash
+python3 scripts/gen_ecom_k8s_manifests.py          # rewrite the manifests
+python3 scripts/gen_ecom_k8s_manifests.py --check  # CI: table vs code, and stale files
+```
+
+Why a generator: the 8 files are ~90 near-identical lines each, and a wrong
+database name or a missing secret is invisible until a pod fails to start. The
+script fails instead of emitting a wrong manifest — verified by both drift modes
+(corrupt a manifest; put a wrong database in the table). `--check` runs in the
+`build` job. The ecom layer **shares** databases
+(`ecom-member`→`db_user`, `ecom-payment`→`db_finance`,
+`ecom-mall`/`ecom-order-center`→`db_order`, `ecom-fulfillment`→`db_warehouse`,
+`ecom-promotion`→`db_promotion`, `ecom-analytics`→`db_analytics`), which is
+exactly why the name cannot be derived from the service name and is pinned in
+that table. `ecom-search` has **no** relational datasource — Elasticsearch only.
+
+These manifests are generated from the existing pattern and have **not** been
+deployed to a real cluster; treat them as a starting point, not proof of
+deployability.
 
 ## CI
 
@@ -823,9 +954,12 @@ order-center, fulfillment, search, analytics). Helm charts live in
   `scripts/db/ci_validate_tenant_admin_scope.sql` asserts `ROLE_TENANT_ADMIN`
   holds no `tenant:*` permission and no `menu:tenant%` console shortcut is
   granted to non-platform roles.
-- Docker images are built for 15 services only (not member/promotion/payment/
-  search/mall/…); deploy jobs roll only auth, gateway and system images (dev
-  from `develop`, prod from `master`).
+- **Docker images are built for 23 services**: the 15 core/scm ones plus all 8
+  `ecom-*` services (member, promotion, payment, order-center, mall, fulfillment,
+  search, analytics). The ecom 8 were "written but never published" until
+  P2-1 — their Dockerfiles existed but the matrix omitted them, so no ecom image
+  was ever produced. Deploy jobs still roll only auth, gateway and system images
+  (dev from `develop`, prod from `master`).
 
 Other workflows: `codeql.yml`, `backup.yml` (daily 02:00 DB backup),
 `release-docker.yml`, `deploy-gh-pages.yml`, `stale.yml`, `labeler.yml`.
@@ -849,6 +983,12 @@ check, `continue-on-error`), and `docker-build` → `deploy-dev`/`deploy-prod`.
   `scripts/db/migrations/<svc>_NNN_<topic>.sql`.
 - Do not rename `com.cognora.*` packages or the `cognora.*` config prefixes
   without a repo-wide sweep.
+- Do not put the permission list back into the access token
+  (`JwtUtilsTokenSizeTest` fails past 4KB), and do not let a permission-lookup
+  failure continue as "roles only" — see
+  `docs/security/PERMISSION_RESOLUTION_CONTRACT.md`.
+- Do not authorise a service-to-service endpoint by adding it to
+  `exempt-paths`; add it to `internal-signature-paths` so the HMAC is required.
 - Do not try to "repair" the mojibake in Chinese comments/strings — 247 files
   carry unrecoverable UTF-8 corruption (`docs/mojibake-report.md` lists them).
   Leave those lines alone unless you are rewriting the comment anyway.

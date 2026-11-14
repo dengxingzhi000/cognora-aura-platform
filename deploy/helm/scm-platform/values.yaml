@@ -19,6 +19,12 @@ secrets:
   dbUsername: "admin"
   # Override at install time via --set secrets.dbPassword or a secrets values file
   dbPassword: "change-me"
+  # 故意留空：templates/secrets.yaml 用 required() 强制提供。
+  # 留一个仓库可见的默认值等于给所有部署发一把公开钥匙。
+  #   --set secrets.jwtSecret=$(openssl rand -base64 64)
+  jwtSecret: ""
+  #   --set secrets.apiSecretInternalService=$(openssl rand -hex 32)
+  apiSecretInternalService: ""
 
 resources:
   auth:

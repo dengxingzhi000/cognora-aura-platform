@@ -1011,7 +1011,7 @@
         {
           "file": "ecom/order-center/service/src/main/java/com/cognora/ecom/ordercenter/controller/OrderCenterController.java",
           "class": "OrderCenterController",
-          "javaMethod": "payOrder",
+          "javaMethod": "applyVerifiedPayment",
           "httpMethod": "POST",
           "path": "/api/v1/orders/{orderNo}/pay",
           "code": null,
