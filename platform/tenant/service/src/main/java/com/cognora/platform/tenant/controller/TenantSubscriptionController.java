@@ -33,7 +33,7 @@ public class TenantSubscriptionController {
 
     @Operation(summary = "查询订阅详情", description = "根据订阅 ID 查询租户订阅详情。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('tenant:subscription:view')")
+    @PreAuthorize("hasAnyAuthority('tenant:subscription:view', 'tenant:subscription:page')")
     public TenantSubscription getById(@Parameter(description = "订阅ID") @PathVariable String id) {
         log.info("[API] 查询租户订阅: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantSubscriptionService.getById(id);
@@ -87,7 +87,7 @@ public class TenantSubscriptionController {
 
     @Operation(summary = "分页查询租户订阅", description = "按租户和订阅状态分页查询租户订阅列表。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('tenant:subscription:page')")
+    @PreAuthorize("hasAnyAuthority('tenant:subscription:page', 'tenant:subscription:view')")
     public Page<TenantSubscription> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

@@ -33,7 +33,7 @@ public class TenantOperationLogController {
 
     @Operation(summary = "查询日志详情", description = "根据日志 ID 查询租户操作日志详情。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('tenant:operation-log:view')")
+    @PreAuthorize("hasAnyAuthority('tenant:operation-log:view', 'tenant:operation-log:page')")
     public TenantOperationLog getById(@Parameter(description = "日志ID") @PathVariable String id) {
         log.info("[API] 查询租户操作日志: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantOperationLogService.getById(id);
@@ -66,7 +66,7 @@ public class TenantOperationLogController {
 
     @Operation(summary = "分页查询操作日志", description = "按租户、操作类型和操作模块分页查询租户操作日志。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('tenant:operation-log:page')")
+    @PreAuthorize("hasAnyAuthority('tenant:operation-log:page', 'tenant:operation-log:view')")
     public Page<TenantOperationLog> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

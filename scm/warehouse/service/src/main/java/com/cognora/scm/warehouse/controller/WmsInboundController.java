@@ -65,7 +65,7 @@ public class WmsInboundController {
 
     @Operation(summary = "查询入库单详情", description = "按主键查询入库单，单据不存在或已删除时返回 404。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('warehouse:inbound:view')")
+    @PreAuthorize("hasAnyAuthority('warehouse:inbound:view', 'warehouse:inbound:page')")
     public ApiResponse<WmsInbound> getById(@Parameter(description = "入库单主键 ID") @PathVariable String id) {
         WmsInbound inbound = inboundQueryService.getById(id);
         if (inbound == null || Boolean.TRUE.equals(inbound.getDeleted())) {
@@ -76,7 +76,7 @@ public class WmsInboundController {
 
     @Operation(summary = "分页查询入库单", description = "按仓库、入库类型与单据状态分页查询入库单列表。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('warehouse:inbound:page')")
+    @PreAuthorize("hasAnyAuthority('warehouse:inbound:page', 'warehouse:inbound:view')")
     public ApiResponse<Page<WmsInbound>> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

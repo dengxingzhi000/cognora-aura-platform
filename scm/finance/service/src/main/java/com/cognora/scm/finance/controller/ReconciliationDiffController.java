@@ -71,14 +71,14 @@ public class ReconciliationDiffController {
 
     @Operation(summary = "查询差异详情", description = "根据差异 ID 查询差异状态与处理记录。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('finance:reconciliation-diff:view')")
+    @PreAuthorize("hasAnyAuthority('finance:reconciliation-diff:view', 'finance:reconciliation-diff:page')")
     public ApiResponse<ReconciliationDiff> getById(@Parameter(description = "差异 ID") @PathVariable String id) {
         return ApiResponse.success(reconciliationDiffService.getById(id));
     }
 
     @Operation(summary = "分页查询差异", description = "按对账记录与状态分页查询差异。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('finance:reconciliation-diff:page')")
+    @PreAuthorize("hasAnyAuthority('finance:reconciliation-diff:page', 'finance:reconciliation-diff:view')")
     public ApiResponse<Page<ReconciliationDiff>> page(
             @Parameter(description = "对账记录 ID") @RequestParam(required = false) String reconciliationId,
             @Parameter(description = "差异状态") @RequestParam(required = false) Integer status,

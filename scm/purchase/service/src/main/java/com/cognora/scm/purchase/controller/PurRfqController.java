@@ -25,7 +25,7 @@ public class PurRfqController {
 
     @Operation(summary = "根据 ID 查询询价单", description = "按主键查询单张采购询价单的完整信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('purchase:rfq:view')")
+    @PreAuthorize("hasAnyAuthority('purchase:rfq:view', 'purchase:rfq:list-by-status', 'purchase:rfq:page')")
     public PurRfq getById(@Parameter(description = "询价单主键 ID") @PathVariable String id) {
         return purRfqService.getById(id);
     }
@@ -39,7 +39,7 @@ public class PurRfqController {
 
     @Operation(summary = "分页查询询价单", description = "按状态、询价类型和关键字分页查询采购询价单。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('purchase:rfq:page')")
+    @PreAuthorize("hasAnyAuthority('purchase:rfq:page', 'purchase:rfq:view')")
     public Page<PurRfq> page(
             @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") int size,
@@ -51,7 +51,7 @@ public class PurRfqController {
 
     @Operation(summary = "按状态查询询价单", description = "查询指定状态下的全部采购询价单，用于列表展示。")
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('purchase:rfq:list-by-status')")
+    @PreAuthorize("hasAnyAuthority('purchase:rfq:list-by-status', 'purchase:rfq:view')")
     public List<PurRfq> listByStatus(@Parameter(description = "询价单状态") @RequestParam Integer status) {
         return purRfqService.listByStatus(status);
     }

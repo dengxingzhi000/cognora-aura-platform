@@ -65,7 +65,7 @@ public class WmsOutboundController {
 
     @Operation(summary = "查询出库单详情", description = "按主键查询出库单，单据不存在或已删除时返回 404。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('warehouse:outbound:view')")
+    @PreAuthorize("hasAnyAuthority('warehouse:outbound:view', 'warehouse:outbound:page')")
     public ApiResponse<WmsOutbound> getById(@Parameter(description = "出库单主键 ID") @PathVariable String id) {
         WmsOutbound outbound = outboundQueryService.getById(id);
         if (outbound == null || Boolean.TRUE.equals(outbound.getDeleted())) {
@@ -76,7 +76,7 @@ public class WmsOutboundController {
 
     @Operation(summary = "分页查询出库单", description = "按仓库、出库类型与单据状态分页查询出库单列表。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('warehouse:outbound:page')")
+    @PreAuthorize("hasAnyAuthority('warehouse:outbound:page', 'warehouse:outbound:view')")
     public ApiResponse<Page<WmsOutbound>> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

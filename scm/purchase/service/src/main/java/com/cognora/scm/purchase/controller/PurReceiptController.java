@@ -25,7 +25,7 @@ public class PurReceiptController {
 
     @Operation(summary = "根据 ID 查询收货单", description = "按主键查询单张采购收货单的完整信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('purchase:receipt:view')")
+    @PreAuthorize("hasAnyAuthority('purchase:receipt:view', 'purchase:receipt:page')")
     public PurReceipt getById(@Parameter(description = "收货单主键 ID") @PathVariable String id) {
         return purReceiptService.getById(id);
     }
@@ -39,7 +39,7 @@ public class PurReceiptController {
 
     @Operation(summary = "分页查询收货单", description = "按状态、收货类型、供应商和关键字分页查询采购收货单。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('purchase:receipt:page')")
+    @PreAuthorize("hasAnyAuthority('purchase:receipt:page', 'purchase:receipt:view')")
     public Page<PurReceipt> page(
             @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") int size,

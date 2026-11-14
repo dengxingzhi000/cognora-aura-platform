@@ -40,14 +40,14 @@ public class TrackingController {
 
     @Operation(summary = "按物流单号查询跟踪", description = "根据物流运单号查询其下的全部履约轨迹记录。")
     @GetMapping("/tracking/{trackingNo}")
-    @PreAuthorize("hasAuthority('fulfillment:tracking:get-by-tracking-no')")
+    @PreAuthorize("hasAnyAuthority('fulfillment:tracking:get-by-tracking-no', 'fulfillment:tracking:get-by-fulfillment-no')")
     public List<Tracking> getByTrackingNo(@Parameter(description = "物流运单号") @PathVariable String trackingNo) {
         return trackingService.getByTrackingNo(trackingNo);
     }
 
     @Operation(summary = "按履约单号查询跟踪", description = "根据履约单号查询该履约单的全部轨迹记录。")
     @GetMapping("/{fulfillmentNo}/tracking")
-    @PreAuthorize("hasAuthority('fulfillment:tracking:get-by-fulfillment-no')")
+    @PreAuthorize("hasAnyAuthority('fulfillment:tracking:get-by-fulfillment-no', 'fulfillment:tracking:get-by-tracking-no')")
     public List<Tracking> getByFulfillmentNo(@Parameter(description = "履约单号") @PathVariable String fulfillmentNo) {
         return trackingService.getByFulfillmentNo(fulfillmentNo);
     }

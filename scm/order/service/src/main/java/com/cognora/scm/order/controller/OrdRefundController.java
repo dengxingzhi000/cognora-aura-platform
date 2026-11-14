@@ -72,7 +72,7 @@ public class OrdRefundController {
 
     @Operation(summary = "查询退款明细", description = "根据退款单 ID 查询退款明细列表。")
     @GetMapping("/{id}/items")
-    @PreAuthorize("hasAuthority('order:refund:list-items')")
+    @PreAuthorize("hasAnyAuthority('order:refund:list-items', 'order:refund:list-by-order-id')")
     public ApiResponse<List<RefundItemResponse>> listItems(@Parameter(description = "退款单 ID") @PathVariable UUID id) {
         log.info("[API] Query refund items: refundId={}", id);
         return ApiResponse.success(refundItemQueryService.listResponsesByRefundId(id));
@@ -80,7 +80,7 @@ public class OrdRefundController {
 
     @Operation(summary = "按订单查询退款单", description = "根据订单 ID 查询该订单关联的退款单列表。")
     @GetMapping("/order/{orderId}")
-    @PreAuthorize("hasAuthority('order:refund:list-by-order-id')")
+    @PreAuthorize("hasAnyAuthority('order:refund:list-by-order-id', 'order:refund:list-items')")
     public ApiResponse<List<RefundResponse>> listByOrderId(@Parameter(description = "订单 ID") @PathVariable UUID orderId) {
         log.info("[API] Query refunds by order: orderId={}", orderId);
         return ApiResponse.success(queryService.listResponsesByOrderId(orderId));

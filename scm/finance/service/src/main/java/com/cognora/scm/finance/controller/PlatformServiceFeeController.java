@@ -25,7 +25,7 @@ public class PlatformServiceFeeController {
 
     @Operation(summary = "查询服务费详情", description = "根据账单 ID 查询平台服务费的完整计费信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('finance:service-fee:view')")
+    @PreAuthorize("hasAnyAuthority('finance:service-fee:view', 'finance:service-fee:list-pending-fees')")
     public ApiResponse<PlatformServiceFee> getById(@Parameter(description = "平台服务费账单 ID") @PathVariable String id) {
         PlatformServiceFee fee = platformServiceFeeService.getById(id);
         return ApiResponse.success(fee);
@@ -61,7 +61,7 @@ public class PlatformServiceFeeController {
 
     @Operation(summary = "查询待支付服务费", description = "获取所有尚未结清的平台服务费账单列表。")
     @GetMapping("/pending")
-    @PreAuthorize("hasAuthority('finance:service-fee:list-pending-fees')")
+    @PreAuthorize("hasAnyAuthority('finance:service-fee:list-pending-fees', 'finance:service-fee:view')")
     public ApiResponse<List<PlatformServiceFee>> listPendingFees() {
         List<PlatformServiceFee> fees = platformServiceFeeService.listPendingFees();
         return ApiResponse.success(fees);

@@ -25,7 +25,7 @@ public class PurPlanController {
 
     @Operation(summary = "根据 ID 查询计划", description = "按主键查询采购计划的详细信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('purchase:plan:view')")
+    @PreAuthorize("hasAnyAuthority('purchase:plan:view', 'purchase:plan:list-by-status', 'purchase:plan:page')")
     public PurPlan getById(@Parameter(description = "采购计划 ID") @PathVariable String id) {
         return purPlanService.getById(id);
     }
@@ -39,7 +39,7 @@ public class PurPlanController {
 
     @Operation(summary = "分页查询计划", description = "按状态、计划类型和关键字分页查询采购计划。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('purchase:plan:page')")
+    @PreAuthorize("hasAnyAuthority('purchase:plan:page', 'purchase:plan:view')")
     public Page<PurPlan> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -51,7 +51,7 @@ public class PurPlanController {
 
     @Operation(summary = "按状态查询计划列表", description = "查询指定状态下的全部采购计划。")
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('purchase:plan:list-by-status')")
+    @PreAuthorize("hasAnyAuthority('purchase:plan:list-by-status', 'purchase:plan:view')")
     public List<PurPlan> listByStatus(@Parameter(description = "计划状态") @RequestParam Integer status) {
         return purPlanService.listByStatus(status);
     }

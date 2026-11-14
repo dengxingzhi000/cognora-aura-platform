@@ -26,7 +26,7 @@ public class TmsWaybillController {
 
     @Operation(summary = "查询运单详情", description = "根据运单主键 ID 获取运单详细信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('logistics:waybill:view')")
+    @PreAuthorize("hasAnyAuthority('logistics:waybill:view', 'logistics:waybill:page')")
     public ApiResponse<TmsWaybill> getById(
             @Parameter(description = "运单主键 ID") @PathVariable String id) {
         TmsWaybill waybill = waybillService.getById(id);
@@ -44,7 +44,7 @@ public class TmsWaybillController {
 
     @Operation(summary = "分页查询运单", description = "按运单号、运单状态和承运商分页查询运单列表。")
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('logistics:waybill:page')")
+    @PreAuthorize("hasAnyAuthority('logistics:waybill:page', 'logistics:waybill:view')")
     public ApiResponse<Page<TmsWaybill>> pageList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

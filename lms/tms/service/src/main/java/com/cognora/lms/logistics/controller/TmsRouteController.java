@@ -28,7 +28,7 @@ public class TmsRouteController {
 
     @Operation(summary = "查询路线详情", description = "根据路线主键 ID 获取运输路线详细信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('logistics:route:view')")
+    @PreAuthorize("hasAnyAuthority('logistics:route:view', 'logistics:route:page')")
     public ApiResponse<TmsRoute> getById(
             @Parameter(description = "路线主键 ID") @PathVariable String id) {
         TmsRoute route = routeService.getById(id);
@@ -46,7 +46,7 @@ public class TmsRouteController {
 
     @Operation(summary = "分页查询路线", description = "按骑手、路线状态和配送日期分页查询运输路线列表。")
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('logistics:route:page')")
+    @PreAuthorize("hasAnyAuthority('logistics:route:page', 'logistics:route:view')")
     public ApiResponse<Page<TmsRoute>> pageList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

@@ -65,7 +65,7 @@ public class InvAlertController {
    */
   @Operation(summary = "查询告警统计", description = "统计告警总数、未解决数量以及库存不足与缺货告警数量。")
   @GetMapping("/stats")
-  @PreAuthorize("hasAuthority('inventory:alert:stats')")
+  @PreAuthorize("hasAnyAuthority('inventory:alert:stats', 'inventory:alert:view')")
   public ApiResponse<InvAlertStatsResponse> stats() {
     return ApiResponse.success(queryService.stats());
   }
@@ -75,7 +75,7 @@ public class InvAlertController {
    */
   @Operation(summary = "查询告警详情", description = "根据告警 ID 查询告警明细。")
   @GetMapping("/{id}")
-  @PreAuthorize("hasAuthority('inventory:alert:view')")
+  @PreAuthorize("hasAnyAuthority('inventory:alert:view', 'inventory:alert:stats')")
   public ApiResponse<InvAlertResponse> get(
       @Parameter(description = "告警 ID") @PathVariable @NotBlank(message = "告警 ID 不能为空") String id) {
     InvAlert alert = queryService.getById(id);

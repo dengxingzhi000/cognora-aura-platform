@@ -68,7 +68,7 @@ public class InvSnapshotController {
    */
   @Operation(summary = "查询库存趋势", description = "查询指定 SKU/仓库最近若干天的库存快照，用于绘制水位趋势。")
   @GetMapping("/trend")
-  @PreAuthorize("hasAuthority('inventory:snapshot:trend')")
+  @PreAuthorize("hasAnyAuthority('inventory:snapshot:trend', 'inventory:snapshot:view')")
   public ApiResponse<List<InvSnapshot>> trend(
       @Parameter(description = "SKU ID") @RequestParam(required = false) String skuId,
       @Parameter(description = "仓库 ID") @RequestParam(required = false) String warehouseId,
@@ -84,7 +84,7 @@ public class InvSnapshotController {
    */
   @Operation(summary = "查询快照详情", description = "根据快照 ID 查询库存快照明细。")
   @GetMapping("/{id}")
-  @PreAuthorize("hasAuthority('inventory:snapshot:view')")
+  @PreAuthorize("hasAnyAuthority('inventory:snapshot:view', 'inventory:snapshot:trend')")
   public ApiResponse<InvSnapshot> get(
       @Parameter(description = "快照 ID") @PathVariable @NotBlank(message = "快照 ID 不能为空") String id) {
     InvSnapshot snapshot = queryService.getById(id);
