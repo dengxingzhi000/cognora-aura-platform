@@ -17,22 +17,22 @@
 | 指标 | 数量 |
 | --- | ---: |
 | 服务（有 controller 的模块） | 24 |
-| 端点总数 | 817 |
-| 运行时候选码 > 1 的端点 | 144 |
+| 端点总数 | 821 |
+| 运行时候选码 > 1 的端点 | 146 |
 | seed 目录行 / 唯一 (url, method) 对 | 663 / 662 |
-| 已映射到权限码 | 666 |
-| 豁免端点 | 99 |
-| 其中既命中目录又被豁免 | 23 |
+| 已映射到权限码 | 670 |
+| 豁免端点 | 100 |
+| 其中既命中目录又被豁免 | 24 |
 | **目录缺口** | **75** |
 
-`已映射 + 豁免 - 既映射又豁免 + 缺口 = 666 + 99 - 23 + 75 = 817`。「既命中目录又被豁免」的端点（如 `/api/v1/payments/{id}`）运行时先命中豁免，目录行不参与放行。
+`已映射 + 豁免 - 既映射又豁免 + 缺口 = 670 + 100 - 24 + 75 = 821`。「既命中目录又被豁免」的端点（如 `/api/v1/payments/{id}`）运行时先命中豁免，目录行不参与放行。
 
 豁免端点按规则分布：
 
 | 豁免规则 | 数量 |
 | --- | ---: |
 | `exemptPaths` | 86 |
-| `internalSignaturePaths` | 6 |
+| `internalSignaturePaths` | 7 |
 | `signatureOrPermissionPaths` | 5 |
 | `whitelist` | 2 |
 
@@ -61,7 +61,7 @@
 | `platform/tenant/service` | 52 | 52 | 0 | 0 |
 | `scm/finance/service` | 68 | 68 | 0 | 0 |
 | `scm/order/service` | 24 | 24 | 4 | 0 |
-| `scm/purchase/service` | 112 | 112 | 0 | 0 |
+| `scm/purchase/service` | 116 | 116 | 1 | 0 |
 | `scm/supplier/service` | 62 | 62 | 0 | 0 |
 | `scm/warehouse/service` | 46 | 46 | 0 | 0 |
 

@@ -7673,6 +7673,60 @@
     "scm/purchase/service": {
       "endpoints": [
         {
+          "file": "scm/purchase/service/src/main/java/com/cognora/scm/purchase/controller/PurOrderController.java",
+          "class": "PurOrderController",
+          "javaMethod": "inTransit",
+          "httpMethod": "GET",
+          "path": "/api/v1/pur-order/in-transit",
+          "code": "purchase:order:view",
+          "codes": [
+            "purchase:order:view"
+          ],
+          "exempt": true,
+          "exemptReason": "internalSignaturePaths"
+        },
+        {
+          "file": "scm/purchase/service/src/main/java/com/cognora/scm/purchase/controller/PurOrderController.java",
+          "class": "PurOrderController",
+          "javaMethod": "page",
+          "httpMethod": "GET",
+          "path": "/api/v1/pur-order/page",
+          "code": "purchase:order:page",
+          "codes": [
+            "purchase:order:page",
+            "purchase:order:view"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "scm/purchase/service/src/main/java/com/cognora/scm/purchase/controller/PurOrderController.java",
+          "class": "PurOrderController",
+          "javaMethod": "getById",
+          "httpMethod": "GET",
+          "path": "/api/v1/pur-order/{id}",
+          "code": "purchase:order:view",
+          "codes": [
+            "purchase:order:page",
+            "purchase:order:view"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "scm/purchase/service/src/main/java/com/cognora/scm/purchase/controller/PurOrderController.java",
+          "class": "PurOrderController",
+          "javaMethod": "listItems",
+          "httpMethod": "GET",
+          "path": "/api/v1/pur-order/{id}/items",
+          "code": "purchase:order:list-items",
+          "codes": [
+            "purchase:order:list-items"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
           "file": "scm/purchase/service/src/main/java/com/cognora/scm/purchase/controller/PurContractController.java",
           "class": "PurContractController",
           "javaMethod": "save",

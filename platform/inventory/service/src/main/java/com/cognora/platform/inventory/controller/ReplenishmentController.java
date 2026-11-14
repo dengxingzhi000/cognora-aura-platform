@@ -180,7 +180,7 @@ public class ReplenishmentController {
 
   @Operation(summary = "分页查询补货策略", description = "按仓库与 SKU 分页查询策略。")
   @GetMapping("/policies/query")
-  @PreAuthorize("hasAuthority('inventory:replenishment:policy-query')")
+  @PreAuthorize("hasAnyAuthority('inventory:replenishment:policy-get', 'inventory:replenishment:policy-query')")
   public ApiResponse<Page<ReplenishmentPolicyResponse>> queryPolicies(
       @RequestParam(required = false) String warehouseId,
       @RequestParam(required = false) String skuId,
@@ -191,7 +191,7 @@ public class ReplenishmentController {
 
   @Operation(summary = "补货策略详情", description = "按 ID 查询单条策略。")
   @GetMapping("/policies/{id}")
-  @PreAuthorize("hasAuthority('inventory:replenishment:policy-get')")
+  @PreAuthorize("hasAnyAuthority('inventory:replenishment:policy-get', 'inventory:replenishment:policy-query')")
   public ApiResponse<ReplenishmentPolicyResponse> getPolicy(
       @Parameter(description = "策略 ID") @PathVariable @NotBlank(message = "策略 ID 不能为空")
       String id) {
