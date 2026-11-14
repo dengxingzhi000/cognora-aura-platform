@@ -25,4 +25,85 @@ public class PurContractController {
 
     @Operation(summary = "根据 ID 查询合同", description = "按主键查询采购合同的详细信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('purchase:contract:view', 'purchase:contract:list-by-status', 'purchase:contract:page')")
+    public PurContract getById(@Parameter(description = "采购合同 ID") @PathVariable String id) {
+        return purContractService.getById(id);
+    }
+
+    @Operation(summary = "根据合同编号查询", description = "通过合同编号查询采购合同详情。")
+    @GetMapping("/no/{contractNo}")
+    @PreAuthorize("hasAuthority('purchase:contract:get-by-contract-no')")
+    public PurContract getByContractNo(@Parameter(description = "采购合同编号") @PathVariable String contractNo) {
+        return purContractService.getByContractNo(contractNo);
+    }
+
+    @Operation(summary = "分页查询合同", description = "按状态、合同类型、供应商和关键字分页查询采购合同。")
+    @GetMapping("/page")
+    @PreAuthorize("hasAnyAuthority('purchase:contract:page', 'purchase:contract:view')")
+    public Page<PurContract> page(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer status,
+            @Parameter(description = "合同类型") @RequestParam(required = false) Integer contractType,
+            @Parameter(description = "供应商 ID") @RequestParam(required = false) String supplierId,
+            @RequestParam(required = false) String keyword) {
+        return purContractService.pageQuery(page, size, status, contractType, supplierId, keyword);
+    }
+
+    @Operation(summary = "按状态查询合同列表", description = "查询指定状态下的全部采购合同。")
+    @GetMapping("/list")
     @PreAuthorize("hasAnyAuthority('purchase:contract:list-by-status', 'purchase:contract:view')")
+    public List<PurContract> listByStatus(@Parameter(description = "合同状态") @RequestParam Integer status) {
+        return purContractService.listByStatus(status);
+    }
+
+    @Operation(summary = "按供应商查询合同列表", description = "查询指定供应商名下的全部采购合同。")
+    @GetMapping("/supplier/{supplierId}")
+    @PreAuthorize("hasAuthority('purchase:contract:list-by-supplier-id')")
+    public List<PurContract> listBySupplierId(@Parameter(description = "供应商 ID") @PathVariable String supplierId) {
+        return purContractService.listBySupplierId(supplierId);
+    }
+
+    @Operation(summary = "新增合同", description = "创建一份新的采购合同记录。")
+    @PostMapping
+    @PreAuthorize("hasAuthority('purchase:contract:create')")
+    @AuditLog(operation = "新增采购合同", businessType = "PURCHASE", riskLevel = 3)
+    public boolean save(@RequestBody PurContract purContract) {
+        return purContractService.save(purContract);
+    }
+
+    @Operation(summary = "更新合同", description = "按主键更新采购合同信息。")
+    @PutMapping
+    @PreAuthorize("hasAuthority('purchase:contract:update')")
+    @AuditLog(operation = "更新采购合同", businessType = "PURCHASE", riskLevel = 3)
+    public boolean update(@RequestBody PurContract purContract) {
+        return purContractService.updateById(purContract);
+    }
+
+    @Operation(summary = "删除合同", description = "按主键删除采购合同。")
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:contract:delete')")
+    @AuditLog(operation = "删除采购合同", businessType = "PURCHASE", riskLevel = 4)
+    public boolean delete(@Parameter(description = "采购合同 ID") @PathVariable String id) {
+        return purContractService.removeById(id);
+    }
+
+    @Operation(summary = "签订合同", description = "记录合同签订人与签订时间并推进合同状态。")
+    @PostMapping("/{id}/sign")
+    @PreAuthorize("hasAuthority('purchase:contract:sign')")
+    @AuditLog(operation = "签订采购合同", businessType = "PURCHASE", riskLevel = 4)
+    public boolean sign(
+            @Parameter(description = "采购合同 ID") @PathVariable String id,
+            @Parameter(description = "签订人 ID") @RequestParam String signedBy,
+            @Parameter(description = "签订人姓名") @RequestParam String signedByName) {
+        return purContractService.sign(id, signedBy, signedByName);
+    }
+
+    @Operation(summary = "终止合同", description = "终止指定采购合同并更新其状态。")
+    @PostMapping("/{id}/terminate")
+    @PreAuthorize("hasAuthority('purchase:contract:terminate')")
+    @AuditLog(operation = "终止采购合同", businessType = "PURCHASE", riskLevel = 3)
+    public boolean terminate(@Parameter(description = "采购合同 ID") @PathVariable String id) {
+        return purContractService.terminate(id);
+    }
+}

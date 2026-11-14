@@ -204,5 +204,64 @@ public class AnalyticsMetaController {
 
     @Operation(summary = "按编码查询数据集", description = "根据数据集编码查询对应的数据集定义。")
     @GetMapping("/datasets/code/{code}")
+    @PreAuthorize("hasAnyAuthority('analytics:metadata:get-dataset-by-code', 'analytics:metadata:list-fields')")
+    public ApiResponse<DatasetDefinition> getDatasetByCode(@Parameter(description = "数据集编码") @PathVariable String code) {
+        return ApiResponse.success(datasetService.getByCode(code));
+    }
+
+    @Operation(summary = "分页查询数据集", description = "按关键字分页查询当前租户下的数据集定义列表。")
+    @GetMapping("/datasets")
+    @PreAuthorize("hasAuthority('analytics:metadata:list-datasets')")
+    public ApiResponse<Page<DatasetDefinition>> listDatasets(
+            @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每页记录数") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "关键字，按数据集编码或名称模糊匹配") @RequestParam(required = false) String keyword) {
+        return ApiResponse.success(datasetService.list(page, size, keyword));
+    }
+
+    // ──────────────────────── Dataset Fields ─────────────────────────
+
+    @Operation(summary = "创建数据集字段", description = "为指定数据集新增一个字段定义，返回创建后的字段信息。")
+    @PostMapping("/datasets/{datasetId}/fields")
+    @PreAuthorize("hasAuthority('analytics:metadata:create-field')")
+    @AuditLog(operation = "创建数据集字段", businessType = "ANALYTICS", riskLevel = 3)
+    public ApiResponse<DatasetFieldDefinition> createField(@Parameter(description = "数据集 ID") @PathVariable UUID datasetId,
+                                                            @RequestBody DatasetFieldDTO dto) {
+        log.info("[API] create dataset field: dataset={}, code={}", (datasetId + "").replace("\r", "_").replace("\n", "_"), (dto.getFieldCode() + "").replace("\r", "_").replace("\n", "_"));
+        return ApiResponse.success(datasetFieldService.create(dto));
+    }
+
+    @Operation(summary = "更新数据集字段", description = "根据字段 ID 更新指定数据集下的字段定义。")
+    @PutMapping("/datasets/{datasetId}/fields/{id}")
+    @PreAuthorize("hasAuthority('analytics:metadata:update-field')")
+    @AuditLog(operation = "修改数据集字段", businessType = "ANALYTICS", riskLevel = 3)
+    public ApiResponse<DatasetFieldDefinition> updateField(@Parameter(description = "字段 ID") @PathVariable UUID id,
+                                                            @RequestBody DatasetFieldDTO dto) {
+        log.info("[API] update dataset field: id={}, code={}", id, (dto.getFieldCode() + "").replace("\r", "_").replace("\n", "_"));
+        return ApiResponse.success(datasetFieldService.update(id, dto));
+    }
+
+    @Operation(summary = "删除数据集字段", description = "根据字段 ID 删除指定数据集下的字段定义。")
+    @DeleteMapping("/datasets/{datasetId}/fields/{id}")
+    @PreAuthorize("hasAuthority('analytics:metadata:delete-field')")
+    @AuditLog(operation = "删除数据集字段", businessType = "ANALYTICS", riskLevel = 4)
+    public ApiResponse<Void> deleteField(@Parameter(description = "字段 ID") @PathVariable UUID id) {
+        log.info("[API] delete dataset field: id={}", id);
+        datasetFieldService.delete(id);
+        return ApiResponse.success();
+    }
+
+    @Operation(summary = "查询数据集字段详情", description = "根据字段 ID 查询指定数据集下字段定义的详细信息。")
+    @GetMapping("/datasets/{datasetId}/fields/{id}")
+    @PreAuthorize("hasAuthority('analytics:metadata:get-field')")
+    public ApiResponse<DatasetFieldDefinition> getField(@Parameter(description = "字段 ID") @PathVariable UUID id) {
+        return ApiResponse.success(datasetFieldService.getById(id));
+    }
+
+    @Operation(summary = "查询数据集字段列表", description = "查询指定数据集下登记的全部字段定义。")
+    @GetMapping("/datasets/{datasetId}/fields")
     @PreAuthorize("hasAnyAuthority('analytics:metadata:list-fields', 'analytics:metadata:get-dataset-by-code')")
+    public ApiResponse<List<DatasetFieldDefinition>> listFields(@Parameter(description = "数据集 ID") @PathVariable UUID datasetId) {
+        return ApiResponse.success(datasetFieldService.listByDataset(datasetId));
+    }
 }

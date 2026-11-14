@@ -7,7 +7,6 @@ import com.cognora.platform.auth.webauthn.WebAuthnRequestContext;
 import com.cognora.platform.common.dto.auth.TokenUpgradeResponse;
 import com.cognora.platform.common.dto.auth.WebAuthnChallengeResponse;
 import com.cognora.platform.common.exception.BusinessException;
-import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.security.util.HttpServletRequestUtils;
 import com.cognora.platform.common.web.domain.SecurityUser;
@@ -51,7 +50,6 @@ public class WebAuthnAuthenticationController {
     @Operation(summary = "生成认证挑战", description = "为当前用户生成 WebAuthn 断言认证所需的随机挑战值。")
     @PostMapping("/challenge")
     @PreAuthorize("isAuthenticated()")
-    @AuditLog(operation = "生成 WebAuthn 认证挑战", businessType = "CREDENTIAL", riskLevel = 1)
     public ApiResponse<WebAuthnChallengeResponse> generateAuthenticationChallenge(
             @AuthenticationPrincipal SecurityUser user,
             HttpServletRequest request) {
@@ -68,7 +66,6 @@ public class WebAuthnAuthenticationController {
     @Operation(summary = "校验认证并升级令牌", description = "校验 WebAuthn 断言结果，通过后升级会话令牌并记录本次认证尝试。")
     @PostMapping("/verify")
     @PreAuthorize("isAuthenticated()")
-    @AuditLog(operation = "校验 WebAuthn 断言并升级令牌", businessType = "CREDENTIAL", riskLevel = 4, recordParams = false)
     public ApiResponse<TokenUpgradeResponse> authenticateAndUpgradeToken(
             @Valid @RequestBody WebauthnAuthenticationRequest request,
             @AuthenticationPrincipal SecurityUser user,

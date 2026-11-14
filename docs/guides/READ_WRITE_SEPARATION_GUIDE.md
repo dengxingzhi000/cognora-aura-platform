@@ -1,8 +1,13 @@
 # 读写分离（主从）使用指南
 
 适用模块：`scm-common/data-rw`（实现）、`scm-common/data`（请求作用域过滤器）、
-使用 `@Master` / `@Slave` 的业务服务（`scm-product` 已启用；`scm-order` 保留了
-未激活的 `application-readwrite.yml` 模板）。
+使用 `@Master` / `@Slave` 的业务服务。已启用读写分离的服务：`platform-product`
+（group `product`）、`scm-order`（`order`）、`platform-inventory`（`inventory`）、
+`scm-warehouse`（`warehouse`）、`scm-supplier`（`supplier`）、`scm-purchase`
+（`purchase`）、`lms-tms`（`logistics`）——统一使用本文第 3 节的标准形态
+（`spring.datasource.dynamic.enabled=false` + `spring.datasource.rw.*`）。
+`scm-order` 另留有 `application-readwrite.yml` profile 模板，属历史遗留：
+主配置已在 `application.yml` 中激活，该 profile 不再是启用入口。
 
 ## 1. 实现构成
 

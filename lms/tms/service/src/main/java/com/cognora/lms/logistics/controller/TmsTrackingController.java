@@ -31,4 +31,71 @@ public class TmsTrackingController {
 
     @Operation(summary = "查询轨迹详情", description = "根据轨迹主键 ID 获取单条物流轨迹记录。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('logistics:tracking:view', 'logistics:tracking:page')")
+    public ApiResponse<TmsTracking> getById(
+            @Parameter(description = "轨迹记录主键 ID") @PathVariable String id) {
+        TmsTracking tracking = trackingService.getById(id);
+        return ApiResponse.success(tracking);
+    }
+
+    @Operation(summary = "按运单查询轨迹", description = "根据运单主键 ID 获取该运单的全部物流轨迹。")
+    @GetMapping("/waybill/{waybillId}")
+    @PreAuthorize("hasAuthority('logistics:tracking:list-by-waybill-id')")
+    public ApiResponse<List<TmsTracking>> listByWaybillId(
+            @Parameter(description = "运单主键 ID") @PathVariable String waybillId) {
+        List<TmsTracking> list = trackingService.listByWaybillId(waybillId);
+        return ApiResponse.success(list);
+    }
+
+    @Operation(summary = "按运单号查询轨迹", description = "根据运单号获取该运单的全部物流轨迹。")
+    @GetMapping("/waybill-no/{waybillNo}")
+    @PreAuthorize("hasAuthority('logistics:tracking:list-by-waybill-no')")
+    public ApiResponse<List<TmsTracking>> listByWaybillNo(
+            @Parameter(description = "运单号") @PathVariable String waybillNo) {
+        List<TmsTracking> list = trackingService.listByWaybillNo(waybillNo);
+        return ApiResponse.success(list);
+    }
+
+    @Operation(summary = "分页查询轨迹", description = "按运单号和轨迹状态分页查询物流轨迹记录。")
+    @GetMapping("/list")
     @PreAuthorize("hasAnyAuthority('logistics:tracking:page', 'logistics:tracking:view')")
+    public ApiResponse<Page<TmsTracking>> pageList(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String waybillNo,
+            @RequestParam(required = false) String trackStatus) {
+        Page<TmsTracking> result = trackingService.pageList(page, size, waybillNo, trackStatus);
+        return ApiResponse.success(result);
+    }
+
+    @Operation(summary = "新增物流轨迹", description = "上报一条新的运单物流轨迹节点并返回创建结果。")
+    @PostMapping
+    @PreAuthorize("hasAuthority('logistics:tracking:add-tracking')")
+    @AuditLog(operation = "上报物流轨迹", businessType = "LOGISTICS", riskLevel = 2)
+    public ApiResponse<TmsTracking> addTracking(@RequestBody TmsTracking tracking) {
+        log.info("Add tracking: waybillNo={}, location={}, status={}", (tracking.getWaybillNo() + "").replace("\r", "_").replace("\n", "_"), (tracking.getLocation() + "").replace("\r", "_").replace("\n", "_"), (tracking.getTrackStatus() + "").replace("\r", "_").replace("\n", "_"));
+        TmsTracking created = trackingService.addTracking(tracking);
+        return ApiResponse.success(created);
+    }
+
+    @Operation(summary = "承运商轨迹回调（Webhook）",
+            description = "验签通过后解析轨迹并幂等落库；验签失败返回 401 且不落库。"
+                    + "请求头：X-Lms-Timestamp / X-Lms-Nonce / X-Lms-Signature。")
+    @PostMapping("/callback/{carrierCode}")
+    @AuditLog(operation = "承运商轨迹回调", businessType = "LOGISTICS", riskLevel = 2, recordParams = false)
+    public ApiResponse<TmsTracking> callback(
+            @Parameter(description = "承运商编码，用于回调来源审计") @PathVariable String carrierCode,
+            @RequestHeader(value = "X-Lms-Timestamp", required = false) String timestamp,
+            @RequestHeader(value = "X-Lms-Nonce", required = false) String nonce,
+            @RequestHeader(value = "X-Lms-Signature", required = false) String signature,
+            @RequestBody String rawBody) throws JsonProcessingException {
+        // 先验签，失败直接抛 401，后续解析与落库均不会执行。
+        webhookSignatureVerifier.verifyAndConsume(timestamp, nonce, signature, rawBody);
+        TmsTracking tracking = objectMapper.readValue(rawBody, TmsTracking.class);
+        log.info("Carrier webhook verified: carrierCode={}, waybillNo={}, eventId={}",
+                (carrierCode + "").replace("\r", "_").replace("\n", "_"),
+                (tracking.getWaybillNo() + "").replace("\r", "_").replace("\n", "_"),
+                (tracking.getEventId() + "").replace("\r", "_").replace("\n", "_"));
+        return ApiResponse.success(trackingService.addTracking(tracking));
+    }
+}

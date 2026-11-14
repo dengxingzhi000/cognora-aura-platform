@@ -1,6 +1,5 @@
 package com.cognora.platform.system.controller;
 
-import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.system.domain.entity.SysDictItem;
 import com.cognora.platform.system.domain.entity.SysDictType;
@@ -40,7 +39,6 @@ public class SysDictController {
     @Operation(summary = "新增字典类型", description = "新增一个字典类型，主键由系统自动生成。")
     @PostMapping("/types")
     @PreAuthorize("hasAuthority('system:dict:add')")
-    @AuditLog(operation = "新增字典类型", businessType = "DICT_TYPE", riskLevel = 3)
     public ApiResponse<Void> createType(@RequestBody SysDictType entity) {
         dictService.createDictType(entity);
         return ApiResponse.success(null);
@@ -49,7 +47,6 @@ public class SysDictController {
     @Operation(summary = "修改字典类型", description = "更新已有字典类型的编码、名称、描述与状态等信息。")
     @PutMapping("/types")
     @PreAuthorize("hasAuthority('system:dict:edit')")
-    @AuditLog(operation = "修改字典类型", businessType = "DICT_TYPE", riskLevel = 3)
     public ApiResponse<Void> updateType(@RequestBody SysDictType entity) {
         dictService.updateDictType(entity);
         return ApiResponse.success(null);
@@ -58,7 +55,6 @@ public class SysDictController {
     @Operation(summary = "删除字典类型", description = "根据字典类型 ID 删除该字典类型。")
     @DeleteMapping("/types/{id}")
     @PreAuthorize("hasAuthority('system:dict:delete')")
-    @AuditLog(operation = "删除字典类型", businessType = "DICT_TYPE", riskLevel = 4)
     public ApiResponse<Void> deleteType(@Parameter(description = "字典类型 ID") @PathVariable String id) {
         dictService.deleteDictType(id);
         return ApiResponse.success(null);
@@ -73,7 +69,6 @@ public class SysDictController {
     @Operation(summary = "新增字典项", description = "为指定字典类型新增一个字典项，主键由系统自动生成。")
     @PostMapping("/items")
     @PreAuthorize("hasAuthority('system:dict:add')")
-    @AuditLog(operation = "新增字典项", businessType = "DICT_ITEM", riskLevel = 3)
     public ApiResponse<Void> createItem(@RequestBody SysDictItem entity) {
         dictService.createDictItem(entity);
         return ApiResponse.success(null);
@@ -82,7 +77,6 @@ public class SysDictController {
     @Operation(summary = "修改字典项", description = "更新已有字典项的编码、名称、取值、排序与状态等信息。")
     @PutMapping("/items")
     @PreAuthorize("hasAuthority('system:dict:edit')")
-    @AuditLog(operation = "修改字典项", businessType = "DICT_ITEM", riskLevel = 3)
     public ApiResponse<Void> updateItem(@RequestBody SysDictItem entity) {
         dictService.updateDictItem(entity);
         return ApiResponse.success(null);
@@ -91,7 +85,6 @@ public class SysDictController {
     @Operation(summary = "删除字典项", description = "根据字典项 ID 删除该字典项。")
     @DeleteMapping("/items/{id}")
     @PreAuthorize("hasAuthority('system:dict:delete')")
-    @AuditLog(operation = "删除字典项", businessType = "DICT_ITEM", riskLevel = 4)
     public ApiResponse<Void> deleteItem(@Parameter(description = "字典项 ID") @PathVariable String id) {
         dictService.deleteDictItem(id);
         return ApiResponse.success(null);

@@ -1,0 +1,33 @@
+# Coverage ratchet baseline for the `coverage-gate` CI job.
+# Format: <maven -pl path><TAB><line minimum><TAB><branch minimum>
+# Paths are relative to com.scm.parent/ (same convention as the -pl flag).
+#
+# Rule: a module's numbers may only go UP. When you add tests, re-measure and
+# raise the value here in the same PR. A drop fails the build.
+#
+# The one exception is a deliberate removal of tests or of code: then the row
+# comes DOWN to the newly measured value in the same PR that removes them, with
+# the reason written here. Silently lowering a row to turn a red build green is
+# exactly what this file exists to prevent.
+#
+# Long-term target is 0.70 / 0.60 (see docs/development/COVERAGE_GATE.md); the
+# current numbers are the real水位, not the goal, so the gate can be switched on
+# without the build being red forever.
+#
+# Modules not listed here are NOT gated yet - they still run with jacoco.skip=true.
+#
+# Baselines are the measured ratio truncated (0.288741 -> 0.288), never rounded
+# up: rounding up makes the gate red on the very commit that raised it.
+#
+# 2026-11-14: order-center and common-web LOWERED because the context-smoke
+# tests were withdrawn. Those tests booted a Spring context and, just by
+# starting the application, executed a lot of wiring code — when they went,
+# measured coverage went with them (order-center 0.447/0.441 -> 0.391/0.393,
+# common-web 0.288/0.261 -> 0.208/0.177). The remaining tests did not regress;
+# the numerator that came from a test which no longer exists did. Re-raise both
+# rows once the smoke tests are restored or replaced by tests that assert
+# behaviour rather than mere startup.
+../platform/gateway	0.723	0.549
+../ecom/payment/service	0.680	0.601
+../ecom/order-center/service	0.391	0.393
+../platform/common/web	0.208	0.177

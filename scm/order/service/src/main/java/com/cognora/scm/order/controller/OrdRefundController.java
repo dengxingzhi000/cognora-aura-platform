@@ -72,5 +72,84 @@ public class OrdRefundController {
 
     @Operation(summary = "查询退款明细", description = "根据退款单 ID 查询退款明细列表。")
     @GetMapping("/{id}/items")
+    @PreAuthorize("hasAnyAuthority('order:refund:list-items', 'order:refund:list-by-order-id')")
+    public ApiResponse<List<RefundItemResponse>> listItems(@Parameter(description = "退款单 ID") @PathVariable UUID id) {
+        log.info("[API] Query refund items: refundId={}", id);
+        return ApiResponse.success(refundItemQueryService.listResponsesByRefundId(id));
+    }
+
+    @Operation(summary = "按订单查询退款单", description = "根据订单 ID 查询该订单关联的退款单列表。")
+    @GetMapping("/order/{orderId}")
     @PreAuthorize("hasAnyAuthority('order:refund:list-by-order-id', 'order:refund:list-items')")
+    public ApiResponse<List<RefundResponse>> listByOrderId(@Parameter(description = "订单 ID") @PathVariable UUID orderId) {
+        log.info("[API] Query refunds by order: orderId={}", orderId);
+        return ApiResponse.success(queryService.listResponsesByOrderId(orderId));
+    }
+
+    /**
+     * 统一条件分页查询。
+     */
+    @Operation(summary = "分页查询退款单", description = "按条件分页查询退款单，支持退款单号、订单、用户、状态及时间区间过滤。")
+    @PostMapping("/query")
+    @PreAuthorize("hasAuthority('order:refund:query')")
+    @AuditLog(operation = "分页查询退款单", businessType = "ORDER", riskLevel = 2)
+    public ApiResponse<Page<RefundResponse>> query(@RequestBody @Valid RefundQueryRequest request) {
+        log.info("[API] Query refunds: {}", (request + "").replace("\r", "_").replace("\n", "_"));
+
+        return ApiResponse.success(queryService.pageResponses(request));
+    }
+
+    /**
+     * 创建退款单（带 items，同事务内写入子表）。
+     */
+    @Operation(summary = "创建退款单", description = "创建退款单并同时写入退款明细。")
+    @PostMapping
+    public ApiResponse<RefundResponse> createRefund(@RequestBody @Valid RefundCreateRequest request) {
+        log.info("[API] Create refund: refundNo={}, orderId={}", (request.getRefundNo() + "").replace("\r", "_").replace("\n", "_"), (request.getOrderId() + "").replace("\r", "_").replace("\n", "_"));
+
+        return ApiResponse.success(commandService.createRefund(request));
+    }
+
+    /**
+     * 审核通过退款。
+     */
+    @Operation(summary = "审核通过退款", description = "审核通过退款申请并记录处理人信息。")
+    @PutMapping("/{id}/approve")
+    @PreAuthorize("hasAuthority('order:refund:approve')")
+    @AuditLog(operation = "审批通过退款", businessType = "ORDER", riskLevel = 4)
+    public ApiResponse<RefundResponse> approve(
+            @Parameter(description = "退款单 ID") @PathVariable UUID id,
+            @RequestBody @Valid RefundApproveRequest request) {
+        log.info("[API] Approve refund: id={}, handler={}", (id + "").replace("\r", "_").replace("\n", "_"), (request.getHandlerId() + "").replace("\r", "_").replace("\n", "_"));
+        commandService.approveRefund(id, request.getHandlerId(), request.getHandlerName(), request.getHandlerRemark());
+        return ApiResponse.success(queryService.getResponseById(id));
+    }
+
+    /**
+     * 拒绝退款。
+     */
+    @Operation(summary = "拒绝退款", description = "拒绝退款申请并记录处理人信息。")
+    @PutMapping("/{id}/reject")
+    @PreAuthorize("hasAuthority('order:refund:reject')")
+    @AuditLog(operation = "驳回退款申请", businessType = "ORDER", riskLevel = 4)
+    public ApiResponse<RefundResponse> reject(
+            @Parameter(description = "退款单 ID") @PathVariable UUID id,
+            @RequestBody @Valid RefundRejectRequest request) {
+        log.info("[API] Reject refund: id={}, handler={}", (id + "").replace("\r", "_").replace("\n", "_"), (request.getHandlerId() + "").replace("\r", "_").replace("\n", "_"));
+        commandService.rejectRefund(id, request.getHandlerId(), request.getHandlerName(), request.getHandlerRemark());
+        return ApiResponse.success(queryService.getResponseById(id));
+    }
+
+    /**
+     * 完成退款（线下已退款成功后回调）。
+     */
+    @Operation(summary = "完成退款", description = "标记退款单已完成，用于线下退款成功后的回调。")
+    @PutMapping("/{id}/complete")
+    @PreAuthorize("hasAuthority('order:refund:complete')")
+    @AuditLog(operation = "完成退款", businessType = "ORDER", riskLevel = 4)
+    public ApiResponse<RefundResponse> complete(@Parameter(description = "退款单 ID") @PathVariable UUID id) {
+        log.info("[API] Complete refund: id={}", id);
+        commandService.completeRefund(id);
+        return ApiResponse.success(queryService.getResponseById(id));
+    }
 }

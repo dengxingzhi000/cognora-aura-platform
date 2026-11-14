@@ -142,5 +142,77 @@ public class FileController {
 
     @Operation(summary = "校验文件是否存在", description = "根据文件 MD5 校验当前租户下文件是否已存在，用于秒传。")
     @GetMapping("/check/{md5}")
+    @PreAuthorize("hasAnyAuthority('file:file:check', 'file:file:download', 'file:file:preview', 'file:file:url')")
+    public ApiResponse<FileMetadataDTO> checkExist(@Parameter(description = "文件 MD5 值") @PathVariable String md5) {
+        try {
+            Optional<FileMetadataDTO> existing = instantUploadService.checkExist(md5)
+                    .map(fileMetadataConvert::toDTO);
+            return existing
+                    .<ApiResponse<FileMetadataDTO>>map(ApiResponse::success)
+                    .orElseGet(ApiResponse::success);
+        } catch (Exception e) {
+            log.error("Failed to check file existence for md5 {}", LogUtils.sanitizeForLog(md5), e);
+            return ApiResponse.fail(500, "Check failed");
+        }
+    }
+
+    @Operation(summary = "获取文件访问地址", description = "根据文件 ID 生成临时预签名访问地址。")
+    @GetMapping("/{id}/url")
+    @PreAuthorize("hasAnyAuthority('file:file:url', 'file:file:check')")
+    public ApiResponse<Map<String, String>> presignedUrl(@Parameter(description = "文件 ID") @PathVariable String id) {
+        try {
+            String url = fileDownloadService.generatePresignedUrl(id);
+            return ApiResponse.success(Map.of("url", url));
+        } catch (FileNotFoundException e) {
+            return ApiResponse.fail(404, e.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to generate presigned url for file {}", LogUtils.sanitizeForLog(id), e);
+            return ApiResponse.fail(500, "Failed to generate url");
+        }
+    }
+
+    @Operation(summary = "预览文件", description = "以 inline 方式输出文件内容，供浏览器直接预览图片、PDF 或文本。")
+    @GetMapping("/{id}/preview")
+    @PreAuthorize("hasAnyAuthority('file:file:preview', 'file:file:check')")
+    public void preview(@Parameter(description = "文件 ID") @PathVariable String id, HttpServletResponse response) {
+        streamContent(id, response, true);
+    }
+
+    @Operation(summary = "下载文件", description = "根据文件 ID 输出文件内容流供浏览器下载。")
+    @GetMapping("/{id}/content")
     @PreAuthorize("hasAnyAuthority('file:file:download', 'file:file:check')")
+    public void download(@Parameter(description = "文件 ID") @PathVariable String id, HttpServletResponse response) {
+        streamContent(id, response, false);
+    }
+
+    private void streamContent(String id, HttpServletResponse response, boolean inline) {
+        try {
+            FileMetadataDTO metadata = fileMetadataConvert.toDTO(fileDownloadService.resolve(id));
+            try (var content = fileDownloadService.openContent(id)) {
+                response.setContentType(metadata.getContentType());
+                ContentDisposition.Builder disposition = ContentDisposition
+                        .builder(inline ? "inline" : "attachment");
+                response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
+                        disposition.filename(encode(metadata.getOriginalName())).build().toString());
+                if (metadata.getFileSize() != null) {
+                    response.setContentLengthLong(metadata.getFileSize());
+                }
+                content.transferTo(response.getOutputStream());
+            }
+        } catch (FileNotFoundException e) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+        } catch (Exception e) {
+            log.error("Failed to stream file {}", LogUtils.sanitizeForLog(id), e);
+            if (!response.isCommitted()) {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            }
+        }
+    }
+
+    private String encode(String name) {
+        if (name == null) {
+            return "file";
+        }
+        return URLEncoder.encode(name, StandardCharsets.UTF_8);
+    }
 }

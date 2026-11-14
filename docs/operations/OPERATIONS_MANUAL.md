@@ -625,15 +625,198 @@ SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE ...;
 
 ---
 
-## 12. 附录
+## 12. 读写分离与分区维护的激活验证
 
-### 12.1 故障处理流程
+> 本节覆盖 2026-11-13 落地的两件基础设施激活：读写分离（7 个服务）与分区/保留策略的自动调度。
+> **CI 从不启动 Spring 上下文，也不连数据库**——下面的验证步骤都必须在 VM 上手工做。
+
+### 12.1 读写分离：激活形态与 VM 验证清单
+
+**标准形态**（platform-product 早已验证的形态，现在所有激活服务统一用它）：
+
+```yaml
+spring:
+  datasource:
+    dynamic:
+      enabled: false        # 关掉 baomidou dynamic-datasource
+    rw:
+      enabled: true
+      default-target: MASTER
+      groups:
+        <group>:
+          master:
+            url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/<db>?stringtype=unspecified
+            username: ${DB_USERNAME:admin}
+            password: ${DB_PASSWORD:changeme}
+          slaves:
+            - name: slave1
+              url: jdbc:postgresql://${DB_SLAVE_HOST:${DB_HOST:localhost}}:${DB_SLAVE_PORT:${DB_PORT:5432}}/<db>?stringtype=unspecified
+              username: ${DB_SLAVE_USERNAME:${DB_USERNAME:admin}}
+              password: ${DB_SLAVE_PASSWORD:${DB_PASSWORD:changeme}}
+```
+
+**已激活的服务**（group 名 / 所属库 / 端口）：
+
+| 服务 | group | 库 | 端口 | 状态 |
+|---|---|---|---|---|
+| platform-product | `product` | db_product | 8201 | 早已激活（形态样板） |
+| platform-inventory | `inventory` | db_inventory | 8202 | 本次新激活 |
+| scm-order | `order` | db_order | 8203 | 本次新激活 |
+| scm-warehouse | `warehouse` | db_warehouse | 8204 | 本次新激活 |
+| lms-tms | `logistics` | db_logistics | 8205 | 本次新激活 |
+| scm-supplier | `supplier` | db_supplier | 8206 | 本次新激活 |
+| scm-purchase | `purchase` | db_purchase | 8207 | 本次新激活 |
+
+从库 URL 默认回落到主库（`${DB_SLAVE_HOST:${DB_HOST:localhost}}`），**没有真副本时读流量直接落主库**，
+不需要任何副本基建；将来接上副本只改 `DB_SLAVE_*` 环境变量，不用改代码或配置。
+
+**逐服务验证清单**（六个新激活服务各做一遍，platform-product 同样适用）：
+
+```bash
+# 1) 启动服务，日志里必须出现这一行（group 名对上表）
+#    [RW-Config] Group [order] configured. Master: ..., slaves: ..., loadBalance: ...
+# 2) 健康检查必须是 UP
+curl -s http://127.0.0.1:8203/actuator/health
+# 3) 读写分离端点必须能应答（返回该 group 的主从状态）
+curl -s http://127.0.0.1:8203/actuator/readwrite
+```
+
+三条都满足才算通过：
+
+- 启动日志出现 `[RW-Config] Group [<group>] configured`；
+- `GET /actuator/health` 返回 `"status":"UP"`；
+- `GET /actuator/readwrite` 有响应（不是 404）。
+
+任一条不满足，先看 `ReadWriteDatasourceConflictChecker` 的报错——`dynamic` 与 `rw` 同时开启会直接让服务启动失败。
+
+**涉及的环境变量**：
+
+| 变量 | 作用 | 缺省 |
+|---|---|---|
+| `DB_HOST` / `DB_PORT` | 主库地址 | `localhost` / `5432` |
+| `DB_USERNAME` / `DB_PASSWORD` | 主库账号 | `admin` / `changeme` |
+| `DB_SLAVE_HOST` / `DB_SLAVE_PORT` | 从库地址 | 不设置 = 回落主库 |
+| `DB_SLAVE_USERNAME` / `DB_SLAVE_PASSWORD` | 从库账号 | 不设置 = 回落主库账号 |
+
+`docker-compose.yml` 里这些服务的 `environment` 段统一注入 `DB_HOST=postgres` 等；
+读写分离已激活的服务还要显式注入 `SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"`，否则 anchor 里的
+`SPRING_DATASOURCE_DYNAMIC_PRIMARY=master` 会与 rw group 冲突，服务启动即失败。
+
+### 12.2 分区与保留策略：自动调度
+
+**调度器**：`deploy/maintenance/run-maintenance.sh`。它不实现任何 SQL 语义，只负责按周期调用既有的 4 个脚本，
+并把连接目标打到 stdout（容器日志可见）：
+
+| 任务 | 调用的脚本 | 作用 |
+|---|---|---|
+| `create` | `scripts/db/partition/create-partitions.sh` | 预建未来 3 个月的分区（`ord_order`、`inv_reservation`、`inv_log`、`sup_purchase_order`） |
+| `create-audit` | `scripts/db/partition/create-audit-partitions.sh` | 预建审计表分区（`db_audit.sys_audit_log`，回填 6 个月 + 前瞻 3 个月） |
+| `drop` | `scripts/db/partition/drop-old-partitions.sh` | 删除超过保留期（24 个月）的分区 |
+| `retention` | `scripts/db/retention/apply-retention.sh` | 数据保留策略：审计 2y、登录 1y、接口日志 90d、通知 6mo、订单事件 3y |
+| `all` | 以上四个 | 按 create → create-audit → drop → retention 的顺序跑一遍 |
+
+两种用法：
+
+- `run-maintenance.sh once <create|create-audit|drop|retention|all>` —— 跑一个任务后退出（k8s CronJob 用）；
+- `run-maintenance.sh loop` —— 常驻循环：月度周期（create + create-audit）**启动即跑**，之后每 30 天一次；
+  周度周期（drop + retention）每 7 天一次。
+
+**compose 形态**：
+
+```bash
+docker compose --profile maintenance up -d db-maintenance
+docker logs -f scm-db-maintenance
+```
+
+服务定义在 `docker-compose.yml` 的 `maintenance` profile 下（镜像 `postgres:18`，挂载 `./scripts/db` 到 `/opt/db`、
+runner 挂到 `/opt/run-maintenance.sh`，入口 `bash /opt/run-maintenance.sh loop`）。
+容器里 `CH_HOST=clickhouse` / `CH_PORT=8123` 指向 compose 里既有的 ClickHouse。
+
+**ClickHouse 段自跳过**：`apply-retention.sh` 自带探活——ClickHouse 不可达时打印
+`ClickHouse not reachable at <host>:<port> (skipped)`，镜像里没有 `curl` 时打印
+`curl not available; ClickHouse retention skipped`；两种情况都**只跳过 DWH 那一段**，
+PostgreSQL 侧的保留策略照常执行，也不算失败。
+
+**k8s 形态**：`deploy/k8s/db-maintenance-cronjob.yml`（`kind: List`，3 个对象）：
+
+- `ConfigMap db-maintenance-scripts`：**仓库脚本的一份副本**（runner + 4 个脚本；ConfigMap 的 key 不能带 `/`，
+  容器启动时还原成 `partition/`、`retention/` 目录结构）。**改了仓库里的脚本必须同步刷新这个 ConfigMap**，
+  否则集群跑的还是旧脚本；ConfigMap 上的 `cognora.com/source-scripts` 注解记录了来源。
+- `CronJob db-maintenance-monthly`：`0 3 1 * *` → `once all`（四个任务兜底跑一遍）。
+- `CronJob db-maintenance-weekly`：`0 3 * * 1` → 先 `once drop` 再 `once retention`；两个任务都会跑
+  （drop 失败也继续跑 retention），但**任一失败 Pod 的退出码就是非 0**——不会因为 retention 成功就把 Job 标成成功。
+
+两个 CronJob 都是 `concurrencyPolicy: Forbid`（同一时间只允许一个）、`restartPolicy: OnFailure`、
+`successfulJobsHistoryLimit: 1`、`failedJobsHistoryLimit: 3`，命名空间 `scm-prod`，镜像 `postgres:18`。
+
+```bash
+kubectl apply -f deploy/k8s/db-maintenance-cronjob.yml
+kubectl get cronjobs -n scm-prod
+# 手动触发一次（不等调度）
+kubectl create job --from=cronjob/db-maintenance-weekly db-maint-manual-$(date +%s) -n scm-prod
+```
+
+**VM 验证清单**（同样只能手工做）：
+
+1. 起一次维护调度，确认日志里出现连接目标与成功标记：
+
+   ```bash
+   docker compose --profile maintenance run --rm db-maintenance bash /opt/run-maintenance.sh once all
+   # 期望输出（target 一行必须显示真实主机名；显示成 localhost 说明环境变量没注入）：
+   # [maintenance] scripts root /opt/db
+   # [maintenance] create start 2026-11-13T03:00:00+08:00
+   # [maintenance] create target postgres:5432 user=admin
+   # [maintenance] create ok
+   # ... create-audit / drop / retention 同理
+   ```
+
+2. psql 必须真的连上库：`[maintenance] <task> ok` 这行是 runner 在脚本跑完之后**再做一次连通性校验**才打印的；
+   连不上时会打印 `[maintenance] <task> FAILED (exit 1) postgres target <host>:<port> unreachable ...`。
+   而 `create-partitions.sh` 自己会用 `|| true` 吞掉 psql 的失败——只看脚本自己的输出会误判成功。
+
+3. 检查分区没有重复、没有越过保留期：
+
+   ```sql
+   -- db_order
+   SELECT inhrelid::regclass FROM pg_inherits WHERE inhparent = 'ord_order'::regclass ORDER BY 1;
+   -- db_audit
+   SELECT inhrelid::regclass FROM pg_inherits WHERE inhparent = 'sys_audit_log'::regclass ORDER BY 1;
+   ```
+
+**人工覆盖**：调度不是唯一入口，原来的手工命令依然有效：
+
+```bash
+scripts/db/partition/create-partitions.sh
+scripts/db/partition/create-audit-partitions.sh
+scripts/db/partition/drop-old-partitions.sh
+scripts/db/retention/apply-retention.sh
+```
+
+也可以只跑 runner 的单次模式：`bash deploy/maintenance/run-maintenance.sh once <task>`。
+
+**环境变量**（脚本实际读取的名字，缺省值与脚本一致）：
+
+| 变量 | 作用 | 缺省 |
+|---|---|---|
+| `DB_HOST` / `DB_PORT` | PostgreSQL 地址 | `localhost` / `5432` |
+| `DB_USER` / `DB_PASSWORD` | PostgreSQL 账号 | `admin` / `admin123` |
+| `CH_HOST` / `CH_PORT` | ClickHouse 地址 | `localhost` / `8123` |
+| `CH_USERNAME` / `CH_PASSWORD` | ClickHouse 账号 | `default` / 空 |
+
+注意脚本读的是 `DB_USER`（不是 `DB_USERNAME`）；k8s 的 Secret `scm-secrets` 里存的 key 是 `DB_USERNAME`，
+CronJob 的 `env` 里做了一次映射。
+
+---
+
+## 13. 附录
+
+### 13.1 故障处理流程
 
 ```
 故障发现 → 告警通知 → 定位问题 → 应急处理 → 恢复服务 → 根因分析 → 编写复盘报告
 ```
 
-### 12.2 联系方式
+### 13.2 联系方式
 
 | 角色 | 姓名 | 电话 | 微信 |
 |-----|------|------|------|
@@ -644,5 +827,5 @@ SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE ...;
 ---
 
 **文档维护**: DevOps Team
-**版本**: v1.0
-**最后更新**: 2025-12-24
+**版本**: v1.1
+**最后更新**: 2026-11-13

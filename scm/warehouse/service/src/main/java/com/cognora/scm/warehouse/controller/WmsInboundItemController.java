@@ -62,4 +62,20 @@ public class WmsInboundItemController {
 
     @Operation(summary = "查询入库明细详情", description = "按主键查询入库明细，明细不存在或已删除时返回 404。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('warehouse:inbound-item:view', 'warehouse:inbound-item:list-by-inbound-id')")
+    public ApiResponse<WmsInboundItem> getById(@Parameter(description = "入库明细主键 ID") @PathVariable String id) {
+        WmsInboundItem item = inboundItemQueryService.getById(id);
+        if (item == null || Boolean.TRUE.equals(item.getDeleted())) {
+            return ApiResponse.fail(404, "入库明细不存在");
+        }
+        return ApiResponse.success(item);
+    }
+
+    @Operation(summary = "查询入库单明细列表", description = "根据入库单 ID 查询该入库单下的全部明细行。")
+    @GetMapping("/list")
     @PreAuthorize("hasAnyAuthority('warehouse:inbound-item:list-by-inbound-id', 'warehouse:inbound-item:view')")
+    public ApiResponse<List<WmsInboundItem>> listByInboundId(
+            @Parameter(description = "入库单主键 ID") @RequestParam String inboundId) {
+        return ApiResponse.success(inboundItemQueryService.listByInboundId(inboundId));
+    }
+}
