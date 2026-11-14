@@ -67,21 +67,21 @@ public class AccountingPeriodController {
 
     @Operation(summary = "查询账期详情", description = "根据账期 ID 查询账期状态与起止日期。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('finance:accounting-period:view')")
+    @PreAuthorize("hasAnyAuthority('finance:accounting-period:view', 'finance:accounting-period:closed', 'finance:accounting-period:current', 'finance:accounting-period:page')")
     public ApiResponse<AccountingPeriod> getById(@Parameter(description = "账期 ID") @PathVariable String id) {
         return ApiResponse.success(accountingPeriodService.getById(id));
     }
 
     @Operation(summary = "查询当前账期", description = "返回当前自然月对应的账期；当月尚未开账时 data 为空。")
     @GetMapping("/current")
-    @PreAuthorize("hasAuthority('finance:accounting-period:current')")
+    @PreAuthorize("hasAnyAuthority('finance:accounting-period:current', 'finance:accounting-period:view')")
     public ApiResponse<AccountingPeriod> current() {
         return ApiResponse.success(accountingPeriodService.getCurrentPeriod());
     }
 
     @Operation(summary = "查询已关账期列表", description = "返回当前租户下所有已关账账期，按账期编码倒序。")
     @GetMapping("/closed")
-    @PreAuthorize("hasAuthority('finance:accounting-period:closed')")
+    @PreAuthorize("hasAnyAuthority('finance:accounting-period:closed', 'finance:accounting-period:view')")
     public ApiResponse<List<AccountingPeriod>> closed() {
         return ApiResponse.success(accountingPeriodService.listClosedPeriods());
     }
@@ -98,7 +98,7 @@ public class AccountingPeriodController {
 
     @Operation(summary = "分页查询账期", description = "按状态分页查询账期，状态为空时查询全部。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('finance:accounting-period:page')")
+    @PreAuthorize("hasAnyAuthority('finance:accounting-period:page', 'finance:accounting-period:view')")
     public ApiResponse<Page<AccountingPeriod>> page(
             @Parameter(description = "页码，默认 1") @RequestParam(required = false) Integer page,
             @Parameter(description = "每页数量，默认 20") @RequestParam(required = false) Integer size,

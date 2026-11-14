@@ -25,7 +25,7 @@ public class SettlementOrderController {
 
     @Operation(summary = "查询结算单详情", description = "根据结算单 ID 查询结算单的完整信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('finance:settlement-order:view')")
+    @PreAuthorize("hasAnyAuthority('finance:settlement-order:view', 'finance:settlement-order:list-by-status')")
     public ApiResponse<SettlementOrder> getById(@Parameter(description = "结算单 ID") @PathVariable String id) {
         SettlementOrder order = settlementOrderService.getById(id);
         return ApiResponse.success(order);
@@ -83,7 +83,7 @@ public class SettlementOrderController {
 
     @Operation(summary = "分页查询结算单", description = "按结算状态分页查询结算单列表，状态为空时查询全部。")
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('finance:settlement-order:list-by-status')")
+    @PreAuthorize("hasAnyAuthority('finance:settlement-order:list-by-status', 'finance:settlement-order:view')")
     public ApiResponse<Page<SettlementOrder>> listByStatus(
             @Parameter(description = "结算状态，不传则查询全部") @RequestParam(required = false) Integer status,
             @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,

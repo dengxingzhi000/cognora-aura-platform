@@ -34,6 +34,7 @@ public class OrderCenterController {
 
     @Operation(summary = "分页查询订单", description = "按订单号、用户与状态分页查询订单中心订单。")
     @GetMapping("/page")
+    @PreAuthorize("hasAnyAuthority('order-center:order:page', 'order-center:order:get-order', 'order:order:view')")
     public Page<OcOrder> page(
             @Parameter(description = "页码，默认 1") @RequestParam(defaultValue = "1") @Min(1) int page,
             @Parameter(description = "每页数量，默认 20，最大 100") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
@@ -52,6 +53,7 @@ public class OrderCenterController {
 
     @Operation(summary = "查询订单详情", description = "根据订单号查询订单中心订单详情。")
     @GetMapping("/{orderNo}")
+    @PreAuthorize("hasAnyAuthority('order-center:order:get-order', 'order-center:order:page', 'order:order:view')")
     public OcOrder getOrder(@Parameter(description = "订单号") @PathVariable String orderNo) {
         log.info("[API] Get order: orderNo={}", (orderNo + "").replace("\r", "_").replace("\n", "_"));
         return orderService.getOrder(orderNo);

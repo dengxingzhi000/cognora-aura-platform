@@ -25,7 +25,7 @@ public class ReconciliationRecordController {
 
     @Operation(summary = "分页查询对账记录", description = "按单号/往来单位关键字、账期、状态和差异标记分页查询对账记录。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('finance:reconciliation:page')")
+    @PreAuthorize("hasAnyAuthority('finance:reconciliation:page', 'finance:reconciliation:view')")
     public ApiResponse<Page<ReconciliationRecord>> page(
             @Parameter(description = "页码，默认 1") @RequestParam(required = false) Integer page,
             @Parameter(description = "每页数量，默认 20") @RequestParam(required = false) Integer size,
@@ -40,7 +40,7 @@ public class ReconciliationRecordController {
 
     @Operation(summary = "查询对账记录详情", description = "根据对账记录 ID 查询双方对账的完整信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('finance:reconciliation:view')")
+    @PreAuthorize("hasAnyAuthority('finance:reconciliation:view', 'finance:reconciliation:page')")
     public ApiResponse<ReconciliationRecord> getById(@Parameter(description = "对账记录 ID") @PathVariable String id) {
         ReconciliationRecord record = reconciliationRecordService.getById(id);
         return ApiResponse.success(record);

@@ -39,7 +39,7 @@ public class SysAuditLogController {
 
     @Operation(summary = "查询审计日志", description = "根据日志 ID 查询审计日志详情。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('audit:log:view')")
+    @PreAuthorize("hasAnyAuthority('audit:log:view', 'audit:log:page')")
     public SysAuditLog getById(@Parameter(description = "审计日志 ID") @PathVariable String id) {
         log.info("[API] 查询审计日志: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return auditLogService.getById(id);
@@ -72,7 +72,7 @@ public class SysAuditLogController {
     @Operation(summary = "分页查询审计日志",
             description = "按用户、操作类型、模块、业务类型、风险等级与创建时间范围分页查询审计日志；时间范围在数据库侧下推。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('audit:log:page')")
+    @PreAuthorize("hasAnyAuthority('audit:log:page', 'audit:log:view')")
     public Page<SysAuditLog> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

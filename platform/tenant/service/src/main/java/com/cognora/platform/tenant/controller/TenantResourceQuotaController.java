@@ -33,7 +33,7 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "查询配额详情", description = "根据配额 ID 查询租户资源配额详情。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('tenant:quota:view')")
+    @PreAuthorize("hasAnyAuthority('tenant:quota:view', 'tenant:quota:check-quota', 'tenant:quota:page')")
     public TenantResourceQuota getById(@Parameter(description = "配额ID") @PathVariable String id) {
         log.info("[API] Query tenant resource quota: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantResourceQuotaService.getById(id);
@@ -59,7 +59,7 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "校验资源配额", description = "检查租户在指定资源类型下是否仍有可用配额。")
     @GetMapping("/check")
-    @PreAuthorize("hasAuthority('tenant:quota:check-quota')")
+    @PreAuthorize("hasAnyAuthority('tenant:quota:check-quota', 'tenant:quota:view')")
     public boolean checkQuota(
             @Parameter(description = "租户ID") @RequestParam String tenantId,
             @Parameter(description = "资源类型") @RequestParam String resourceType) {
@@ -77,7 +77,7 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "分页查询资源配额", description = "按租户分页查询租户资源配额列表。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('tenant:quota:page')")
+    @PreAuthorize("hasAnyAuthority('tenant:quota:page', 'tenant:quota:view')")
     public Page<TenantResourceQuota> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

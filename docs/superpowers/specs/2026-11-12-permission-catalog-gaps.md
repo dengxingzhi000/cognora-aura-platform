@@ -10,27 +10,29 @@
 - `code` 来自 seed 目录行（`scripts/db/seed/*.sql` 中同时含 URL 与 HTTP 方法的行）。`{var}` 占位符按结构匹配：目录 `{id}` 与控制器 `{orderNo}` 等价；目录里的 `*` / `**` 按 Ant 语义匹配。
 - 先判豁免，顺序与 `ApiAccessControlFilter` 一致：`whitelist` → `exemptPaths`（先扣 `exemptPathExclusions`）→ `internalSignaturePaths` → `signatureOrPermissionPaths`。
 - **缺口 = 未豁免且目录里没有匹配行的端点。** 已登录用户的请求命中这类端点时，当前会被 `ApiAccessControlFilter` 以 `API_NOT_REGISTERED` 403（`unregistered-endpoint-policy` 默认 `DENY`）；未解析出用户的请求会直接放行（过滤器在无用户上下文时跳过端点登记校验）。本轮不为它们补 `@PreAuthorize`。
+- JSON 里的 `codes` 是**运行时候选码集合**：filter 对候选码是 `anyMatch`，同一个请求 URL 可能同时命中字面量行与模板行（`/api/v1/fulfillments/page` 也命中 `/api/v1/fulfillments/{fulfillmentNo}`）。`len(codes) > 1` 的端点，`@PreAuthorize` 必须写成 `hasAnyAuthority(...)` 覆盖全部候选，否则会把 filter 已放行的合法用户挡成 403。模板端点（路径带 `{var}`）的 `codes` 是保守超集。
 
 ## 总览
 
 | 指标 | 数量 |
 | --- | ---: |
 | 服务（有 controller 的模块） | 24 |
-| 端点总数 | 821 |
+| 端点总数 | 790 |
+| 运行时候选码 > 1 的端点 | 144 |
 | seed 目录行 / 唯一 (url, method) 对 | 663 / 662 |
-| 已映射到权限码 | 670 |
-| 豁免端点 | 100 |
-| 其中既命中目录又被豁免 | 24 |
-| **目录缺口** | **75** |
+| 已映射到权限码 | 655 |
+| 豁免端点 | 99 |
+| 其中既命中目录又被豁免 | 23 |
+| **目录缺口** | **59** |
 
-`已映射 + 豁免 - 既映射又豁免 + 缺口 = 670 + 100 - 24 + 75 = 821`。「既命中目录又被豁免」的端点（如 `/api/v1/payments/{id}`）运行时先命中豁免，目录行不参与放行。
+`已映射 + 豁免 - 既映射又豁免 + 缺口 = 655 + 99 - 23 + 59 = 790`。「既命中目录又被豁免」的端点（如 `/api/v1/payments/{id}`）运行时先命中豁免，目录行不参与放行。
 
 豁免端点按规则分布：
 
 | 豁免规则 | 数量 |
 | --- | ---: |
 | `exemptPaths` | 86 |
-| `internalSignaturePaths` | 7 |
+| `internalSignaturePaths` | 6 |
 | `signatureOrPermissionPaths` | 5 |
 | `whitelist` | 2 |
 
@@ -52,14 +54,14 @@
 | `platform/auth` | 23 | 0 | 14 | 9 |
 | `platform/document/service` | 21 | 21 | 0 | 0 |
 | `platform/file/service` | 13 | 13 | 0 | 0 |
-| `platform/inventory/service` | 57 | 35 | 6 | 17 |
+| `platform/inventory/service` | 27 | 21 | 6 | 1 |
 | `platform/notify/service` | 27 | 13 | 19 | 0 |
 | `platform/product/service` | 40 | 40 | 0 | 0 |
 | `platform/system/service` | 85 | 52 | 5 | 29 |
 | `platform/tenant/service` | 52 | 52 | 0 | 0 |
 | `scm/finance/service` | 68 | 68 | 0 | 0 |
 | `scm/order/service` | 24 | 24 | 4 | 0 |
-| `scm/purchase/service` | 116 | 116 | 1 | 0 |
+| `scm/purchase/service` | 115 | 115 | 0 | 0 |
 | `scm/supplier/service` | 62 | 62 | 0 | 0 |
 | `scm/warehouse/service` | 46 | 46 | 0 | 0 |
 
@@ -104,27 +106,11 @@
 | POST | `/api/auth/webauthn/register/challenge` | `generateRegistrationChallenge` | `platform/auth/src/main/java/com/cognora/platform/auth/controller/WebAuthnRegistrationController.java` |
 | POST | `/api/auth/webauthn/register/verify` | `registerCredential` | `platform/auth/src/main/java/com/cognora/platform/auth/controller/WebAuthnRegistrationController.java` |
 
-### `platform/inventory/service`（17 个）
+### `platform/inventory/service`（1 个）
 
 | HTTP | 路径 | Java 方法 | 源文件 |
 | --- | --- | --- | --- |
 | POST | `/api/v1/inventory/batches/fefo-preview` | `preview` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvBatchController.java` |
-| POST | `/api/v1/inventory/batches/query` | `query` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvBatchController.java` |
-| POST | `/api/v1/inventory/batches/stats` | `stats` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvBatchController.java` |
-| PUT | `/api/v1/inventory/safety-stock` | `updateSafetyStock` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvInventoryController.java` |
-| POST | `/api/v1/inventory/stocktakes` | `create` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java` |
-| POST | `/api/v1/inventory/stocktakes/query` | `query` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java` |
-| GET | `/api/v1/inventory/stocktakes/{id}` | `detail` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java` |
-| PUT | `/api/v1/inventory/stocktakes/{id}/approve` | `approve` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java` |
-| PUT | `/api/v1/inventory/stocktakes/{id}/cancel` | `cancel` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java` |
-| PUT | `/api/v1/inventory/stocktakes/{id}/count` | `count` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java` |
-| GET | `/api/v1/inventory/stocktakes/{id}/items` | `items` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java` |
-| PUT | `/api/v1/inventory/stocktakes/{id}/post` | `post` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java` |
-| PUT | `/api/v1/inventory/stocktakes/{id}/reject` | `reject` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java` |
-| PUT | `/api/v1/inventory/stocktakes/{id}/submit` | `submit` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java` |
-| POST | `/api/v1/inventory/valuation/export` | `export` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InventoryValuationController.java` |
-| POST | `/api/v1/inventory/valuation/query` | `query` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InventoryValuationController.java` |
-| POST | `/api/v1/inventory/valuation/stats` | `stats` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InventoryValuationController.java` |
 
 ### `platform/system/service`（29 个）
 

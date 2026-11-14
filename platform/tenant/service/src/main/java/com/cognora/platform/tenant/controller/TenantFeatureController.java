@@ -33,7 +33,7 @@ public class TenantFeatureController {
 
     @Operation(summary = "查询功能详情", description = "根据功能记录 ID 查询租户功能开关详情。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('tenant:feature:view')")
+    @PreAuthorize("hasAnyAuthority('tenant:feature:view', 'tenant:feature:is-feature-enabled', 'tenant:feature:page')")
     public TenantFeature getById(@Parameter(description = "功能记录ID") @PathVariable String id) {
         log.info("[API] Query tenant feature: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantFeatureService.getById(id);
@@ -59,7 +59,7 @@ public class TenantFeatureController {
 
     @Operation(summary = "校验功能是否启用", description = "判断指定租户的某个功能开关当前是否处于启用状态。")
     @GetMapping("/check")
-    @PreAuthorize("hasAuthority('tenant:feature:is-feature-enabled')")
+    @PreAuthorize("hasAnyAuthority('tenant:feature:is-feature-enabled', 'tenant:feature:view')")
     public boolean isFeatureEnabled(
             @Parameter(description = "租户ID") @RequestParam String tenantId,
             @Parameter(description = "功能编码") @RequestParam String featureCode) {
@@ -77,7 +77,7 @@ public class TenantFeatureController {
 
     @Operation(summary = "分页查询租户功能", description = "按租户、功能编码和启用状态分页查询租户功能开关。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('tenant:feature:page')")
+    @PreAuthorize("hasAnyAuthority('tenant:feature:page', 'tenant:feature:view')")
     public Page<TenantFeature> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

@@ -39,7 +39,7 @@ public class ProdBrandController {
 
     @Operation(summary = "查询品牌详情", description = "根据品牌ID查询品牌的详细信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('product:brand:view')")
+    @PreAuthorize("hasAnyAuthority('product:brand:view', 'product:brand:list-featured', 'product:brand:search')")
     public ApiResponse<ProdBrand> getById(@Parameter(description = "品牌ID") @PathVariable String id) {
         ProdBrand brand = brandService.getBrand(id);
         return ApiResponse.success(brand);
@@ -47,7 +47,7 @@ public class ProdBrandController {
 
     @Operation(summary = "搜索品牌", description = "根据品牌名称模糊搜索品牌列表。")
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('product:brand:search')")
+    @PreAuthorize("hasAnyAuthority('product:brand:search', 'product:brand:view')")
     public ApiResponse<List<ProdBrand>> search(
             @Parameter(description = "品牌名称关键字，可选，支持模糊匹配")
             @RequestParam(required = false) String name) {
@@ -57,7 +57,7 @@ public class ProdBrandController {
 
     @Operation(summary = "查询推荐品牌", description = "查询已设置为推荐的全部品牌列表。")
     @GetMapping("/featured")
-    @PreAuthorize("hasAuthority('product:brand:list-featured')")
+    @PreAuthorize("hasAnyAuthority('product:brand:list-featured', 'product:brand:view')")
     public ApiResponse<List<ProdBrand>> listFeatured() {
         List<ProdBrand> result = brandService.listFeatured();
         return ApiResponse.success(result);

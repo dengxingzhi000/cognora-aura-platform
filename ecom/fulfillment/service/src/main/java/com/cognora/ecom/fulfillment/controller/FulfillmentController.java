@@ -31,7 +31,7 @@ public class FulfillmentController {
 
     @Operation(summary = "分页查询履约单", description = "按订单号、用户与状态分页查询履约单。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('fulfillment:fulfillment:page')")
+    @PreAuthorize("hasAnyAuthority('fulfillment:fulfillment:page', 'fulfillment:fulfillment:get-fulfillment')")
     public Page<FulfillmentOrder> page(
             @Parameter(description = "页码，默认 1") @RequestParam(defaultValue = "1") @Min(1) int page,
             @Parameter(description = "每页数量，默认 20，最大 100") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
@@ -52,7 +52,7 @@ public class FulfillmentController {
 
     @Operation(summary = "查询履约单", description = "根据履约单号查询履约单的明细与当前状态。")
     @GetMapping("/{fulfillmentNo}")
-    @PreAuthorize("hasAuthority('fulfillment:fulfillment:get-fulfillment')")
+    @PreAuthorize("hasAnyAuthority('fulfillment:fulfillment:get-fulfillment', 'fulfillment:fulfillment:page')")
     public FulfillmentOrder getFulfillment(@Parameter(description = "履约单号") @PathVariable String fulfillmentNo) {
         log.info("[API] Get fulfillment: fulfillmentNo={}", (fulfillmentNo + "").replace("\r", "_").replace("\n", "_"));
         return fulfillmentService.getFulfillment(fulfillmentNo);

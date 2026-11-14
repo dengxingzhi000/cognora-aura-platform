@@ -12,7 +12,9 @@
 
   * 五张豁免清单逐条相等；
   * 两个脚本读同一个 seed 目录、扫同一批 controller 文件；
-  * 两个脚本对仓库里**每个端点**解析出同一个权限码、同一个豁免判定与豁免原因。
+  * 两个脚本对仓库里**每个端点**解析出同一个权限码、同一个豁免判定与豁免原因；
+  * 两个脚本对每个端点给出同一个**运行时候选码集合**（filter 的 anyMatch 语义，
+    `hasAnyAuthority` 的依据）。
 
 两个脚本都只在这里被 import（不执行它们的 `main()`），因此不会重新生成
 `docs/superpowers/specs/2026-11-12-permission-mapping.json` 与
@@ -342,6 +344,70 @@ class PermissionRulesConformanceTest(unittest.TestCase):
                     )
                 compared += 1
         self.assertGreater(compared, 0, "没有可比对的端点，测试等于没跑")
+
+
+    def test_runtime_candidate_sets_are_identical(self) -> None:
+        """每个端点的运行时候选码集合必须一致（`hasAnyAuthority` 的依据）。
+
+        filter 是 anyMatch：字面量行与模板行可能同时命中同一个请求 URL。两侧各有一份
+        `runtime_candidates` 实现（有意不互相 import），漂移会让「注解覆盖全部候选」
+        这条规则在生成器与护栏之间失效。
+        """
+        map_rows, _map_notes = quiet(self.mapping.parse_catalog)
+        map_index = quiet(self.mapping.build_catalog_index, map_rows)
+        checker_index, _codes, _notes, _rows, _skipped = quiet(
+            self.checker.parse_catalog, self.checker.SEED_DIR
+        )
+
+        # 先断言两侧扫到的是**同一个端点集合**：否则下面的逐端点比对可能只覆盖了
+        # 一侧的子集，漏掉的那些永远比不到（测试自己必须先证明可比的是同一批东西）。
+        map_endpoints_by_key: dict[tuple[str, str], str] = {}
+        for path in quiet(self.mapping.controller_files):
+            rel, endpoints = quiet(self.mapping.parse_controller, path)
+            for endpoint in endpoints:
+                map_endpoints_by_key[(endpoint["httpMethod"], endpoint["path"])] = rel
+        checker_endpoints_by_key: dict[tuple[str, str], str] = {}
+        for path in quiet(
+            self.checker.controller_files, self.checker.ROOT, self.checker.ROOT, None
+        ):
+            # 检查器的 parse_controller 返回 (endpoints, annotations)，映射工具返回 (rel, endpoints)
+            checker_endpoints, _checker_annotations = quiet(
+                self.checker.parse_controller, path, self.checker.ROOT
+            )
+            for endpoint in checker_endpoints:
+                checker_endpoints_by_key[(endpoint["httpMethod"], endpoint["path"])] = path.name
+        self.assertEqual(
+            set(map_endpoints_by_key),
+            set(checker_endpoints_by_key),
+            "两个脚本扫到的端点集合不同：下面的候选码比对只覆盖了一侧的子集",
+        )
+
+        compared = 0
+        multi = 0
+        for path in quiet(self.mapping.controller_files):
+            _rel, map_endpoints = quiet(self.mapping.parse_controller, path)
+            for endpoint in map_endpoints:
+                http_method = endpoint["httpMethod"]
+                endpoint_path = endpoint["path"]
+                map_candidates = quiet(
+                    self.mapping.runtime_candidates, map_index, endpoint_path, http_method
+                )
+                checker_candidates = quiet(
+                    self.checker.runtime_candidates, checker_index, endpoint_path, http_method
+                )
+                self.assertEqual(
+                    map_candidates,
+                    checker_candidates,
+                    f"{path.name} {http_method} {endpoint_path}：运行时候选码集合不一致",
+                )
+                if len(map_candidates) > 1:
+                    multi += 1
+                compared += 1
+        self.assertGreater(compared, 0, "没有可比对的端点，测试等于没跑")
+        # 仓库里必须真的存在多候选端点，否则上面这段比较对 C1 是空转。
+        self.assertGreater(
+            multi, 0, "仓库里没有多候选端点：runtime_candidates 的用例退化成了空跑"
+        )
 
 
 if __name__ == "__main__":

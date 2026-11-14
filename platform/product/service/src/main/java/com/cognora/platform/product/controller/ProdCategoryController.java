@@ -39,7 +39,7 @@ public class ProdCategoryController {
 
     @Operation(summary = "查询分类详情", description = "根据分类ID查询商品分类的详细信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('product:category:view')")
+    @PreAuthorize("hasAnyAuthority('product:category:view', 'product:category:get-category-tree', 'product:category:search')")
     public ApiResponse<ProdCategory> getById(@Parameter(description = "分类ID") @PathVariable String id) {
         ProdCategory category = categoryService.getById(id);
         return ApiResponse.success(category);
@@ -47,7 +47,7 @@ public class ProdCategoryController {
 
     @Operation(summary = "查询分类树", description = "查询完整的商品分类树形结构。")
     @GetMapping("/tree")
-    @PreAuthorize("hasAuthority('product:category:get-category-tree')")
+    @PreAuthorize("hasAnyAuthority('product:category:get-category-tree', 'product:category:view')")
     public ApiResponse<List<ProdCategory>> getCategoryTree() {
         List<ProdCategory> tree = categoryService.getCategoryTree();
         return ApiResponse.success(tree);
@@ -63,7 +63,7 @@ public class ProdCategoryController {
 
     @Operation(summary = "搜索分类", description = "根据分类名称模糊搜索商品分类列表。")
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('product:category:search')")
+    @PreAuthorize("hasAnyAuthority('product:category:search', 'product:category:view')")
     public ApiResponse<List<ProdCategory>> search(
             @Parameter(description = "分类名称关键字，可选，支持模糊匹配")
             @RequestParam(required = false) String name) {

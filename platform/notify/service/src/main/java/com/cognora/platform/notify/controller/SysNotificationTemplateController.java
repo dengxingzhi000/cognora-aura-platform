@@ -34,7 +34,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "查询通知模板", description = "根据模板ID查询通知模板详情。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('notify:template:view')")
+    @PreAuthorize("hasAnyAuthority('notify:template:view', 'notify:template:page')")
     public SysNotificationTemplate getById(@Parameter(description = "模板ID") @PathVariable String id) {
         log.info("[API] 查询通知模板: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return notificationTemplateService.getById(id);
@@ -86,7 +86,7 @@ public class SysNotificationTemplateController {
 
     @Operation(summary = "分页查询通知模板", description = "按渠道、模板编码与状态分页查询通知模板。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('notify:template:page')")
+    @PreAuthorize("hasAnyAuthority('notify:template:page', 'notify:template:view')")
     public Page<SysNotificationTemplate> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

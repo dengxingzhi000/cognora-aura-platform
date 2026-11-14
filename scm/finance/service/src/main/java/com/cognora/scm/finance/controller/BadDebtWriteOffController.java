@@ -27,7 +27,7 @@ public class BadDebtWriteOffController {
 
     @Operation(summary = "分页查询核销单", description = "按核销单号/往来单位关键字、账期和状态分页查询核销单。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('finance:bad-debt:page')")
+    @PreAuthorize("hasAnyAuthority('finance:bad-debt:page', 'finance:bad-debt:view')")
     public ApiResponse<Page<BadDebtWriteOff>> page(
             @Parameter(description = "页码，默认 1") @RequestParam(required = false) Integer page,
             @Parameter(description = "每页数量，默认 20") @RequestParam(required = false) Integer size,
@@ -40,7 +40,7 @@ public class BadDebtWriteOffController {
 
     @Operation(summary = "查询核销单详情", description = "根据核销单 ID 查询申请、审批与生效信息。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('finance:bad-debt:view')")
+    @PreAuthorize("hasAnyAuthority('finance:bad-debt:view', 'finance:bad-debt:page')")
     public ApiResponse<BadDebtWriteOff> getById(@Parameter(description = "核销单 ID") @PathVariable String id) {
         return ApiResponse.success(badDebtWriteOffService.getById(id));
     }

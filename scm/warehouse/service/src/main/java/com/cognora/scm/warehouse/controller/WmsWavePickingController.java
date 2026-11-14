@@ -65,7 +65,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "查询波次拣货单详情", description = "按主键查询波次拣货单，单据不存在时返回 404。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('warehouse:wave-picking:view')")
+    @PreAuthorize("hasAnyAuthority('warehouse:wave-picking:view', 'warehouse:wave-picking:page')")
     public ApiResponse<WmsWavePicking> getById(@Parameter(description = "波次拣货单主键 ID") @PathVariable String id) {
         WmsWavePicking wave = wavePickingQueryService.getById(id);
         if (wave == null) {
@@ -76,7 +76,7 @@ public class WmsWavePickingController {
 
     @Operation(summary = "分页查询波次拣货单", description = "按仓库与波次状态分页查询波次拣货单列表。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('warehouse:wave-picking:page')")
+    @PreAuthorize("hasAnyAuthority('warehouse:wave-picking:page', 'warehouse:wave-picking:view')")
     public ApiResponse<Page<WmsWavePicking>> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

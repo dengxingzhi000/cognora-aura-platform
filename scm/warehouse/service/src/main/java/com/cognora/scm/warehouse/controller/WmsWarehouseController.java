@@ -67,7 +67,7 @@ public class WmsWarehouseController {
 
     @Operation(summary = "查询仓库详情", description = "按主键查询仓库，仓库不存在或已删除时返回 404。")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('warehouse:warehouse:view')")
+    @PreAuthorize("hasAnyAuthority('warehouse:warehouse:view', 'warehouse:warehouse:list-enabled', 'warehouse:warehouse:page')")
     public ApiResponse<WmsWarehouse> getById(@Parameter(description = "仓库主键 ID") @PathVariable String id) {
         WmsWarehouse warehouse = warehouseQueryService.getById(id);
         if (warehouse == null || Boolean.TRUE.equals(warehouse.getDeleted())) {
@@ -78,14 +78,14 @@ public class WmsWarehouseController {
 
     @Operation(summary = "查询启用仓库列表", description = "查询全部处于启用状态的仓库，用于下拉选择。")
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('warehouse:warehouse:list-enabled')")
+    @PreAuthorize("hasAnyAuthority('warehouse:warehouse:list-enabled', 'warehouse:warehouse:view')")
     public ApiResponse<List<WmsWarehouse>> listEnabled() {
         return ApiResponse.success(warehouseQueryService.listEnabled());
     }
 
     @Operation(summary = "分页查询仓库", description = "按仓库名称、仓库类型与启用状态分页查询仓库列表。")
     @GetMapping("/page")
-    @PreAuthorize("hasAuthority('warehouse:warehouse:page')")
+    @PreAuthorize("hasAnyAuthority('warehouse:warehouse:page', 'warehouse:warehouse:view')")
     public ApiResponse<Page<WmsWarehouse>> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
