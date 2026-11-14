@@ -1,5 +1,7 @@
 package com.cognora.platform.inventory.service.batch;
 
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.exception.ServiceException;
 import com.cognora.platform.common.response.ResultCode;
 import com.cognora.platform.inventory.domain.entity.InvBatch;
@@ -34,6 +36,7 @@ public class FefoAllocationService {
   /**
    * 只读预览：不扣减任何库存。
    */
+  @Slave
   public FefoAllocationPlan preview(String tenantId, String skuId, String warehouseId, int quantity) {
     validate(tenantId, skuId, warehouseId, quantity);
 
@@ -56,6 +59,7 @@ public class FefoAllocationService {
    *
    * @throws ServiceException 合格批次不足、或批次可用量被并发事务改小
    */
+  @Master(reason = "批次可用量扣减必须走主库")
   @Transactional(rollbackFor = Exception.class)
   public FefoAllocationPlan allocate(String tenantId, String skuId, String warehouseId, int quantity) {
     FefoAllocationPlan plan = preview(tenantId, skuId, warehouseId, quantity);

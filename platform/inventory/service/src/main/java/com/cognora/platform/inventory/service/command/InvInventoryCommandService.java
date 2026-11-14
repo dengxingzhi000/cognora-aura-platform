@@ -7,6 +7,7 @@ import com.cognora.platform.common.tenant.TenantContextHolder;
 import com.cognora.platform.inventory.domain.entity.Inventory;
 import com.cognora.platform.inventory.dto.InventoryAdjustRequest;
 import com.cognora.platform.inventory.dto.InventoryResponse;
+import com.cognora.platform.inventory.dto.InventorySafetyStockRequest;
 import com.cognora.platform.inventory.dto.InventoryTransferRequest;
 import com.cognora.platform.inventory.event.InventoryAdjustedEvent;
 import com.cognora.platform.inventory.mapper.InvInventoryMapper;
@@ -240,6 +241,83 @@ public class InvInventoryCommandService {
                     .build(), tenantId);
         }
         return convertToResponse(inventory);
+    }
+
+    /**
+     * 更新 SKU/仓库的安全库存与最大库存阈值。
+     *
+     * <p>安全库存是告警与水位判定的唯一阈值来源，此前只在下单初始化时被写死为 10，
+     * 且没有任何修改入口，导致按 SKU 调优阈值不可能。本方法只改配置列，
+     * 不触碰数量与均价，因此不需要版本守卫。
+     *
+     * <p>阈值变化不产生库存数量变动，故只写一条 {@code SAFETY_STOCK_SET} 类型的
+     * 流水用于审计追溯（前后四元组与变更量均为 0，避免污染数量对账口径）。
+     *
+     * @throws IllegalArgumentException 阈值非法或台账不存在
+     */
+    @Master(reason = "写操作必须走主库")
+    @Transactional(rollbackFor = Exception.class)
+    public InventoryResponse updateSafetyStock(String skuId, String warehouseId,
+                                               InventorySafetyStockRequest request) {
+        UUID tenantId = TenantContextHolder.getRequiredTenantId();
+        if (request == null || request.getSafetyStock() == null) {
+            throw new IllegalArgumentException("安全库存不能为空");
+        }
+        int safetyStock = request.getSafetyStock();
+        if (safetyStock < 0) {
+            throw new IllegalArgumentException("安全库存不能为负数: " + safetyStock);
+        }
+        Integer maxStock = request.getMaxStock();
+        if (maxStock != null && maxStock < safetyStock) {
+            throw new IllegalArgumentException(
+                    "最大库存不能小于安全库存: maxStock=" + maxStock + ", safetyStock=" + safetyStock);
+        }
+
+        Inventory inventory = findInventory(skuId, warehouseId);
+        if (inventory == null) {
+            throw new IllegalArgumentException(
+                    "库存记录不存在，无法设置安全库存: skuId=" + skuId + ", warehouseId=" + warehouseId);
+        }
+
+        int updated = inventoryMapper.updateSafetyStock(
+                inventory.getId(), safetyStock, maxStock, request.getOperatorId());
+        if (updated == 0) {
+            throw new IllegalStateException("安全库存更新失败，记录可能已被删除: id=" + inventory.getId());
+        }
+        Inventory fresh = reload(inventory.getId());
+
+        recordSafetyStockFlow(tenantId, fresh, request, safetyStock);
+        return convertToResponse(fresh);
+    }
+
+    /** 记录一次阈值变更；变更量为 0，仅用于审计，不参与数量对账。 */
+    private void recordSafetyStockFlow(UUID tenantId, Inventory fresh,
+                                       InventorySafetyStockRequest request, int safetyStock) {
+        int total = nvl(fresh.getTotalStock());
+        int available = nvl(fresh.getAvailableStock());
+        int locked = nvl(fresh.getLockedStock());
+        int damaged = nvl(fresh.getDamagedStock());
+        flowLogService.record(FlowLogEntry.builder()
+                .tenantId(tenantId.toString())
+                .skuId(fresh.getSkuId())
+                .warehouseId(fresh.getWarehouseId())
+                .operationType(8)
+                .businessType("SAFETY_STOCK_SET")
+                .changeQuantity(0)
+                .beforeTotal(total)
+                .beforeAvailable(available)
+                .beforeLocked(locked)
+                .beforeDamaged(damaged)
+                .afterTotal(total)
+                .afterAvailable(available)
+                .afterLocked(locked)
+                .afterDamaged(damaged)
+                .reason("安全库存设置为 " + safetyStock + (request.getRemark() == null
+                        ? "" : "：" + request.getRemark()))
+                .referenceType("INVENTORY")
+                .referenceId(fresh.getId())
+                .operatorId(request.getOperatorId())
+                .build());
     }
 
     private Inventory findInventory(String skuId, String warehouseId) {

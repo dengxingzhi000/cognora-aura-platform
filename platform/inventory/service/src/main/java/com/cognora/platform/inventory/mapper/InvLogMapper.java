@@ -12,6 +12,9 @@ import org.apache.ibatis.annotations.Param;
  * <p>写库语句显式 CAST 到 uuid/jsonb，避免 PostgreSQL 对 varchar 参数与
  * uuid/jsonb 列比较/赋值时报类型错误。
  *
+ * <p>需求聚合的只读查询在 {@code InvDemandAggregationMapper}，不复用本接口：
+ * 那条 SQL 是补货专用的口径（只算销售出库），混进流水写入的 Mapper 会让口径更难追溯。
+ *
  * @author SCM Platform Team
  * @since 2026-11-06
  */
