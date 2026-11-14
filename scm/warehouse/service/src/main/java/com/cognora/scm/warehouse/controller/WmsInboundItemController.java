@@ -1,8 +1,10 @@
 package com.cognora.scm.warehouse.controller;
 
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.scm.warehouse.domain.entity.WmsInboundItem;
 import com.cognora.scm.warehouse.service.command.WmsInboundItemCommandService;
@@ -25,6 +27,8 @@ public class WmsInboundItemController {
 
     @Operation(summary = "创建入库明细", description = "为指定入库单新增一条商品明细行。")
     @PostMapping
+    @PreAuthorize("hasAuthority('warehouse:inbound-item:create')")
+    @AuditLog(operation = "创建入库明细", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsInboundItem> create(@RequestBody WmsInboundItem item) {
         log.info("[API] 创建入库明细: inboundId={}, skuId={}", (item.getInboundId() + "").replace("\r", "_").replace("\n", "_"), (item.getSkuId() + "").replace("\r", "_").replace("\n", "_"));
         WmsInboundItem created = inboundItemCommandService.create(item);
@@ -34,6 +38,8 @@ public class WmsInboundItemController {
 
     @Operation(summary = "更新入库明细", description = "按主键更新入库明细的数量、库位等信息。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:inbound-item:update')")
+    @AuditLog(operation = "更新入库明细", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsInboundItem> update(@Parameter(description = "入库明细主键 ID") @PathVariable String id, @RequestBody WmsInboundItem item) {
         log.info("[API] 更新入库明细: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         item.setId(id);
@@ -46,6 +52,8 @@ public class WmsInboundItemController {
 
     @Operation(summary = "删除入库明细", description = "按主键逻辑删除入库明细行。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:inbound-item:delete')")
+    @AuditLog(operation = "删除入库明细", businessType = "WAREHOUSE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "入库明细主键 ID") @PathVariable String id) {
         log.info("[API] 删除入库明细: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         boolean success = inboundItemCommandService.softDeleteById(id);
@@ -54,6 +62,7 @@ public class WmsInboundItemController {
 
     @Operation(summary = "查询入库明细详情", description = "按主键查询入库明细，明细不存在或已删除时返回 404。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:inbound-item:view')")
     public ApiResponse<WmsInboundItem> getById(@Parameter(description = "入库明细主键 ID") @PathVariable String id) {
         WmsInboundItem item = inboundItemQueryService.getById(id);
         if (item == null || Boolean.TRUE.equals(item.getDeleted())) {
@@ -64,6 +73,7 @@ public class WmsInboundItemController {
 
     @Operation(summary = "查询入库单明细列表", description = "根据入库单 ID 查询该入库单下的全部明细行。")
     @GetMapping("/list")
+    @PreAuthorize("hasAuthority('warehouse:inbound-item:list-by-inbound-id')")
     public ApiResponse<List<WmsInboundItem>> listByInboundId(
             @Parameter(description = "入库单主键 ID") @RequestParam String inboundId) {
         return ApiResponse.success(inboundItemQueryService.listByInboundId(inboundId));

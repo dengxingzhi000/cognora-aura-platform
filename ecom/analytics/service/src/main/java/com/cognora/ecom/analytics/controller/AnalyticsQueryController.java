@@ -3,12 +3,14 @@ package com.cognora.ecom.analytics.controller;
 import com.cognora.ecom.analytics.api.dto.DatasetQueryRequest;
 import com.cognora.ecom.analytics.api.dto.DatasetQueryResult;
 import com.cognora.ecom.analytics.query.QueryEngine;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.tenant.TenantContextHolder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -37,6 +39,8 @@ public class AnalyticsQueryController {
 
     @Operation(summary = "执行分析查询", description = "按数据集与指标、维度定义执行声明式分析查询，并按组织范围过滤数据。")
     @PostMapping("/query")
+    @PreAuthorize("hasAuthority('analytics:query:query')")
+    @AuditLog(operation = "执行分析查询", businessType = "ANALYTICS", riskLevel = 2)
     public ApiResponse<DatasetQueryResult> query(
             @RequestBody DatasetQueryRequest request,
             @RequestHeader(value = "X-Organization-Ids", required = false) String organizationIds) {

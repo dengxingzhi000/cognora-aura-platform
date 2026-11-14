@@ -3,7 +3,9 @@ package com.cognora.scm.purchase.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurQuotation;
 import com.cognora.scm.purchase.service.IPurQuotationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,18 +25,21 @@ public class PurQuotationController {
 
     @Operation(summary = "根据 ID 查询报价单", description = "按主键查询供应商报价单的详细信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:quotation:view')")
     public PurQuotation getById(@Parameter(description = "报价单 ID") @PathVariable String id) {
         return purQuotationService.getById(id);
     }
 
     @Operation(summary = "根据报价单号查询", description = "通过报价单号查询供应商报价单详情。")
     @GetMapping("/no/{quotationNo}")
+    @PreAuthorize("hasAuthority('purchase:quotation:get-by-quotation-no')")
     public PurQuotation getByQuotationNo(@Parameter(description = "报价单号") @PathVariable String quotationNo) {
         return purQuotationService.getByQuotationNo(quotationNo);
     }
 
     @Operation(summary = "分页查询报价单", description = "按状态、供应商和关联询价单分页查询报价单。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('purchase:quotation:page')")
     public Page<PurQuotation> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -46,42 +51,54 @@ public class PurQuotationController {
 
     @Operation(summary = "按询价单查询报价列表", description = "查询指定询价单收到的全部供应商报价。")
     @GetMapping("/rfq/{rfqId}")
+    @PreAuthorize("hasAuthority('purchase:quotation:list-by-rfq-id')")
     public List<PurQuotation> listByRfqId(@Parameter(description = "询价单 ID") @PathVariable String rfqId) {
         return purQuotationService.listByRfqId(rfqId);
     }
 
     @Operation(summary = "按供应商查询报价列表", description = "查询指定供应商提交的全部报价单。")
     @GetMapping("/supplier/{supplierId}")
+    @PreAuthorize("hasAuthority('purchase:quotation:list-by-supplier-id')")
     public List<PurQuotation> listBySupplierId(@Parameter(description = "供应商 ID") @PathVariable String supplierId) {
         return purQuotationService.listBySupplierId(supplierId);
     }
 
     @Operation(summary = "新增报价单", description = "创建一份新的供应商报价单。")
     @PostMapping
+    @PreAuthorize("hasAuthority('purchase:quotation:create')")
+    @AuditLog(operation = "新增报价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurQuotation purQuotation) {
         return purQuotationService.save(purQuotation);
     }
 
     @Operation(summary = "更新报价单", description = "按主键更新供应商报价单信息。")
     @PutMapping
+    @PreAuthorize("hasAuthority('purchase:quotation:update')")
+    @AuditLog(operation = "更新报价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurQuotation purQuotation) {
         return purQuotationService.updateById(purQuotation);
     }
 
     @Operation(summary = "删除报价单", description = "按主键删除供应商报价单。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:quotation:delete')")
+    @AuditLog(operation = "删除报价单", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "报价单 ID") @PathVariable String id) {
         return purQuotationService.removeById(id);
     }
 
     @Operation(summary = "提交报价单", description = "将供应商报价单提交，推进到待评审状态。")
     @PostMapping("/{id}/submit")
+    @PreAuthorize("hasAuthority('purchase:quotation:submit')")
+    @AuditLog(operation = "提交报价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean submit(@Parameter(description = "报价单 ID") @PathVariable String id) {
         return purQuotationService.submit(id);
     }
 
     @Operation(summary = "选用报价单", description = "记录选用人信息并将该报价单标记为已选用。")
     @PostMapping("/{id}/select")
+    @PreAuthorize("hasAuthority('purchase:quotation:select')")
+    @AuditLog(operation = "选用报价单", businessType = "PURCHASE", riskLevel = 3)
     public boolean select(
             @Parameter(description = "报价单 ID") @PathVariable String id,
             @Parameter(description = "选用人 ID") @RequestParam String selectedBy,

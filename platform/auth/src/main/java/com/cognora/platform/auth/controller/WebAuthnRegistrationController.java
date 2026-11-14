@@ -6,6 +6,7 @@ import com.cognora.platform.auth.service.IWebauthnCredentialService;
 import com.cognora.platform.auth.webauthn.WebAuthnConfig;
 import com.cognora.platform.auth.webauthn.WebAuthnRequestContext;
 import com.cognora.platform.common.dto.auth.WebAuthnRegisterChallengeResponse;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.security.util.HttpServletRequestUtils;
 import com.cognora.platform.common.web.domain.SecurityUser;
@@ -47,6 +48,7 @@ public class WebAuthnRegistrationController {
     @Operation(summary = "生成注册挑战", description = "为当前用户生成 WebAuthn 凭证注册所需的随机挑战值。")
     @PostMapping("/challenge")
     @PreAuthorize("isAuthenticated()")
+    @AuditLog(operation = "生成 WebAuthn 注册挑战", businessType = "CREDENTIAL", riskLevel = 1)
     public ApiResponse<WebAuthnRegisterChallengeResponse> generateRegistrationChallenge(
             @AuthenticationPrincipal SecurityUser user,
             HttpServletRequest request) {
@@ -63,6 +65,7 @@ public class WebAuthnRegistrationController {
     @Operation(summary = "校验注册并保存凭证", description = "校验 WebAuthn 注册结果并保存新的通行密钥凭证。")
     @PostMapping("/verify")
     @PreAuthorize("isAuthenticated()")
+    @AuditLog(operation = "注册 WebAuthn 通行密钥凭证", businessType = "CREDENTIAL", riskLevel = 4, recordParams = false)
     public ApiResponse<WebauthnCredentialDTO> registerCredential(
             @Valid @RequestBody WebauthnRegistrationRequest request,
             @AuthenticationPrincipal SecurityUser user,

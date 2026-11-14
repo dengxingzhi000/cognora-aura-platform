@@ -1,6 +1,7 @@
 package com.cognora.scm.purchase.controller;
 
 import com.cognora.platform.common.exception.ServiceException;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurRequest;
 import com.cognora.scm.purchase.domain.entity.PurRequestItem;
 import com.cognora.scm.purchase.service.IPurRequestItemService;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,18 +37,22 @@ public class PurRequestItemController {
 
     @Operation(summary = "根据 ID 查询申请明细", description = "按明细主键查询单条采购申请明细记录。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:request-item:view')")
     public PurRequestItem getById(@Parameter(description = "申请明细主键 ID") @PathVariable String id) {
         return purRequestItemService.getById(id);
     }
 
     @Operation(summary = "查询申请单下的明细列表", description = "根据采购申请单 ID 查询该申请单包含的全部明细行。")
     @GetMapping("/list/{requestId}")
+    @PreAuthorize("hasAuthority('purchase:request-item:list-by-request-id')")
     public List<PurRequestItem> listByRequestId(@Parameter(description = "采购申请单 ID") @PathVariable String requestId) {
         return purRequestItemService.listByRequestId(requestId);
     }
 
     @Operation(summary = "新增申请明细", description = "向草稿或已驳回的采购申请追加一条明细行。")
     @PostMapping
+    @PreAuthorize("hasAuthority('purchase:request-item:create')")
+    @AuditLog(operation = "新增申请明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurRequestItem purRequestItem) {
         if (purRequestItem == null) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "明细内容不能为空");
@@ -58,6 +64,8 @@ public class PurRequestItemController {
 
     @Operation(summary = "修改申请明细", description = "仅草稿或已驳回的采购申请可以修改明细。")
     @PutMapping
+    @PreAuthorize("hasAuthority('purchase:request-item:update')")
+    @AuditLog(operation = "修改申请明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurRequestItem purRequestItem) {
         if (purRequestItem == null) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "明细内容不能为空");
@@ -72,6 +80,8 @@ public class PurRequestItemController {
 
     @Operation(summary = "删除申请明细", description = "仅草稿或已驳回的采购申请可以删除明细。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:request-item:delete')")
+    @AuditLog(operation = "删除申请明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "申请明细主键 ID") @PathVariable String id) {
         PurRequestItem existing = requireItem(id);
         requireEditable(existing.getRequestId());
@@ -80,6 +90,8 @@ public class PurRequestItemController {
 
     @Operation(summary = "按申请单删除明细", description = "仅草稿或已驳回的采购申请可以清空明细。")
     @DeleteMapping("/request/{requestId}")
+    @PreAuthorize("hasAuthority('purchase:request-item:delete-by-request-id')")
+    @AuditLog(operation = "按采购申请删除明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean deleteByRequestId(@Parameter(description = "采购申请单 ID") @PathVariable String requestId) {
         requireEditable(requestId);
         return purRequestItemService.deleteByRequestId(requestId);
