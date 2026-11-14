@@ -1,5 +1,8 @@
 server:
-  port: 8209
+  # 8215, not 8209: platform-approval already owns 8209 (see the Ports table in README.md).
+  # Two services on the same port meant the second one to start failed with
+  # "Port 8209 was already in use" unless every operator remembered to override it by hand.
+  port: ${SERVER_PORT:8215}
 
 spring:
   application:

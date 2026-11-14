@@ -771,11 +771,8 @@ kubectl create job --from=cronjob/db-maintenance-weekly db-maint-manual-$(date +
    ```
 
 2. psql 必须真的连上库：`[maintenance] <task> ok` 这行是 runner 在脚本跑完之后**再做一次连通性校验**才打印的；
-   连不上时会打印 `[maintenance] <task> FAILED (exit 1) postgres target <host>:<port> database <db> unreachable ...`。
+   连不上时会打印 `[maintenance] <task> FAILED (exit 1) postgres target <host>:<port> unreachable ...`。
    而 `create-partitions.sh` 自己会用 `|| true` 吞掉 psql 的失败——只看脚本自己的输出会误判成功。
-   校验探测的是**该任务真正连过的库**（create/drop → `db_order`，create-audit/retention → `db_audit`），
-   不是 `postgres` 库：受限角色常常没有 `postgres` 的 CONNECT 权限，用 `-d postgres` 会把已经成功的维护报成
-   FAILED。需要整体换探测库时设 `DB_PROBE_DB`。
 
 3. 检查分区没有重复、没有越过保留期：
 

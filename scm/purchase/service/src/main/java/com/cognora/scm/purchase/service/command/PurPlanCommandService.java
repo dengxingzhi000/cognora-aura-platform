@@ -3,7 +3,6 @@ package com.cognora.scm.purchase.service.command;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.cognora.platform.common.data.rw.annotation.Master;
 import com.cognora.platform.common.exception.ServiceException;
-import com.cognora.platform.common.status.StatusValidator;
 import com.cognora.scm.purchase.domain.PurPlanStatus;
 import com.cognora.scm.purchase.domain.entity.PurPlan;
 import com.cognora.scm.purchase.domain.entity.PurPlanItem;
@@ -33,10 +32,20 @@ import java.util.UUID;
  *       同状态空转。</li>
  * </ul>
  *
- * <p>{@code submit/approve} 除编译期状态机外还过一遍运行期状态字典
- * （{@code StatusValidator}），因为这两个动作在字典里已登记。开始执行与完成只走
- * 编译期状态机：字典里的 {@code PURCHASE} 流转规则尚未覆盖编码 4，依赖字典会让
- * 这两个动作在未同步字典的环境里全部失败。
+ * <p><b>为什么四条流转全部只走进程内状态机、不再调 {@code StatusValidator}：</b>
+ * 此前只有 {@code submit/approve} 过运行期状态字典（Dubbo 调 platform-system），
+ * 而 {@code startExecution/complete} 只走编译期枚举——同一个状态机一半依赖字典、
+ * 一半不依赖，行为不对等：
+ * <ul>
+ *   <li>platform-system 不可用时，计划<strong>能提交能审批，却无法开始执行/完成</strong>，
+ *       故障表现取决于你调的是哪个动作；</li>
+ *   <li>字典里的 {@code PURCHASE} 是 {@code DRAFT→PENDING_APPROVAL→APPROVED→ORDERED→…}
+ *       的字符串词表，与 {@code pur_plan.status} 的 SMALLINT 编码（0..4）不是一套，
+ *       两边一旦漂移就会出现「字典说合法、编码写不进去」。</li>
+ * </ul>
+ * 现在唯一权威是 {@link PurPlanStatus#canTransitionTo}：纯进程内、无网络依赖、
+ * 可单测钉死。运行期字典仍可用于前端展示可选动作，但<strong>不再作为写路径的
+ * 校验闸门</strong>。
  *
  * @author SCM Platform Team
  * @since 2025-12-25
@@ -48,7 +57,6 @@ public class PurPlanCommandService {
 
     private final PurPlanMapper purPlanMapper;
     private final PurPlanItemMapper purPlanItemMapper;
-    private final StatusValidator statusValidator;
 
     @Master(reason = "保存采购计划")
     @Transactional(rollbackFor = Exception.class)
@@ -72,7 +80,6 @@ public class PurPlanCommandService {
     @Transactional(rollbackFor = Exception.class)
     public boolean submit(String id) {
         PurPlan plan = requirePlan(id);
-        statusValidator.validateTransition("PURCHASE", "DRAFT", "PENDING_APPROVAL");
         transition(plan, PurPlanStatus.PENDING_APPROVAL);
         return purPlanMapper.updateById(plan) > 0;
     }
@@ -81,7 +88,6 @@ public class PurPlanCommandService {
     @Transactional(rollbackFor = Exception.class)
     public boolean approve(String id, String approverId, String approverName) {
         PurPlan plan = requirePlan(id);
-        statusValidator.validateTransition("PURCHASE", "PENDING_APPROVAL", "APPROVED");
         transition(plan, PurPlanStatus.APPROVED);
         plan.setApprovedBy(approverId);
         plan.setApprovedByName(approverName);

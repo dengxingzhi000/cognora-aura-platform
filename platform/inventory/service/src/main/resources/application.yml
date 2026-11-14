@@ -227,10 +227,7 @@ xxl:
       logretentiondays: 30
     accessToken: default_token
 
-# ONE top-level `cognora` block only: Spring Boot's YAML loader accepts duplicate
-# keys but keeps the LAST one, silently discarding the first — which dropped this
-# service's whole `security.headers` block (HSTS, frame-options, content-type
-# options) at runtime while the app still started.
+# Logging
 cognora:
   security:
     headers:
@@ -243,6 +240,21 @@ cognora:
     alert:
       # Comma-separated user ids that receive stock alerts when the alert row names none.
       notify-user-ids: ${INVENTORY_ALERT_NOTIFY_USER_IDS:}
+    # 智能补货的跨服务只读依赖。
+    replenishment:
+      # 采购在途量：available + inTransit 才决定是否触发补货，漏算会重复下单。
+      purchase-in-transit:
+        enabled: ${REPL_PURCHASE_IN_TRANSIT_ENABLED:true}
+        service-id: ${PURCHASE_SERVICE_ID:scm-purchase}
+        # 补货是批处理，下游卡住不能把一轮计算拖到分钟级；超时后降级为「仅建议在途」。
+        connect-timeout-ms: 2000
+        read-timeout-ms: 5000
+      # SKU→material 映射：转采购计划时必需，缺失则该单转不过去（不猜编码）。
+      product-lookup:
+        enabled: ${REPL_PRODUCT_LOOKUP_ENABLED:true}
+        service-id: ${PRODUCT_SERVICE_ID:platform-product}
+        connect-timeout-ms: 2000
+        read-timeout-ms: 3000
 
     # 智能补货的跨服务只读依赖。
     replenishment:

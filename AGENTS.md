@@ -125,8 +125,8 @@ Read from each module's `application.yml`.
 | Service | Port | Service | Port |
 |---------|------|---------|------|
 | Gateway | 8761 | Finance | 8208 |
-| Auth | 8106 | Message | 8209 ⚠ |
-| System | 8081 | Approval | 8209 ⚠ |
+| Auth | 8106 | Message | 8215 |
+| System | 8081 | Approval | 8209 |
 | Product | 8201 | Audit | 8210 |
 | File | 8214 | Notify | 8211 |
 | Inventory | 8202 | Tenant | 8212 |
@@ -140,12 +140,13 @@ Read from each module's `application.yml`.
 | | | Search | 8307 |
 | | | Analytics | 8308 |
 
-Real collisions in the checked-in config — override `server.port` before running
-both halves of a pair:
-
-- `platform-message` ↔ `platform-approval` — both 8209
-- Grafana ↔ `cognora-aura-web` dev server — both 3000 (`docker-compose.yml` maps `3000:3000`)
-- `schema-registry` ↔ `platform-system` — both 8081
+**No port collisions remain.** Four used to exist and are fixed in the config
+itself (do not re-add the old numbers): `platform-message` → **8215**
+(`platform-approval` keeps 8209); `schema-registry` publishes host **18081**
+(container 8081) so `platform-system` can own 8081; Grafana publishes host
+**13000** (container 3000) so the `cognora-aura-web` dev server can own 3000;
+`alertmanager` publishes host **9094** (container 9093) so Kafka can own 9093.
+`scripts/ci/check_port_conflicts.py` fails the build if a new one appears.
 
 Infra: Nacos 8848 (+9848/9849), Redis 6379, PostgreSQL 5432, PgBouncer 6432,
 Kafka 9092/9093, RabbitMQ 5672/15672, Elasticsearch 9200, ClickHouse 8123,
@@ -309,12 +310,9 @@ no service overrides them.
   404 in total). The exemption list is the default value of
   `ApiAccessControlProperties` (`platform/common/web`): `whitelist` /
   `exemptPaths` / `exemptPathExclusions` / `internalSignaturePaths` /
-  `signatureOrPermissionPaths`. This sweep added **neither** annotation to any
-  exempt endpoint — a `@PreAuthorize` there would 403 service-to-service calls and
-  payment callbacks (an `@AuditLog` would not break them, but it needlessly audits
-  internal traffic). Six `@AuditLog`s on exempt endpoints and one on a GET
-  (`GET /api/system/users/export`) predate the sweep and were left alone. An
-  endpoint with **no row in the
+  `signatureOrPermissionPaths`. Exempt endpoints carry **neither** annotation —
+  an `@AuditLog` or an `@PreAuthorize` there breaks service-to-service calls,
+  payment callbacks and the search index. An endpoint with **no row in the
   permission catalog** deliberately carries **no `@PreAuthorize`** either; those
   endpoints are listed in the gap report
   `docs/superpowers/specs/2026-11-12-permission-catalog-gaps.md` and are already
@@ -322,27 +320,6 @@ no service overrides them.
   them changes nothing. `scripts/ci/check_permission_annotation_drift.py` runs in
   CI and fails the build when an `@PreAuthorize` code drifts from the catalog or
   an exempt endpoint carries an annotation.
-- **`@PreAuthorize` must match the *runtime* candidate set, not one catalog row.**
-  `ApiAccessControlFilter` authorises with `anyMatch` over every catalog row whose
-  `api_path` matches the request, and `ApiPermissionMatcher` resolves literal rows
-  *and* `{var}` templates. So `/api/v1/fulfillments/page` also matches
-  `/api/v1/fulfillments/{fulfillmentNo}`: a user holding either code passes the
-  filter. An annotation naming only one of them silently narrows access and 403s a
-  legitimate user. Where a request resolves to more than one code the annotation is
-  `hasAnyAuthority('<primary>', '<other>', ...)` — **140 endpoints** need it
-  (513 `hasAuthority` + 140 `hasAnyAuthority` = 653 authority annotations, plus the
-  20 pre-existing `isAuthenticated()`). The drift checker computes the same candidate
-  set and requires the annotation to equal it (template endpoints use a conservative
-  superset, which is safe because the filter runs first). When you add a catalog row
-  whose `api_path` shadows a literal one, re-run
-  `py -3 scripts/tools/permission_annotation_map.py --tracked-only` and update the
-  annotation it points at.
-  **The superset depends on the filter running first.** `ApiAccessControlFilter` is
-  `HIGHEST_PRECEDENCE + 30`, so only requests it admits ever reach the method-level
-  `@PreAuthorize` — extra codes in a template endpoint's annotation therefore grant
-  nothing. If `cognora.security.api-filter.enabled` is ever turned off, those
-  supersets become real over-grants and the annotations must be tightened back to
-  the single code the URL resolves to.
 
 ### 权限解析（短 Token 之后）与生产密钥守卫
 
@@ -365,11 +342,15 @@ no service overrides them.
   （打 WARN），k8s 清单 / `.env.example` 的值仍然拒绝。`cognora.security.secrets.strict`
   可显式收紧或放宽。k8s 清单与 docker-compose 的 ecom 服务都会注入 `JWT_SECRET` 与
   `API_SECRET_INTERNAL_SERVICE`。
-- **订单中心置「已支付」只有一条路**：`POST /api/v1/orders/{orderNo}/pay` 现在只认服务间
-  HMAC 签名（`internalSignaturePaths`，唯一合法调用方是 ecom-payment 在渠道验签之后），
-  且必须带 `paidAmount`（要与订单 `payableAmount` 相等）与 `transactionId`；不带金额/
-  交易号的旧口径已删除（`OrderCenterPaymentContractTest` 会失败）。**目前 ecom-payment
-  尚未回调该端点**，闭环属 `architecture-review.md` P1-1（订单真值源收敛）的后续工作。
+- **订单中心置「已支付」只有一条路，且已闭环**：`POST /api/v1/orders/{orderNo}/pay` 只认服务间
+  HMAC 签名（`internalSignaturePaths`），必须带 `paidAmount`（要与订单 `payableAmount` 相等）与
+  `transactionId`；不带金额/交易号的旧口径已删除（`OrderCenterPaymentContractTest` 会失败）。
+  调用方是 `ecom-payment` 的 `SignedOrderPaidNotifier`：`PaymentPaidListener` 在支付事务
+  **提交之后**（`@TransactionalEventListener(AFTER_COMMIT)`）通过带签名的 `@LoadBalanced
+  RestClient` 回调。用事件而非事务内直接调用，是为了避免「本地事务回滚但订单已被推进」；
+  回调失败只记 `ORDER_PAID_NOT_DELIVERED` + ERROR，不打断支付（钱已到账），由对账补偿。
+  两侧契约由 `OrderPaidNotificationContractTest`（支付侧）与 `OrderCenterPaymentContractTest`
+  （订单侧）共同锁死。
 
 ### Datasource routing (`@DS`)
 
@@ -406,12 +387,7 @@ primary** — no replica infrastructure is needed to run it. All seven expose th
 `readwrite` actuator endpoint (`GET /actuator/readwrite`), and each of the six
 Phase 1 services pins the YAML shape with a `ReadWriteApplicationConfigTest`
 (CI never boots a Spring context, so that static test is the only automated
-guard). **Caveat: the `platform-inventory` and `scm-purchase` copies of that test
-cannot run yet** — those two modules do not compile until the in-flight types land
-(tracked files reference types that are not in the repository), so for those two
-services the YAML shape is currently unguarded in CI. Check them by hand, or
-re-check once the modules compile. Routing semantics, fallback and observability
-are documented in
+guard). Routing semantics, fallback and observability are documented in
 `docs/guides/READ_WRITE_SEPARATION_GUIDE.md`; the VM verification checklist is
 in `docs/operations/OPERATIONS_MANUAL.md` (`scm-order` still ships an
 unactivated `application-readwrite.yml` template).
@@ -848,9 +824,19 @@ npm run test:e2e     # Playwright
   names are deprecated shims).
 - The POM's `<excludedGroups>` wins over `-DexcludedGroups=`, so re-enabling
   integration tests means editing the parent POM or adding a profile.
-- **No CI job ever boots a Spring context** (`mvn clean test-compile test` only
-  runs Mockito units), so bean-wiring defects ship silently. Verified locally on
-  `scm-order`: a business service needs PostgreSQL, Redis, RabbitMQ (the
+- **CI still does not boot a Spring context.** `build` runs only Mockito units.
+  A `@ContextSmokeTest` mechanism (real `@SpringBootApplication` + in-memory H2)
+  was written and then **withdrawn**, because the contexts it booted for
+  `ecom-payment` and `ecom-order-center` could not start: those services need
+  wiring that the exclusion list did not cover, so the job was red for reasons
+  unrelated to the change under test. The H2 driver and `dubbo-registry-multicast`
+  stay on the test classpath (parent POM) and `@ContextSmokeTest` is the design
+  recorded in `docs/development/COVERAGE_GATE.md`; re-introduce it only together
+  with a context that actually starts.
+  The defect class it was meant to catch is real and still uncovered: CI never
+  constructs beans, so a missing `@Service`, an ambiguous bean or an unsatisfied
+  dependency ships silently. When you touch wiring, boot the service locally.
+  `scm-order` is the hardest case: it needs PostgreSQL, Redis, RabbitMQ (the
   `RabbitAdmin` declares queues at startup), a Nacos registry (Dubbo consumers
   such as `InventoryDubboService`) and a reachable XXL-Job admin
   (`XxlJobConfig` refuses an empty `xxl.job.admin.addresses`). It also needs
@@ -868,6 +854,28 @@ npm run test:e2e     # Playwright
   auto-configured types.
 - CI runs `mvn clean test-compile test` on PRs and `mvn clean verify` on
   pushes.
+- **Coverage is gated by a ratchet, not a single threshold.**
+  `jacoco.skip=true` is still the default, so a plain `mvn verify` does NOT run
+  the coverage rules. The `coverage-gate` CI job passes
+  `-Djacoco.skip=false` plus `-Djacoco.line.minimum` / `-Djacoco.branch.minimum`
+  per module, reading them from `scripts/ci/coverage-baseline.tsv`. Measured
+  2026-11-14: gateway 71.9%/55.0%, payment 62.4%/57.6%, order-center 44.7%/44.1%,
+  common-web 28.8%/26.1% — a flat 70/60 gate would be red forever and then get
+  switched off again. **A module's numbers may only go up**: add tests, then
+  raise that row. Modules absent from the TSV are not gated yet.
+  See `docs/development/COVERAGE_GATE.md`.
+
+### 端口冲突与覆盖率相关脚本
+
+`python3 scripts/ci/check_port_conflicts.py` fails the build when two services
+declare the same `server.port` or two compose services publish the same host
+port. It runs in the `build` job. **Ports already resolved** (do not re-add the
+old numbers): `platform-message` is **8215** (approval keeps 8209);
+`schema-registry` publishes host **18081** (container 8081, for
+`platform-system`); Grafana publishes host **13000** (container 3000, for the
+Next.js dev server); `alertmanager` publishes host **9094** (container 9093, for
+Kafka). Each was previously the second process to start losing the bind.
+
 
 ## Kubernetes
 
@@ -887,10 +895,34 @@ order/warehouse/finance/supplier/purchase, `lms-tms*` for logistics):
 - Shared: `_helpers.tpl`, `configmap.yml`, `namespace.yml`, `secrets.yml`,
   `multi-az-topology-spread.yaml`.
 
-No manifests exist for the e-commerce layer (member, promotion, payment,
-order-center, fulfillment, search, analytics). Helm charts live in
-`deploy/helm/cognora-aura-platform`, ArgoCD in `deploy/argocd`. Health endpoint:
-`/actuator/health` on each service's port.
+Helm charts live in `deploy/helm/cognora-aura-platform`, ArgoCD in
+`deploy/argocd`. Health endpoint: `/actuator/health` on each service's port.
+
+**The e-commerce manifests exist now, but they are generated — do not hand-edit.**
+The 8 `deploy/k8s/ecom-*.yaml` files come from
+`scripts/gen_ecom_k8s_manifests.py`, which derives each service's port, database
+and extra env from its own `application.yml` and cross-checks them against a
+table in the script. Regenerate instead of editing:
+
+```bash
+python3 scripts/gen_ecom_k8s_manifests.py          # rewrite the manifests
+python3 scripts/gen_ecom_k8s_manifests.py --check  # CI: table vs code, and stale files
+```
+
+Why a generator: the 8 files are ~90 near-identical lines each, and a wrong
+database name or a missing secret is invisible until a pod fails to start. The
+script fails instead of emitting a wrong manifest — verified by both drift modes
+(corrupt a manifest; put a wrong database in the table). `--check` runs in the
+`build` job. The ecom layer **shares** databases
+(`ecom-member`→`db_user`, `ecom-payment`→`db_finance`,
+`ecom-mall`/`ecom-order-center`→`db_order`, `ecom-fulfillment`→`db_warehouse`,
+`ecom-promotion`→`db_promotion`, `ecom-analytics`→`db_analytics`), which is
+exactly why the name cannot be derived from the service name and is pinned in
+that table. `ecom-search` has **no** relational datasource — Elasticsearch only.
+
+These manifests are generated from the existing pattern and have **not** been
+deployed to a real cluster; treat them as a starting point, not proof of
+deployability.
 
 ## CI
 
@@ -922,9 +954,12 @@ order-center, fulfillment, search, analytics). Helm charts live in
   `scripts/db/ci_validate_tenant_admin_scope.sql` asserts `ROLE_TENANT_ADMIN`
   holds no `tenant:*` permission and no `menu:tenant%` console shortcut is
   granted to non-platform roles.
-- Docker images are built for 15 services only (not member/promotion/payment/
-  search/mall/…); deploy jobs roll only auth, gateway and system images (dev
-  from `develop`, prod from `master`).
+- **Docker images are built for 23 services**: the 15 core/scm ones plus all 8
+  `ecom-*` services (member, promotion, payment, order-center, mall, fulfillment,
+  search, analytics). The ecom 8 were "written but never published" until
+  P2-1 — their Dockerfiles existed but the matrix omitted them, so no ecom image
+  was ever produced. Deploy jobs still roll only auth, gateway and system images
+  (dev from `develop`, prod from `master`).
 
 Other workflows: `codeql.yml`, `backup.yml` (daily 02:00 DB backup),
 `release-docker.yml`, `deploy-gh-pages.yml`, `stale.yml`, `labeler.yml`.

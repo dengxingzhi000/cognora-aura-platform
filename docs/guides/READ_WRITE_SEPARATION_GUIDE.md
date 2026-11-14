@@ -1,6 +1,6 @@
 # 读写分离（主从）使用指南
 
-适用模块：`platform/common/data-rw`（实现）、`platform/common/data`（请求作用域过滤器）、
+适用模块：`scm-common/data-rw`（实现）、`scm-common/data`（请求作用域过滤器）、
 使用 `@Master` / `@Slave` 的业务服务。已启用读写分离的服务：`platform-product`
 （group `product`）、`scm-order`（`order`）、`platform-inventory`（`inventory`）、
 `scm-warehouse`（`warehouse`）、`scm-supplier`（`supplier`）、`scm-purchase`
