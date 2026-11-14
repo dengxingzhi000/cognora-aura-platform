@@ -38,6 +38,11 @@ spec:
                 configMapKeyRef:
                   name: scm-config
                   key: nacos-namespace
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: scm-secrets
+                  key: jwt-secret
             - name: API_SECRET_INTERNAL_SERVICE
               valueFrom:
                 secretKeyRef:

@@ -111,4 +111,14 @@ data:
   db-username: YWRtaW4=          # admin (base64)
   db-password: YWRtaW4xMjM=      # admin123 (base64)
   redis-password: cmVkaXMxMjM=   # redis123 (base64)
-  jwt-secret: c2NtLWp3dC1zZWNyZXQta2V5LTIwMjY=  # scm-jwt-secret-key-2026 (base64)
+  # 占位符。StartupSecretValidator / 网关 SecurityConfigurationValidator 会拒绝用它启动，
+  # 所以这两个值必须替换后才能起服务：
+  #   kubectl -n scm-platform create secret generic scm-secrets \
+  #     --from-literal=jwt-secret="$(openssl rand -base64 64)" \
+  #     --from-literal=api-secret-internal-service="$(openssl rand -hex 32)" \
+  #     --dry-run=client -o yaml | kubectl apply -f -
+  jwt-secret: c2NtLWp3dC1zZWNyZXQta2V5LTIwMjY=  # scm-jwt-secret-key-2026 (base64) — 占位
+  # 该 key 此前缺失，而 scm-platform 命名空间的 17 个清单都引用它，
+  # Pod 会以 CreateContainerConfigError（secret key not found）起不来。
+  api-secret-internal-service: Y2hhbmdlbWU=      # "changeme" (base64) — 占位，审计服务会拒绝启动
+

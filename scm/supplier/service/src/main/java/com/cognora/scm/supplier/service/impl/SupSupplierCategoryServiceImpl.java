@@ -2,6 +2,8 @@ package com.cognora.scm.supplier.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.exception.ServiceException;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.scm.supplier.domain.entity.SupSupplierCategory;
@@ -30,6 +32,7 @@ public class SupSupplierCategoryServiceImpl
     private final SupSupplierCategoryRelMapper categoryRelMapper;
 
     @Override
+    @Slave
     public List<SupSupplierCategory> listCategories(String keyword, Boolean enabled) {
         return lambdaQuery()
                 .and(StringUtils.hasText(keyword), w -> w
@@ -44,6 +47,7 @@ public class SupSupplierCategoryServiceImpl
     }
 
     @Override
+    @Master(reason = "创建供应商分类")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierCategory createCategory(SupSupplierCategory category) {
         validateCategory(category);
@@ -71,6 +75,7 @@ public class SupSupplierCategoryServiceImpl
     }
 
     @Override
+    @Master(reason = "更新供应商分类")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierCategory updateCategory(String id, SupSupplierCategory category) {
         SupSupplierCategory existing = getById(id);
@@ -99,6 +104,7 @@ public class SupSupplierCategoryServiceImpl
     }
 
     @Override
+    @Master(reason = "删除供应商分类")
     @Transactional(rollbackFor = Exception.class)
     public void deleteCategory(String id) {
         SupSupplierCategory existing = getById(id);

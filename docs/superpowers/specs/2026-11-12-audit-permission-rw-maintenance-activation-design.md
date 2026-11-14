@@ -176,8 +176,10 @@
 ### 5.2 @PreAuthorize 扫描（G2）
 
 - 注解：`org.springframework.security.access.prepost.PreAuthorize`，
-  形态 `@PreAuthorize("hasAuthority('<code>')")`（与 platform-system 现状一致；
-  不用 `hasRole`/`hasAnyAuthority`，除非目录行本身表达多码）。
+  默认形态 `@PreAuthorize("hasAuthority('<code>')")`（与 platform-system 现状一致）。
+  **例外（C1 修正）**：请求 URL 在运行时可能命中多个目录码时（字面量行 + `{var}` 模板行
+  同时匹配，见下），必须用 `hasAnyAuthority('<primary>', '<other>', ...)` 覆盖全部候选；
+  此时「目录行本身表达多码」正是本节允许 `hasAnyAuthority` 的条件。`hasRole` 仍然不用。
 - **码的唯一事实源**：`scripts/db/seed/*.sql` 中形如
   `('<code>', '<名称>', '<menu>', '<url>', '<METHOD>', <sort>, <risk>)` 的目录行
   （`019_api_permission_coverage.sql` 等）。映射规则（builder check 修订）：
@@ -185,8 +187,18 @@
   - literal 行按 api_path 精确匹配；templated 行（`{var}` 占位）同样有效（D9），
     `{id}` ↔ `{id}` 原样匹配，个别 `*` 通配先归一化再匹配；
   - method 精确匹配（templated 行个别方法为 `*` 的，按任意方法匹配）；
-  - filter 端语义是 **anyMatch**（URL 的全部候选码命中其一即放行），且目录已验证
-    无重复 (url, method) 行（642 个唯一对），每个端点的码唯一，可机械推导。
+  - filter 端语义是 **anyMatch**（URL 的全部候选码命中其一即放行）。目录里没有重复
+    (url, method) 行（663 行 / 662 个唯一对）**并不等于**每个请求只有一个码：Spring 的
+    `AntPathMatcher` 让 `/api/v1/fulfillments/{fulfillmentNo}` 命中
+    `/api/v1/fulfillments/page`，因此候选码集合必须按**运行时匹配**计算；
+    `hasAnyAuthority` 与 CI 护栏都据此推导（`runtime_candidates`）。
+  - **超集为什么是安全的**：模板端点的候选取「存在某个具体请求路径同时命中端点模板与
+    目录行」的全集，例如 `/api/v1/analytics/datasets/code/fields` 同时命中
+    `/datasets/{datasetId}/fields` 与 `/datasets/code/{code}`。少列一个码 = 把 filter
+    已放行的用户挡成 403；多列的码不会放宽访问，因为 `ApiAccessControlFilter`
+    （`HIGHEST_PRECEDENCE + 30`）**先于**方法级安全执行，只有它放行的请求才会走到
+    `@PreAuthorize`。**这个前提一旦改变（例如关掉 `cognora.security.api-filter.enabled`），
+    模板端点的注解就必须重新收紧。**
 - **豁免清单**：与 5.1 相同（HMAC 端点、渠道回调、whitelist/exempt-paths）。
   另外：`@PreAuthorize` 不得打在服务间（Dubbo/RestClient 内部）调用的非 HTTP 代码上——
   本扫描只处理 controller。
@@ -356,8 +368,21 @@ after 只统计 git 跟踪的 controller（794 个端点、其中 461 个写端�
 | lms-tms | 36 | 36 |
 | **合计** | **593** | **673** |
 
-全量 673 处里有 20 处是 `isAuthenticated()` 形态（全部是既有代码，新增的一律是
-`hasAuthority('<code>')`）；`hasAuthority` 形态共 653 处。
+全量 673 处里有 20 处是 `isAuthenticated()` 形态（全部是既有代码，新增的一律带权限码）；
+其余 653 处注解 = 513 处 `hasAuthority('<code>')` + 140 处
+`hasAnyAuthority('<primary>', '<other>', ...)`。
+
+**为什么有 140 处多码注解（C1 修正）**：`ApiAccessControlFilter` 是 **anyMatch** ——
+`ApiPermissionMatcher` 同时解析字面量行与 `{var}` 模板行，`/api/v1/fulfillments/page`
+也会命中 `/api/v1/fulfillments/{fulfillmentNo}`，用户持有其中任一码即被 filter 放行。
+只写一个码会把 filter 已放行的合法用户挡成 403（正是本设计的头号反目标）。因此凡是
+请求 URL 的运行时候选码多于一个的端点，注解必须写成 `hasAnyAuthority(...)` 覆盖**全部**
+候选；模板端点的候选取保守超集（filter 先跑，超集安全）。这 140 处按域分布
+scm 67 / platform 52 / lms-tms 12 / ecom 9，其中 **platform/system 8 处**
+（`SysUserController`）、**platform/audit 4 处**（两个审计 controller 各 2 处），
+其余是本次新增；`hasAuthority` 的单码形态仍是默认。CI 护栏
+`check_permission_annotation_drift.py` 现在比较「注解码集合 == 运行时候选集合」，
+不再只比对一条目录行 —— 否则这类收窄无法被 CI 发现。
 
 ### 其他两项交付的现状（2026-11-13）
 

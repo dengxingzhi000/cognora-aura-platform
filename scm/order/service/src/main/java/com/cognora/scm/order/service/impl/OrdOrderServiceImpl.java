@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.domain.Money;
 import com.cognora.platform.common.integration.outbox.OutboxService;
 import com.cognora.platform.common.tenant.TenantContextHolder;
@@ -133,6 +134,7 @@ public class OrdOrderServiceImpl extends ServiceImpl<OrdOrderMapper, OrdOrder> i
     }
 
     @Override
+    @Master(reason = "更新订单状态")
     @Transactional(rollbackFor = Exception.class)
     public boolean updateOrderStatus(UUID orderId, Integer status) {
         log.info("更新订单状态 orderId={}, status={}", orderId, status);
@@ -203,6 +205,7 @@ public class OrdOrderServiceImpl extends ServiceImpl<OrdOrderMapper, OrdOrder> i
     }
 
     @Override
+    @Slave
     public List<OrdOrder> listByUserId(String userId) {
         log.debug("查询用户订单: userId={}", userId);
         LambdaQueryWrapper<OrdOrder> wrapper = Wrappers.lambdaQuery();
@@ -213,6 +216,7 @@ public class OrdOrderServiceImpl extends ServiceImpl<OrdOrderMapper, OrdOrder> i
     }
 
     @Override
+    @Slave
     public Page<OrdOrder> pageByUserId(String userId, Integer pageNum, Integer pageSize) {
         log.debug("分页查询用户订单: userId={}, pageNum={}, pageSize={}", userId, pageNum, pageSize);
         LambdaQueryWrapper<OrdOrder> wrapper = Wrappers.lambdaQuery();

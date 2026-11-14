@@ -3,6 +3,8 @@ package com.cognora.scm.supplier.service.impl;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.exception.ServiceException;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.scm.supplier.domain.entity.SupSupplier;
@@ -31,6 +33,7 @@ public class SupSupplierBankAccountServiceImpl
     private final SupSupplierMapper supplierMapper;
 
     @Override
+    @Slave
     public List<SupSupplierBankAccount> listBySupplierId(String supplierId) {
         requireSupplier(supplierId);
         return lambdaQuery()
@@ -42,6 +45,7 @@ public class SupSupplierBankAccountServiceImpl
     }
 
     @Override
+    @Master(reason = "新增供应商银行账户")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierBankAccount create(String supplierId, SupSupplierBankAccount account) {
         requireSupplier(supplierId);
@@ -83,6 +87,7 @@ public class SupSupplierBankAccountServiceImpl
     }
 
     @Override
+    @Master(reason = "更新供应商银行账户")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierBankAccount update(String id, SupSupplierBankAccount account) {
         SupSupplierBankAccount existing = getById(id);
@@ -110,6 +115,7 @@ public class SupSupplierBankAccountServiceImpl
     }
 
     @Override
+    @Master(reason = "删除供应商银行账户")
     @Transactional(rollbackFor = Exception.class)
     public boolean delete(String id) {
         SupSupplierBankAccount existing = getById(id);
@@ -122,6 +128,7 @@ public class SupSupplierBankAccountServiceImpl
     }
 
     @Override
+    @Master(reason = "设置默认银行账户")
     @Transactional(rollbackFor = Exception.class)
     public boolean setDefault(String id) {
         SupSupplierBankAccount existing = getById(id);

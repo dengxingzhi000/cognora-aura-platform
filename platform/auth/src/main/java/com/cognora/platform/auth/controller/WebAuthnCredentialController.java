@@ -2,6 +2,7 @@ package com.cognora.platform.auth.controller;
 
 import com.cognora.platform.auth.domain.dto.WebauthnCredentialDTO;
 import com.cognora.platform.auth.service.IWebauthnCredentialService;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.web.domain.SecurityUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,6 +56,7 @@ public class WebAuthnCredentialController {
     @Operation(summary = "修改凭证设备名", description = "为指定凭证设置便于识别的设备名称。")
     @PutMapping("/{credentialId}/name")
     @PreAuthorize("isAuthenticated()")
+    @AuditLog(operation = "修改 WebAuthn 凭证设备名", businessType = "CREDENTIAL", riskLevel = 3)
     public ApiResponse<WebauthnCredentialDTO> updateDeviceName(
             @Parameter(description = "WebAuthn 凭证 ID") @PathVariable String credentialId,
             @NotBlank(message = "Device name cannot be empty")
@@ -74,6 +76,7 @@ public class WebAuthnCredentialController {
     @Operation(summary = "删除凭证", description = "删除当前用户名下指定的 WebAuthn 凭证。")
     @DeleteMapping("/{credentialId}")
     @PreAuthorize("isAuthenticated()")
+    @AuditLog(operation = "删除 WebAuthn 凭证", businessType = "CREDENTIAL", riskLevel = 4)
     public ApiResponse<Void> deleteCredential(
             @Parameter(description = "WebAuthn 凭证 ID") @PathVariable String credentialId,
             @AuthenticationPrincipal SecurityUser user) {
@@ -90,6 +93,7 @@ public class WebAuthnCredentialController {
     @Operation(summary = "停用凭证", description = "停用指定凭证，停用后将无法用于登录认证。")
     @PutMapping("/{credentialId}/deactivate")
     @PreAuthorize("isAuthenticated()")
+    @AuditLog(operation = "停用 WebAuthn 凭证", businessType = "CREDENTIAL", riskLevel = 4)
     public ApiResponse<Void> deactivateCredential(
             @Parameter(description = "WebAuthn 凭证 ID") @PathVariable String credentialId,
             @AuthenticationPrincipal SecurityUser user) {

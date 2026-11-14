@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.status.StatusValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,7 @@ public class PurPriceComparisonServiceImpl extends ServiceImpl<PurPriceCompariso
     private StatusValidator statusValidator;
 
     @Override
+    @Slave
     public PurPriceComparison getByComparisonNo(String comparisonNo) {
         return lambdaQuery()
                 .eq(PurPriceComparison::getComparisonNo, comparisonNo)
@@ -33,6 +36,7 @@ public class PurPriceComparisonServiceImpl extends ServiceImpl<PurPriceCompariso
     }
 
     @Override
+    @Slave
     public Page<PurPriceComparison> pageQuery(int page, int size, Integer status, String rfqId) {
         LambdaQueryWrapper<PurPriceComparison> wrapper = Wrappers.lambdaQuery();
         if (status != null) {
@@ -47,6 +51,7 @@ public class PurPriceComparisonServiceImpl extends ServiceImpl<PurPriceCompariso
     }
 
     @Override
+    @Slave
     public List<PurPriceComparison> listByRfqId(String rfqId) {
         return lambdaQuery()
                 .eq(PurPriceComparison::getRfqId, rfqId)
@@ -56,6 +61,7 @@ public class PurPriceComparisonServiceImpl extends ServiceImpl<PurPriceCompariso
     }
 
     @Override
+    @Master(reason = "审批比价分析")
     @Transactional(rollbackFor = Exception.class)
     public boolean approve(String id, String approverId, String approverName) {
         PurPriceComparison comparison = getById(id);

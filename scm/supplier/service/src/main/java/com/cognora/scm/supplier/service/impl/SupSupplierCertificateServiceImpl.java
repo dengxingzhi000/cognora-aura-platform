@@ -2,6 +2,8 @@ package com.cognora.scm.supplier.service.impl;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.exception.ServiceException;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.scm.supplier.domain.entity.SupSupplier;
@@ -39,6 +41,7 @@ public class SupSupplierCertificateServiceImpl
     private final SupSupplierMapper supplierMapper;
 
     @Override
+    @Slave
     public List<SupSupplierCertificate> listBySupplierId(String supplierId) {
         requireSupplier(supplierId);
         List<SupSupplierCertificate> certificates = lambdaQuery()
@@ -51,6 +54,7 @@ public class SupSupplierCertificateServiceImpl
     }
 
     @Override
+    @Master(reason = "新增供应商资质")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierCertificate create(String supplierId, SupSupplierCertificate certificate) {
         requireSupplier(supplierId);
@@ -73,6 +77,7 @@ public class SupSupplierCertificateServiceImpl
     }
 
     @Override
+    @Master(reason = "更新供应商资质")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierCertificate update(String id, SupSupplierCertificate certificate) {
         SupSupplierCertificate existing = getById(id);
@@ -96,6 +101,7 @@ public class SupSupplierCertificateServiceImpl
     }
 
     @Override
+    @Master(reason = "删除供应商资质")
     @Transactional(rollbackFor = Exception.class)
     public boolean delete(String id) {
         SupSupplierCertificate existing = getById(id);
@@ -107,6 +113,7 @@ public class SupSupplierCertificateServiceImpl
     }
 
     @Override
+    @Master(reason = "审核供应商资质")
     @Transactional(rollbackFor = Exception.class)
     public void verify(String id, boolean approved, String operatorId, String remark) {
         SupSupplierCertificate certificate = getById(id);
@@ -124,6 +131,7 @@ public class SupSupplierCertificateServiceImpl
     }
 
     @Override
+    @Slave
     public Page<SupSupplierCertificate> pageExpiring(int page, int size, int days) {
         LocalDate today = LocalDate.now();
         int boundedDays = Math.max(0, Math.min(days, 365));
@@ -154,6 +162,7 @@ public class SupSupplierCertificateServiceImpl
     }
 
     @Override
+    @Slave
     public long countExpiring(int days) {
         LocalDate today = LocalDate.now();
         int boundedDays = Math.max(0, Math.min(days, 365));

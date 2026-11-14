@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -18,6 +19,7 @@ import java.util.List;
 public class PurRequestServiceImpl extends ServiceImpl<PurRequestMapper, PurRequest> implements IPurRequestService {
 
     @Override
+    @Slave
     public PurRequest getByRequestNo(String requestNo) {
         return lambdaQuery()
                 .eq(PurRequest::getRequestNo, requestNo)
@@ -26,6 +28,7 @@ public class PurRequestServiceImpl extends ServiceImpl<PurRequestMapper, PurRequ
     }
 
     @Override
+    @Slave
     public Page<PurRequest> pageQuery(int page, int size, Integer status, Integer requestType, String keyword) {
         LambdaQueryWrapper<PurRequest> wrapper = Wrappers.lambdaQuery();
         if (status != null) {
@@ -48,6 +51,7 @@ public class PurRequestServiceImpl extends ServiceImpl<PurRequestMapper, PurRequ
     }
 
     @Override
+    @Slave
     public List<PurRequest> listByStatus(Integer status) {
         return lambdaQuery()
                 .eq(PurRequest::getStatus, status)

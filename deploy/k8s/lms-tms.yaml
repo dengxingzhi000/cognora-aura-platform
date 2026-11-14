@@ -53,6 +53,11 @@ spec:
                 secretKeyRef:
                   name: scm-secrets
                   key: db-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: scm-secrets
+                  key: jwt-secret
             - name: API_SECRET_INTERNAL_SERVICE
               valueFrom:
                 secretKeyRef:

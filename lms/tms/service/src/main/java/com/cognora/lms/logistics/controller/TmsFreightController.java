@@ -83,6 +83,7 @@ public class TmsFreightController {
 
     @Operation(summary = "运费试算", description = "按承运商 + 区域解析模板，计算首重/续重/体积重与区域价后的应收运费。")
     @PostMapping("/quote")
+    @AuditLog(operation = "运费试算", businessType = "LOGISTICS", riskLevel = 1)
     public ApiResponse<FreightQuote> quote(@RequestBody FreightQuoteRequest request) {
         return ApiResponse.success(templateService.quote(
                 request.carrierId(), request.regionCode(), request.weight(), request.volume()));

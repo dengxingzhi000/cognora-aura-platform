@@ -34,12 +34,14 @@
 
 ## 2. 启用现状
 
-- `scm-product` 已在 `scm-product/service/src/main/resources/application.yml` 启用。
+- 已启用 7 个服务（标准形态见第 3 节）：`platform-product`（group `product`）+
+  Phase 1 的 `scm-order` / `platform-inventory` / `scm-warehouse` / `scm-supplier` /
+  `scm-purchase` / `lms-tms`。
 - 其它服务保持 `spring.datasource.rw.enabled=false`（默认值），行为与单库完全一致。
 - `spring.datasource.rw.enabled=true` 但 `groups` 为空时，自动配置只打一条 WARN，
   不注册任何路由 Bean，服务继续使用原来的 `spring.datasource` 单库。
 
-## 3. 配置示例（scm-product）
+## 3. 配置示例（platform-product）
 
 ```yaml
 spring:
@@ -251,7 +253,7 @@ curl -H "X-Tenant-Id: <uuid>" http://localhost:8201/actuator/readwrite
 
 已执行（`mvn -o test`）：
 
-- `scm-common/data-rw`：**106 个测试，0 失败，1 跳过**。新增覆盖：
+- `platform/common/data-rw`：**106 个测试，0 失败，1 跳过**。新增覆盖：
   - 熔断：失败后打开、打开期间 `connect` 返回 null、窗口结束后 HALF_OPEN 试探成功恢复
     CLOSED、`enabled=false` 时惰性；
   - 数据源级熔断：从库查询异常 → 下一次 `getConnection` 回退主库并计 `fallback`；
@@ -260,16 +262,16 @@ curl -H "X-Tenant-Id: <uuid>" http://localhost:8201/actuator/readwrite
   - 负载均衡：`LEAST_CONNECTIONS` 在有一个从库繁忙时选择另一个；计数在获取/关闭/
     失败获取三条路径上正确；
   - 启动校验：`@DS` 与额外 dynamic datasource 都会让 Context 启动失败，错误信息可读。
-- `scm-common/data`：29 个测试，0 失败，3 跳过。
-- `scm-product/service`：18 个测试，0 失败，含 `application.yml` 全量绑定（含
-  `circuit-breaker` 段、从库 5s 超时、默认目标主库）。
+- `platform/common/data`：29 个测试，0 失败，3 跳过。
+- `platform/product/service`：全量构建时 **60 个测试，0 失败**，含 `application.yml`
+  全量绑定（含 `circuit-breaker` 段、从库 5s 超时、默认目标主库）。
 - 交叉 `test-compile`：`scm-finance`、`scm-logistics`、`scm-audit`、`scm-order` 通过。
 
 **真实双 PostgreSQL 测试（默认跳过，可一键启用）**：
 
 ```bash
 # 前提：Docker daemon 可用（Docker Desktop / WSL2 docker / 远程 DOCKER_HOST 均可）
-mvn test -pl ../scm-common/data-rw -Drw.it=true -Dtest=ReadWriteTwoDatabaseTest
+mvn test -pl ../platform/common/data-rw -Drw.it=true -Dtest=ReadWriteTwoDatabaseTest
 ```
 
 `ReadWriteTwoDatabaseTest` 用两个 `postgres:16-alpine` 容器验证：写落主库、
@@ -283,7 +285,7 @@ mvn test -pl ../scm-common/data-rw -Drw.it=true -Dtest=ReadWriteTwoDatabaseTest
 - 本机只安装了 Docker CLI，没有 Docker Desktop、没有 docker 服务，`docker version`
   连接 `//./pipe/docker_engine` 失败，无法启动守护进程；因此上面的真实双库测试
   **没有执行**，只完成了逻辑级与装配级验证。
-- 没有启动完整 `scm-product`（需要 PostgreSQL/Nacos/Redis/XXL-Job）；YAML 与自动装配
+- 没有启动完整 `platform-product`（需要 PostgreSQL/Nacos/Redis/XXL-Job）；YAML 与自动装配
   只在 `ApplicationContextRunner` 级别验证（不可达的 JDBC URL 也能正常启动）。
 - Sentinel 在真实流量下的熔断触发时机（慢请求比例、异常比例、半开恢复）只做了
   缩小参数（`min-request-amount=1`、`stat-interval=1s`）的定时验证。

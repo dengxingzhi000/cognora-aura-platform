@@ -7,6 +7,8 @@ import com.cognora.lms.logistics.domain.entity.TmsCarrierDispatch;
 import com.cognora.lms.logistics.mapper.TmsCarrierDispatchMapper;
 import com.cognora.lms.logistics.service.ITmsCarrierDispatchService;
 import com.cognora.lms.logistics.support.TenantGuard;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.access.AccessDeniedException;
@@ -24,6 +26,7 @@ public class TmsCarrierDispatchServiceImpl extends ServiceImpl<TmsCarrierDispatc
         implements ITmsCarrierDispatchService {
 
     @Override
+    @Master(reason = "承运商派发起始：写入派发记录")
     @Transactional(rollbackFor = Exception.class)
     public TmsCarrierDispatch beginDispatch(String idempotencyKey, String waybillNo, String primaryCarrierId) {
         TenantGuard.requireTenant();
@@ -59,6 +62,7 @@ public class TmsCarrierDispatchServiceImpl extends ServiceImpl<TmsCarrierDispatc
     }
 
     @Override
+    @Master(reason = "更新承运商派发结果")
     public TmsCarrierDispatch completeDispatch(String id, String actualCarrierId, int attemptCount,
                                                String result, String errorMessage) {
         TenantGuard.requireTenant();
@@ -81,6 +85,7 @@ public class TmsCarrierDispatchServiceImpl extends ServiceImpl<TmsCarrierDispatc
     }
 
     @Override
+    @Slave
     public TmsCarrierDispatch findByIdempotencyKey(String idempotencyKey) {
         if (!StringUtils.hasText(idempotencyKey)) {
             return null;

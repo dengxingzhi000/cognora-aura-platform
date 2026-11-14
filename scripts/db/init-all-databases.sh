@@ -127,6 +127,10 @@ SCM_SCRIPTS=(
     "microservices/015_db_supplier.sql:db_supplier"
     "microservices/017_db_finance.sql:db_finance"
     "microservices/018_db_purchase.sql:db_purchase"
+    # 采购批次 1：放宽 pur_plan.status 约束，追加 4=执行中，配合 PurPlanStatus
+    # 让 APPROVED(2) → EXECUTING(4) → COMPLETED(3) 成为真实两步流转。
+    # 幂等（DROP CONSTRAINT IF EXISTS 再 ADD），可重复执行。
+    "migrations/purchase_001_plan_executing_status.sql:db_purchase"
     # 028 is the forward migration that adds tenant_id to the 34 business
     # tables covered by scripts/db/ci_validate_tenant_id.sql. It is
     # idempotent (information_schema-guarded) so it is also safe to run

@@ -68,7 +68,7 @@
 | 1 | scm-payment | `POST /api/v1/payments/refunds/{refundNo}/approve`、`/reject` | 任意已登录用户可审批/驳回任意退款单，直接触发资金流 | 权限码 `payment:refund:approve-refund` / `payment:refund:reject-refund`，并校验退款单归属商户/租户 |
 | 2 | scm-order | `PUT /api/v1/refunds/{id}/approve`、`/reject`、`/complete` | 任意用户可审核通过或完成任意退款 | 权限码 `order:refund:approve` / `order:refund:reject` / `order:refund:complete` |
 | 3 | scm-order | `PUT /api/v1/orders/{id}/status` | 任意用户可推进任意订单状态（状态机只校验合法性，不校验操作人） | 权限码 `order:order:update-status`；按目标状态拆细（发货/完成等） |
-| 4 | scm-order-center | `POST /api/v1/orders/{orderNo}/pay`、`/ship`、`/deliver`、`/confirm`、`/cancel` | 任意用户可对任意订单支付/发货/签收/取消 | 权限码 `order-center:order:pay-order` 等；同时校验订单归属 |
+| 4 | scm-order-center | `POST /api/v1/orders/{orderNo}/pay`、`/ship`、`/deliver`、`/confirm`、`/cancel` | 任意用户可对任意订单支付/发货/签收/取消 | 权限码 `order-center:order:pay-order` 等；同时校验订单归属。**2026-11-11 更新**：`/pay` 已改为服务间 HMAC 专属通道（`internalSignaturePaths`），不再走权限目录；支付必须带 `paidAmount`（等于订单 `payableAmount`）与 `transactionId`，见 `architecture-review.md` 0.1 |
 | 5 | scm-finance | `POST /settlement-order/{id}/pay`、`/invoice/{id}/issue`、`/void`、`/red-flush`、`/platform-service-fee/{id}/pay` | 任意用户可确认结算、开票、作废/红冲发票、支付服务费 | 权限码 `finance:settlement-order:pay`、`finance:invoice:issue/void-invoice/red-flush`、`finance:service-fee:pay` |
 | 6 | scm-tenant | `POST /tenant`、`DELETE /tenant/{id}`、`PUT /tenant/{id}/disable`、`POST /tenant/provisioning` 等全部 52 条 | 任意已登录用户可创建/停用/删除租户、开通租户、改套餐/配额/配置，等于跨租户管理权限 | 权限码 `tenant:*`；并且只授予真正的平台管理员角色，不能授予租户管理员 |
 | 7 | scm-audit | `GET /sys-audit-log/page`、`/user/{userId}`、`/module/{module}`、`/sys-sensitive-operation-log/page` 等 9 条查询路由（另有 1 条内部写入） | 任意用户可读全租户审计日志与敏感操作日志，可按任意 userId 查询 | 权限码 `audit:log:page/view`、`audit:sensitive:page/view`；限定安全管理员 |
@@ -592,7 +592,7 @@ psql -h localhost -p 5432 -U admin -d db_permission -v ON_ERROR_STOP=1 -f script
 | POST | `/api/v1/orders/{orderNo}/cancel` | OrderCenterController.cancelOrder | 无 | 管理端 | order-center:order:cancel-order |
 | POST | `/api/v1/orders/{orderNo}/confirm` | OrderCenterController.confirmOrder | 无 | 管理端 | order-center:order:confirm-order |
 | POST | `/api/v1/orders/{orderNo}/deliver` | OrderCenterController.deliverOrder | 无 | 管理端 | order-center:order:deliver-order |
-| POST | `/api/v1/orders/{orderNo}/pay` | OrderCenterController.payOrder | 无 | 管理端 | order-center:order:pay-order |
+| POST | `/api/v1/orders/{orderNo}/pay` | OrderCenterController.applyVerifiedPayment | 服务间 HMAC 签名（`internalSignaturePaths`） | 仅 ecom-payment 验签回调 | 不登记权限目录（2026-11-11 起） |
 | POST | `/api/v1/orders/{orderNo}/ship` | OrderCenterController.shipOrder | 无 | 管理端 | order-center:order:ship-order |
 | GET | `/api/v1/orders/{orderNo}` | OrderCenterController.getOrder | 无 | 管理端 | order-center:order:get-order |
 | GET | `/api/v1/orders/page` | OrderCenterController.page | 无 | 混合（管理端+自助） | order-center:order:page；有 userId 时校验本人 |

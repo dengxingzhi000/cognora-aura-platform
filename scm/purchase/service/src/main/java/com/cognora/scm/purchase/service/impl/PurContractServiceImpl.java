@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.status.StatusValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,7 @@ public class PurContractServiceImpl extends ServiceImpl<PurContractMapper, PurCo
     private StatusValidator statusValidator;
 
     @Override
+    @Slave
     public PurContract getByContractNo(String contractNo) {
         return lambdaQuery()
                 .eq(PurContract::getContractNo, contractNo)
@@ -33,6 +36,7 @@ public class PurContractServiceImpl extends ServiceImpl<PurContractMapper, PurCo
     }
 
     @Override
+    @Slave
     public Page<PurContract> pageQuery(int page, int size, Integer status, Integer contractType, String supplierId, String keyword) {
         LambdaQueryWrapper<PurContract> wrapper = Wrappers.lambdaQuery();
         if (status != null) {
@@ -58,6 +62,7 @@ public class PurContractServiceImpl extends ServiceImpl<PurContractMapper, PurCo
     }
 
     @Override
+    @Slave
     public List<PurContract> listByStatus(Integer status) {
         return lambdaQuery()
                 .eq(PurContract::getStatus, status)
@@ -67,6 +72,7 @@ public class PurContractServiceImpl extends ServiceImpl<PurContractMapper, PurCo
     }
 
     @Override
+    @Slave
     public List<PurContract> listBySupplierId(String supplierId) {
         return lambdaQuery()
                 .eq(PurContract::getSupplierId, supplierId)
@@ -76,6 +82,7 @@ public class PurContractServiceImpl extends ServiceImpl<PurContractMapper, PurCo
     }
 
     @Override
+    @Master(reason = "签署合同")
     @Transactional(rollbackFor = Exception.class)
     public boolean sign(String id, String signedBy, String signedByName) {
         PurContract contract = getById(id);
@@ -92,6 +99,7 @@ public class PurContractServiceImpl extends ServiceImpl<PurContractMapper, PurCo
     }
 
     @Override
+    @Master(reason = "终止合同")
     @Transactional(rollbackFor = Exception.class)
     public boolean terminate(String id) {
         PurContract contract = getById(id);

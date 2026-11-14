@@ -222,6 +222,14 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
+# platform-common-integration 会自动注册 kafkaListenerContainerFactory，它的地址只读
+# integration.kafka.bootstrap-servers（不读 spring.kafka.*）。本块缺失时该属性回落到
+# 默认值 localhost:9092，容器内 status-dict-change 消费者会一直重连本机 broker。
+# scm-order / platform-inventory 都有同样的块。
+integration:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+
   security:
     default-password: ${DEFAULT_PASSWORD:changeme}
 

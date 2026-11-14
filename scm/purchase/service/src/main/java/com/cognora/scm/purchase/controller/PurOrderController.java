@@ -57,6 +57,7 @@ public class PurOrderController {
 
     @Operation(summary = "查询采购订单明细", description = "查询指定采购订单下的全部明细行。")
     @GetMapping("/{id}/items")
+    @PreAuthorize("hasAuthority('purchase:order:list-items')")
     public ApiResponse<List<PurOrderItem>> listItems(@Parameter(description = "采购订单 ID") @PathVariable String id) {
         return ApiResponse.success(purOrderItemService.listByOrderId(id));
     }
