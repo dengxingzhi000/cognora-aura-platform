@@ -26,13 +26,12 @@ Redis-hot inventory, and a Next.js control tower.**
 
 </div>
 
-> [!IMPORTANT]
-> **Three ports collide in a default local run.** `platform-message` ↔
-> `platform-approval` both bind 8209, `schema-registry` ↔ `platform-system` both
-> bind 8081, and Grafana in `docker-compose.yml` maps `3000:3000` — the same host
-> port the Next.js dev server wants. Override `server.port` for whichever service
-> you don't need, and remap Grafana if you want both the dashboards and the
-> frontend.
+> [!NOTE]
+> Earlier revisions of this file listed three real port collisions (message ↔ approval on
+> 8209, schema-registry ↔ platform-system on 8081, Grafana ↔ the Next.js dev server on
+> 3000). **All three are fixed in the config itself**, so nothing here needs a manual
+> override any more — see [Ports](#ports). `scripts/ci/check_port_conflicts.py` fails the
+> build if a new one is introduced.
 
 ---
 
@@ -180,7 +179,7 @@ Routes are locale-prefixed — `/{locale}/login`, `/{locale}/dashboard`, … whe
 | Sentinel Dashboard | http://localhost:8858                                 |
 | XXL-Job Admin      | http://localhost:8088/xxl-job-admin                   |
 | Prometheus         | http://localhost:9090                                 |
-| Grafana            | http://localhost:3000 ⚠ — conflicts with the frontend |
+| Grafana            | http://localhost:13000                                |
 
 ### Environment variables
 
@@ -257,7 +256,7 @@ setting anything. Override via your shell or a `.env` file — never commit one:
    │  auth :8106 · system :8081 · file :8214 · product :8201 │
    │  inventory :8202 · order :8203 · warehouse :8204        │
    │  logistics :8205 · supplier :8206 · purchase :8207      │
-   │  finance :8208 · message :8209⚠ · approval :8209⚠       │
+   │  finance :8208 · message :8215 · approval :8209         │
    │  audit :8210 · notify :8211 · tenant :8212 · document :8213│
    └────────┬───────────────────────────────────────────────┘
              │
@@ -313,7 +312,7 @@ names the constraint that actually shapes the design, not just the config.
 
 | Module                          | Port   | Description                                                                                       |
 | ------------------------------- | ------ | ------------------------------------------------------------------------------------------------- |
-| `cognora-aura-web`              | 3000 ⚠ | Frontend (separate repo) — Next.js 16, shadcn/ui + Ant Design 6, Zustand, TanStack Query           |
+| `cognora-aura-web`              | 3000   | Frontend (separate repo) — Next.js 16, shadcn/ui + Ant Design 6, Zustand, TanStack Query           |
 | `platform-gateway`              | 8761   | API Gateway — routing, rate limiting, cross-cutting concerns                                      |
 | `platform-auth`                 | 8106   | Authentication — OAuth2, JWT, WebAuthn passwordless login                                         |
 | `platform-system`               | 8081   | System management — users, roles, permissions, departments                                        |
@@ -326,8 +325,8 @@ names the constraint that actually shapes the design, not just the config.
 | `scm-supplier`                  | 8206   | Suppliers — onboarding, evaluation, settlements                                                   |
 | `scm-purchase`                  | 8207   | Procurement — RFQ, quotations, contracts, purchase orders                                         |
 | `scm-finance`                   | 8208   | Finance — settlements, invoices, freight rules, reconciliation                                    |
-| `platform-message`              | 8209 ⚠ | Messaging — SMS / email / push dispatch, channel adapters                                         |
-| `platform-approval`             | 8209 ⚠ | Approval workflows — configurable approval processes                                              |
+| `platform-message`              | 8215   | Messaging — SMS / email / push dispatch, channel adapters                                         |
+| `platform-approval`             | 8209   | Approval workflows — configurable approval processes                                              |
 | `platform-audit`                | 8210   | Audit — operation logs, sensitive operation tracking                                              |
 | `platform-notify`               | 8211   | In-app notifications — templates, multi-channel delivery                                          |
 | `platform-tenant`               | 8212   | Multi-tenant — tenant lifecycle, packages, feature flags                                          |
@@ -524,8 +523,8 @@ kubectl apply -f deploy/argocd/application.yaml
 | `scm-supplier`       | 8206   |                       |
 | `scm-purchase`       | 8207   |                       |
 | `scm-finance`        | 8208   |                       |
-| `platform-message`   | 8209 ⚠ |                       |
-| `platform-approval`  | 8209 ⚠ |                       |
+| `platform-message`   | 8215   |                       |
+| `platform-approval`  | 8209   |                       |
 | `platform-audit`     | 8210   |                       |
 | `platform-notify`    | 8211   |                       |
 | `platform-tenant`    | 8212   |                       |
@@ -616,13 +615,20 @@ machines, and those paths are machine-specific.
 <details>
 <summary><strong>Why do several services want the same port?</strong></summary>
 
-These are real collisions in the checked-in configuration, not doc errors.
-`platform-message` and `platform-approval` both want 8209, `schema-registry`
-and `platform-system` both want 8081, and Grafana maps `3000:3000` while the
-Next.js dev server also wants 3000.
+They no longer do. Three collisions used to exist in the checked-in config —
+`platform-message`/`platform-approval` on 8209, `schema-registry`/`platform-system`
+on 8081, and Grafana/the Next.js dev server on 3000 — and each was only
+discoverable by starting the second process. They are now resolved in the config:
 
-All of them are safe to work around: override `server.port` for whichever service
-you aren't running, or remap the Grafana host port in `docker-compose.yml`.
+| Was | Now |
+|---|---|
+| `platform-message` 8209 = `platform-approval` 8209 | `platform-message` → **8215** |
+| `schema-registry` host 8081 = `platform-system` 8081 | schema-registry → host **18081** (container still 8081) |
+| Grafana host 3000 = frontend dev server 3000 | Grafana → host **13000** (container still 3000) |
+| `alertmanager` host 9093 = Kafka 9093 | alertmanager → host **9094** (container still 9093) |
+
+`python3 scripts/ci/check_port_conflicts.py` runs in CI and fails the build when a
+new collision is introduced, so this list should stay empty.
 
 </details>
 

@@ -31,6 +31,10 @@ desktop.ini
 # Maven
 .mvn/wrapper/maven-wrapper.jar
 
+# Python (scripts/ci 与 scripts/tools 的工具脚本)
+__pycache__/
+*.pyc
+
 # Docker
 .docker/
 

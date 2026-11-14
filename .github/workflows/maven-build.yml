@@ -68,6 +68,32 @@ jobs:
       - name: Validate OpenAPI snapshot against controller mappings
         run: python3 scripts/ci/check_openapi_drift.py
 
+      # 每个 @PreAuthorize("hasAuthority('code')") 都必须能按 (path, method) 在
+      # 权限目录（scripts/db/seed/*.sql）里命中同一个码；豁免端点不许带注解。
+      # 报错退出码非 0 即失败；目录里查不到的端点只报 WARNING（缺口清单另见
+      # docs/superpowers/specs/2026-11-12-permission-catalog-gaps.md）。
+      - name: Validate permission annotations against the permission catalog
+        run: python3 scripts/ci/check_permission_annotation_drift.py
+
+      # 检查器自身的 fixture 测试（正例/反例各一套），防止护栏自己坏掉。
+      - name: Test the permission annotation drift checker
+        run: python3 scripts/ci/test_check_permission_annotation_drift.py
+
+      # 映射工具与检查器的规则一致性（豁免清单、seed 目录、路径匹配窗口）。
+      - name: Test permission rules conformance
+        run: python3 scripts/ci/test_permission_rules_conformance.py
+
+      # 端口冲突：两个服务的 server.port 相同，或 compose 里两个容器映射同一个宿主机端口。
+      # 这类缺陷只在"第二个进程启动"时暴露，靠人工 override 记不住；静态检查是 CI 里
+      # 唯一能自动发现它的手段。每加一个服务/容器都应保持这里为 0 冲突。
+      - name: Validate no port conflicts
+        run: python3 scripts/ci/check_port_conflicts.py
+
+      # ecom 的 8 个 k8s 清单由脚本生成（数据库名/端口来自各自 application.yml）。
+      # --check 同时做两件事：表和代码是否一致，签入的清单是否已过期。
+      - name: Validate ecom k8s manifests are up to date
+        run: python3 scripts/gen_ecom_k8s_manifests.py --check
+
       - name: Initialize databases
         if: github.event_name == 'push'
         env:
@@ -160,6 +186,120 @@ jobs:
           path: |
             **/target/surefire-reports/
             **/target/site/jacoco/
+
+  # 覆盖率门禁（P1-2）。父 POM 里 jacoco.skip=true，所以 `mvn verify` 从不执行
+  # JaCoCo 的 70%/60% 规则——门禁形同虚设。这里真正执行它，但按模块传入基线阈值：
+  # 实测水位是 27%~72%，一刀切要求 70/60 会让构建长期变红，而长期红的门禁很快又会被
+  # 关掉。基线在 scripts/ci/coverage-baseline.tsv，只允许上调（棘轮）。
+  # 说明见 docs/development/COVERAGE_GATE.md。
+  coverage-gate:
+    name: Coverage Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Install internal BOM
+        run: mvn install -B -DskipTests -f bom/pom.xml
+
+      - name: Install shared modules the gated modules compile against
+        run: |
+          # A gated module cannot resolve platform-common-* from a bare reactor run,
+          # so install the shared libraries first (tests skipped; coverage only cares
+          # about the gated module's own bytecode).
+          mvn install -B -DskipTests -q -f com.scm.parent/pom.xml -pl ../platform/common/core,../platform/common/data,../platform/common/cache,../platform/common/security/api,../platform/common/security/core,../platform/common/system-contract
+
+      - name: Run coverage gate for every baseline entry
+        run: |
+          set -euo pipefail
+          status=0
+          # Skip comments and blank lines; tabs separate the three columns.
+          while IFS=$'\t' read -r module line_min branch_min; do
+            case "${module}" in
+              ''|'#'*) continue ;;
+            esac
+            echo "::group::coverage gate ${module} (line>=${line_min}, branch>=${branch_min})"
+            if ! mvn verify -B -f com.scm.parent/pom.xml -pl "${module}" \
+                 -Djacoco.skip=false \
+                 -Djacoco.line.minimum="${line_min}" \
+                 -Djacoco.branch.minimum="${branch_min}"; then
+              echo "::error title=Coverage dropped::${module} is below its baseline (line>=${line_min}, branch>=${branch_min}). Add tests, or if this is a deliberate scope change, update scripts/ci/coverage-baseline.tsv with the measured values and justify it in the PR."
+              status=1
+            fi
+            echo "::endgroup::"
+          done < scripts/ci/coverage-baseline.tsv
+          exit "${status}"
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-reports
+          if-no-files-found: ignore
+          path: |
+            **/target/site/jacoco/
+            **/target/site/jacoco-aggregate/
+
+  # Spring 上下文冒烟（P1-2 后半）。CI 从不启动 Spring 上下文，所以「少了 @Service /
+  # @MapperScan」「两个同类型 bean 冲突」这类装配缺陷会静默上线，直到有人手工起服务才发现。
+  # 这些测试用 @ContextSmokeTest：真 @SpringBootApplication + H2 内存库，不连任何外部设施。
+  # 反向验证过：注释掉一个 @Service 会立刻失败并指明缺哪个 bean。
+  context-smoke:
+    name: Context Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Install internal BOM
+        run: mvn install -B -DskipTests -f bom/pom.xml
+
+      - name: Install shared modules
+        run: |
+          mvn install -B -DskipTests -q -f com.scm.parent/pom.xml \
+            -pl ../platform/common/core,../platform/common/data,../platform/common/cache,../platform/common/security/api,../platform/common/security/core,../platform/common/system-contract,../platform/common/web
+
+      # 模块清单与 scripts/ci/context-smoke-modules.txt 保持一致：
+      # 新加冒烟类就把它所在模块加进去，否则那个模块永远不会被这个 job 保护。
+      - name: Run context smoke tests
+        run: |
+          set -euo pipefail
+          status=0
+          while IFS= read -r module; do
+            case "${module}" in ''|'#'*) continue ;; esac
+            echo "::group::context smoke ${module}"
+            if ! mvn test -B -f com.scm.parent/pom.xml -pl "${module}" \
+                 -Dtest='*ContextSmokeTest' -DfailIfNoTests=false; then
+              echo "::error title=Context smoke failed::${module} could not start its Spring context. This is a bean-wiring defect (missing @Service/@MapperScan, ambiguous bean, unsatisfied dependency) — not a test problem. The log names the missing bean."
+              status=1
+            fi
+            echo "::endgroup::"
+          done < scripts/ci/context-smoke-modules.txt
+          exit "${status}"
+
+      - name: Upload smoke reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: context-smoke-reports
+          if-no-files-found: ignore
+          path: '**/target/surefire-reports/'
 
   # SonarCloud identity is pinned to the historical project key:
   #   - `sonar.projectKey=scm-platform` is immutable after creation — do not rename it
@@ -327,6 +467,25 @@ jobs:
             path: platform/notify
           - service: platform-tenant
             path: platform/tenant
+          # 电商层此前「写了不发」：8 个服务的 Dockerfile 与端口都在仓库里，但构建矩阵
+          # 一个都没有，于是 ecom-* 镜像永远不会产出（P2-1）。补进来，让"代码已写"和
+          # "交付可用"一致；否则运维只能手工 build，部署清单与代码长期不同步。
+          - service: ecom-member
+            path: ecom/member
+          - service: ecom-promotion
+            path: ecom/promotion
+          - service: ecom-payment
+            path: ecom/payment
+          - service: ecom-order-center
+            path: ecom/order-center
+          - service: ecom-mall
+            path: ecom/mall
+          - service: ecom-fulfillment
+            path: ecom/fulfillment
+          - service: ecom-search
+            path: ecom/search
+          - service: ecom-analytics
+            path: ecom/analytics
 
     steps:
       - name: Checkout code

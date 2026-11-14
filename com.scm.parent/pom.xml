@@ -31,6 +31,12 @@
 
   <properties>
     <jacoco.skip>true</jacoco.skip>
+    <!-- 覆盖率门禁的默认阈值。目标是 70% 行 / 60% 分支，但各模块真实水位差异很大
+         （实测 27%~70%），所以 CI 按模块显式传入当前水位，让"不允许倒退"立即可执行，
+         同时不必等所有模块补测到达标才敢开门禁。提高某个模块的这两个值 = 提高它的门槛；
+         补测之后请同步上调，把它变成棘轮。 -->
+    <jacoco.line.minimum>0.70</jacoco.line.minimum>
+    <jacoco.branch.minimum>0.60</jacoco.branch.minimum>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
@@ -420,6 +426,30 @@
       <version>${org.projectlombok.version}</version>
       <scope>provided</scope>
     </dependency>
+
+    <!-- H2 (test scope) for the shared @ContextSmokeTest annotation.
+         The smoke test boots the real @SpringBootApplication against an in-memory database so
+         MyBatis mappers, controllers and services are all constructed; without a JDBC driver
+         the mapper wiring — the defect this test exists to catch — cannot be exercised.
+         Keeping it here means a module only has to add a test class, not a dependency. -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Multicast registry (test scope) for @ContextSmokeTest.
+         platform/common/web's StatusValidator used to carry a @DubboReference field, which made
+         every service's startup depend on a reachable registry. It now resolves the reference
+         lazily through an ObjectProvider, so the context starts without one; this dependency is
+         kept so a smoke test can still create the reference when a module needs one for real.
+         Test scope only: production keeps using Nacos exclusively. -->
+    <dependency>
+      <groupId>org.apache.dubbo</groupId>
+      <artifactId>dubbo-registry-multicast</artifactId>
+      <version>${dubbo.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -574,12 +604,17 @@
                     <limit>
                       <counter>LINE</counter>
                       <value>COVEREDRATIO</value>
-                      <minimum>0.70</minimum>
+                      <!-- 目标值仍是 70%，但默认值改成可覆盖的参数，由 CI 按模块传入
+                           "当前实测水位"（见 .github/workflows/maven-build.yml 的
+                           coverage-gate job 和 docs/development/COVERAGE_GATE.md）。
+                           真实水位是 27%~70%：一刀切要求 70/60 会让构建长期变红，
+                           于是门禁又被 skip 掉——那正是 P1-2 描述的现状。 -->
+                      <minimum>${jacoco.line.minimum}</minimum>
                     </limit>
                     <limit>
                       <counter>BRANCH</counter>
                       <value>COVEREDRATIO</value>
-                      <minimum>0.60</minimum>
+                      <minimum>${jacoco.branch.minimum}</minimum>
                     </limit>
                   </limits>
                 </rule>

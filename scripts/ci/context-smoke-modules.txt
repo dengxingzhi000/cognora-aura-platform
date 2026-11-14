@@ -1,0 +1,14 @@
+# Modules with a *ContextSmokeTest. One `-pl` path per line (relative to com.scm.parent/).
+#
+# These are the modules the `context-smoke` CI job boots a Spring context for. Adding a
+# *ContextSmokeTest to a module without adding it here means that module is not protected.
+#
+# A module is a good candidate when:
+#   - it has a @SpringBootApplication (so there is a context to boot), and
+#   - its wiring can be satisfied by H2 + excluded external infrastructure
+#     (see @ContextSmokeTest in platform/common/core).
+#
+# Measured 2026-11-14. Start with the modules whose wiring is on the critical path
+# (payment: money; order-center: order truth) and grow from there.
+../ecom/payment/service
+../ecom/order-center/service
