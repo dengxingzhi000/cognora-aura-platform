@@ -12,6 +12,8 @@ import com.cognora.lms.logistics.mapper.TmsTrackingMapper;
 import com.cognora.lms.logistics.mapper.TmsWaybillMapper;
 import com.cognora.lms.logistics.service.ITmsTrackingService;
 import com.cognora.lms.logistics.support.TenantGuard;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.log.util.LogUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +40,7 @@ public class TmsTrackingServiceImpl extends ServiceImpl<TmsTrackingMapper, TmsTr
     private final TmsWaybillMapper waybillMapper;
 
     @Override
+    @Slave
     public List<TmsTracking> listByWaybillId(String waybillId) {
         log.debug("Query tracking by waybill ID: waybillId={}", (waybillId + "").replace("\r", "_").replace("\n", "_"));
         return lambdaQuery()
@@ -47,6 +50,7 @@ public class TmsTrackingServiceImpl extends ServiceImpl<TmsTrackingMapper, TmsTr
     }
 
     @Override
+    @Slave
     public List<TmsTracking> listByWaybillNo(String waybillNo) {
         log.debug("Query tracking by waybill number: waybillNo={}", (waybillNo + "").replace("\r", "_").replace("\n", "_"));
         return lambdaQuery()
@@ -56,6 +60,7 @@ public class TmsTrackingServiceImpl extends ServiceImpl<TmsTrackingMapper, TmsTr
     }
 
     @Override
+    @Slave
     public Page<TmsTracking> pageList(int page, int size, String waybillNo, String trackStatus) {
         log.debug("Page query tracking: page={}, size={}, waybillNo={}, trackStatus={}", (page + "").replace("\r", "_").replace("\n", "_"), (size + "").replace("\r", "_").replace("\n", "_"), (waybillNo + "").replace("\r", "_").replace("\n", "_"), (trackStatus + "").replace("\r", "_").replace("\n", "_"));
 
@@ -79,6 +84,7 @@ public class TmsTrackingServiceImpl extends ServiceImpl<TmsTrackingMapper, TmsTr
      * {@code uk_tms_tracking_event(tenant_id, event_id)} 兜底，覆盖并发重复回调。</p>
      */
     @Override
+    @Master(reason = "写入物流轨迹并驱动运单状态")
     public TmsTracking addTracking(TmsTracking tracking) {
         TenantGuard.requireTenant();
 

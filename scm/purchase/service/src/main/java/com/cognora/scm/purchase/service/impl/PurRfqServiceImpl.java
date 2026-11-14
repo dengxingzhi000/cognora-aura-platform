@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.status.StatusValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,7 @@ public class PurRfqServiceImpl extends ServiceImpl<PurRfqMapper, PurRfq> impleme
     private StatusValidator statusValidator;
 
     @Override
+    @Slave
     public PurRfq getByRfqNo(String rfqNo) {
         return lambdaQuery()
                 .eq(PurRfq::getRfqNo, rfqNo)
@@ -33,6 +36,7 @@ public class PurRfqServiceImpl extends ServiceImpl<PurRfqMapper, PurRfq> impleme
     }
 
     @Override
+    @Slave
     public Page<PurRfq> pageQuery(int page, int size, Integer status, Integer rfqType, String keyword) {
         LambdaQueryWrapper<PurRfq> wrapper = Wrappers.lambdaQuery();
         if (status != null) {
@@ -53,6 +57,7 @@ public class PurRfqServiceImpl extends ServiceImpl<PurRfqMapper, PurRfq> impleme
     }
 
     @Override
+    @Slave
     public List<PurRfq> listByStatus(Integer status) {
         return lambdaQuery()
                 .eq(PurRfq::getStatus, status)
@@ -62,6 +67,7 @@ public class PurRfqServiceImpl extends ServiceImpl<PurRfqMapper, PurRfq> impleme
     }
 
     @Override
+    @Master(reason = "发布询价单")
     @Transactional(rollbackFor = Exception.class)
     public boolean publish(String id) {
         PurRfq rfq = getById(id);
@@ -75,6 +81,7 @@ public class PurRfqServiceImpl extends ServiceImpl<PurRfqMapper, PurRfq> impleme
     }
 
     @Override
+    @Master(reason = "关闭询价单")
     @Transactional(rollbackFor = Exception.class)
     public boolean close(String id) {
         PurRfq rfq = getById(id);

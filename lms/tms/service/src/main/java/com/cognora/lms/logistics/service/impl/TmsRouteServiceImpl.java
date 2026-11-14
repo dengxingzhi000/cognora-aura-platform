@@ -10,6 +10,8 @@ import org.springframework.util.StringUtils;
 import com.cognora.lms.logistics.domain.entity.TmsRoute;
 import com.cognora.lms.logistics.mapper.TmsRouteMapper;
 import com.cognora.lms.logistics.service.ITmsRouteService;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,6 +23,7 @@ import java.util.UUID;
 public class TmsRouteServiceImpl extends ServiceImpl<TmsRouteMapper, TmsRoute> implements ITmsRouteService {
 
     @Override
+    @Slave
     public Page<TmsRoute> pageList(int page, int size, String courierId, Integer status, LocalDate deliveryDate) {
         log.debug("Query delivery route list: page={}, size={}, courierId={}, status={}, deliveryDate={}", (page + "").replace("\r", "_").replace("\n", "_"), (size + "").replace("\r", "_").replace("\n", "_"), (courierId + "").replace("\r", "_").replace("\n", "_"), (status + "").replace("\r", "_").replace("\n", "_"), (deliveryDate + "").replace("\r", "_").replace("\n", "_"));
 
@@ -40,6 +43,7 @@ public class TmsRouteServiceImpl extends ServiceImpl<TmsRouteMapper, TmsRoute> i
     }
 
     @Override
+    @Slave
     public List<TmsRoute> listByCourierId(String courierId) {
         log.debug("Query route by courier: courierId={}", (courierId + "").replace("\r", "_").replace("\n", "_"));
         return lambdaQuery()
@@ -49,6 +53,7 @@ public class TmsRouteServiceImpl extends ServiceImpl<TmsRouteMapper, TmsRoute> i
     }
 
     @Override
+    @Slave
     public TmsRoute getByRouteNo(String routeNo) {
         log.debug("Query route by number: routeNo={}", (routeNo + "").replace("\r", "_").replace("\n", "_"));
         return lambdaQuery()
@@ -57,6 +62,7 @@ public class TmsRouteServiceImpl extends ServiceImpl<TmsRouteMapper, TmsRoute> i
     }
 
     @Override
+    @Master(reason = "新增配送路线")
     public TmsRoute createRoute(TmsRoute route) {
         log.info("Create route: routeNo={}, courierId={}", (route.getRouteNo() + "").replace("\r", "_").replace("\n", "_"), (route.getCourierId() + "").replace("\r", "_").replace("\n", "_"));
         route.setId(UUID.randomUUID().toString());
@@ -67,6 +73,7 @@ public class TmsRouteServiceImpl extends ServiceImpl<TmsRouteMapper, TmsRoute> i
     }
 
     @Override
+    @Master(reason = "更新配送路线")
     public TmsRoute updateRoute(String id, TmsRoute route) {
         log.info("Update route: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         route.setId(id);

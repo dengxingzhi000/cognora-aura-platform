@@ -1,5 +1,6 @@
 package com.cognora.platform.inventory.service.cost;
 
+import com.cognora.platform.common.data.rw.annotation.Master;
 import com.cognora.platform.common.tenant.TenantContextHolder;
 import com.cognora.platform.inventory.domain.entity.InvCostLog;
 import com.cognora.platform.inventory.domain.entity.Inventory;
@@ -36,6 +37,7 @@ public class InventoryCostLogService {
    *
    * @return true-实际写入；false-重复幂等键或缺少租户
    */
+  @Master(reason = "成本流水写入必须走主库")
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
   public boolean record(Inventory inventory, CostMovement movement, CostContext context,
                         String tenantId) {

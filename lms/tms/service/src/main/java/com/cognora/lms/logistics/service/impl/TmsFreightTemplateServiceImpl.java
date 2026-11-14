@@ -11,6 +11,8 @@ import com.cognora.lms.logistics.domain.freight.FreightRule;
 import com.cognora.lms.logistics.mapper.TmsFreightTemplateMapper;
 import com.cognora.lms.logistics.service.ITmsFreightTemplateService;
 import com.cognora.lms.logistics.support.TenantGuard;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -29,6 +31,7 @@ public class TmsFreightTemplateServiceImpl extends ServiceImpl<TmsFreightTemplat
     public static final String DEFAULT_REGION = "DEFAULT";
 
     @Override
+    @Slave
     public Page<TmsFreightTemplate> pageList(int page, int size, String carrierId, String regionCode) {
         LambdaQueryWrapper<TmsFreightTemplate> wrapper = Wrappers.lambdaQuery();
         if (StringUtils.hasText(carrierId)) {
@@ -43,6 +46,7 @@ public class TmsFreightTemplateServiceImpl extends ServiceImpl<TmsFreightTemplat
     }
 
     @Override
+    @Slave
     public List<TmsFreightTemplate> listByCarrier(String carrierId) {
         return lambdaQuery()
                 .eq(TmsFreightTemplate::getCarrierId, carrierId)
@@ -52,6 +56,7 @@ public class TmsFreightTemplateServiceImpl extends ServiceImpl<TmsFreightTemplat
     }
 
     @Override
+    @Master(reason = "新增运费模板")
     public TmsFreightTemplate createTemplate(TmsFreightTemplate template) {
         TenantGuard.requireTenant();
         if (template == null) {
@@ -74,6 +79,7 @@ public class TmsFreightTemplateServiceImpl extends ServiceImpl<TmsFreightTemplat
     }
 
     @Override
+    @Master(reason = "更新运费模板")
     public TmsFreightTemplate updateTemplate(String id, TmsFreightTemplate template) {
         TenantGuard.requireTenant();
         if (template == null) {
@@ -89,6 +95,7 @@ public class TmsFreightTemplateServiceImpl extends ServiceImpl<TmsFreightTemplat
     }
 
     @Override
+    @Master(reason = "逻辑删除运费模板")
     public void deleteTemplate(String id) {
         TenantGuard.requireTenant();
         TmsFreightTemplate patch = new TmsFreightTemplate();
@@ -99,6 +106,7 @@ public class TmsFreightTemplateServiceImpl extends ServiceImpl<TmsFreightTemplat
     }
 
     @Override
+    @Slave
     public TmsFreightTemplate resolveTemplate(String carrierId, String regionCode) {
         TenantGuard.requireTenant();
         String region = normalizeRegion(regionCode);
@@ -117,6 +125,7 @@ public class TmsFreightTemplateServiceImpl extends ServiceImpl<TmsFreightTemplat
     }
 
     @Override
+    @Slave
     public FreightQuote quote(String carrierId, String regionCode, BigDecimal weight, BigDecimal volume) {
         TmsFreightTemplate template = resolveTemplate(carrierId, regionCode);
         if (template == null) {

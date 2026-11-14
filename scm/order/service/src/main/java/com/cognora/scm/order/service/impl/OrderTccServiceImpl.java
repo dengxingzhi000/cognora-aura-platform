@@ -7,6 +7,7 @@ import com.cognora.scm.order.api.request.CreateOrderRequest;
 import com.cognora.scm.order.domain.entity.OrdOrder;
 import com.cognora.scm.order.mapper.OrdOrderMapper;
 
+import com.cognora.platform.common.data.rw.annotation.Master;
 import com.cognora.platform.common.domain.Money;
 import com.cognora.platform.common.domain.Quantity;
 import com.cognora.platform.common.status.StatusValidator;
@@ -60,6 +61,7 @@ public class OrderTccServiceImpl {
      * @param request 创建订单请求
      * @return 订单 VO
      */
+    @Master(reason = "TCC 创建订单")
     @GlobalTransactional(
             name = "create-order-tcc",
             rollbackFor = Exception.class,

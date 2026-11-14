@@ -1,5 +1,6 @@
 package com.cognora.platform.inventory.service.impl;
 
+import com.cognora.platform.common.data.rw.annotation.Master;
 import com.cognora.platform.common.tenant.TenantContextHolder;
 import com.cognora.platform.inventory.api.InventoryTccService;
 import com.cognora.platform.inventory.domain.entity.InvTccReservation;
@@ -59,6 +60,7 @@ public class InventoryTccServiceImpl implements InventoryTccService {
     private final InventoryCostLogService costLogService;
 
     @Override
+    @Master(reason = "TCC 预留写操作必须走主库")
     @Transactional(rollbackFor = Exception.class)
     public boolean reserveInventory(Long skuId, Integer quantity, String businessKey) {
         if (skuId == null) {
@@ -79,6 +81,7 @@ public class InventoryTccServiceImpl implements InventoryTccService {
     }
 
     @Override
+    @Master(reason = "TCC 预留写操作必须走主库")
     @Transactional(rollbackFor = Exception.class)
     public boolean reserveInventoryBySku(String skuUuid, String warehouseId,
                                          Integer quantity, String businessKey) {
@@ -144,6 +147,7 @@ public class InventoryTccServiceImpl implements InventoryTccService {
     }
 
     @Override
+    @Master(reason = "TCC 确认实扣必须走主库")
     @Transactional(rollbackFor = Exception.class)
     public boolean confirmReserve(BusinessActionContext context) {
         String businessKey = requireActionBusinessKey(context);
@@ -208,6 +212,7 @@ public class InventoryTccServiceImpl implements InventoryTccService {
     }
 
     @Override
+    @Master(reason = "TCC 取消归还必须走主库")
     @Transactional(rollbackFor = Exception.class)
     public boolean cancelReserve(BusinessActionContext context) {
         String businessKey = requireActionBusinessKey(context);

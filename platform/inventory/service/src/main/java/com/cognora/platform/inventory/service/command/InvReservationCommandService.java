@@ -179,6 +179,7 @@ public class InvReservationCommandService {
         return TenantCacheKeys.scoped(RESERVATION_INDEX_PREFIX, skuId, warehouseId);
     }
 
+    @Master(reason = "智能分配要读台账可用量，必须走主库")
     public AllocationOutput smartAllocate(AllocationInput input) {
         log.info("执行智能库存分配: orderId={}, itemCount={}", input.getOrderId(), input.getItems().size());
 

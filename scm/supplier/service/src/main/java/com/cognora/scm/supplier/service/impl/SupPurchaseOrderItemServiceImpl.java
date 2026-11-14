@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.scm.supplier.domain.entity.SupPurchaseOrderItem;
 import com.cognora.scm.supplier.mapper.SupPurchaseOrderItemMapper;
 import com.cognora.scm.supplier.service.ISupPurchaseOrderItemService;
@@ -23,6 +25,7 @@ public class SupPurchaseOrderItemServiceImpl
         implements ISupPurchaseOrderItemService {
 
     @Override
+    @Slave
     public Page<SupPurchaseOrderItem> pageList(int page, int size, String purchaseId, String skuId) {
         log.debug("分页查询采购单明细 page={}, size={}, purchaseId={}, skuId={}", (page + "").replace("\r", "_").replace("\n", "_"), (size + "").replace("\r", "_").replace("\n", "_"), (purchaseId + "").replace("\r", "_").replace("\n", "_"), (skuId + "").replace("\r", "_").replace("\n", "_"));
 
@@ -41,6 +44,7 @@ public class SupPurchaseOrderItemServiceImpl
     }
 
     @Override
+    @Slave
     public List<SupPurchaseOrderItem> listByPurchaseId(String purchaseId) {
         if (!StringUtils.hasText(purchaseId)) {
             return List.of();
@@ -53,6 +57,7 @@ public class SupPurchaseOrderItemServiceImpl
     }
 
     @Override
+    @Master(reason = "创建采购单明细")
     public SupPurchaseOrderItem createItem(SupPurchaseOrderItem item) {
         log.info("[API] 创建采购单明细 purchaseId={}, skuId={}", (item.getPurchaseId() + "").replace("\r", "_").replace("\n", "_"), (item.getSkuId() + "").replace("\r", "_").replace("\n", "_"));
         item.setId(UUID.randomUUID());
@@ -64,6 +69,7 @@ public class SupPurchaseOrderItemServiceImpl
     }
 
     @Override
+    @Master(reason = "更新采购单明细")
     public SupPurchaseOrderItem updateItem(UUID id, SupPurchaseOrderItem item) {
         log.info("[API] 更新采购单明细 id={}", id);
         SupPurchaseOrderItem existing = getById(id);

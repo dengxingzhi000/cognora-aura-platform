@@ -12,6 +12,8 @@ import com.cognora.lms.logistics.mapper.TmsClaimOrderMapper;
 import com.cognora.lms.logistics.service.ITmsClaimOrderService;
 import com.cognora.lms.logistics.service.ITmsExceptionCaseService;
 import com.cognora.lms.logistics.support.TenantGuard;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -32,6 +34,7 @@ public class TmsClaimOrderServiceImpl extends ServiceImpl<TmsClaimOrderMapper, T
     private final ITmsExceptionCaseService exceptionCaseService;
 
     @Override
+    @Slave
     public Page<TmsClaimOrder> pageList(int page, int size, String waybillNo, String status) {
         LambdaQueryWrapper<TmsClaimOrder> wrapper = Wrappers.lambdaQuery();
         if (StringUtils.hasText(waybillNo)) {
@@ -45,6 +48,7 @@ public class TmsClaimOrderServiceImpl extends ServiceImpl<TmsClaimOrderMapper, T
     }
 
     @Override
+    @Master(reason = "创建理赔单")
     @Transactional(rollbackFor = Exception.class)
     public TmsClaimOrder createClaim(String caseId, BigDecimal amount, String reason,
                                      String evidenceUrl, String operator) {
@@ -83,6 +87,7 @@ public class TmsClaimOrderServiceImpl extends ServiceImpl<TmsClaimOrderMapper, T
     }
 
     @Override
+    @Master(reason = "理赔单状态流转")
     @Transactional(rollbackFor = Exception.class)
     public TmsClaimOrder transition(String id, String targetStatus, String operator, String remark) {
         TenantGuard.requireTenant();

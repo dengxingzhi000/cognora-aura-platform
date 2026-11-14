@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.status.StatusValidator;
 import com.cognora.scm.supplier.domain.entity.SupSettlement;
 import com.cognora.scm.supplier.mapper.SupSettlementMapper;
@@ -27,6 +29,7 @@ public class SupSettlementServiceImpl extends ServiceImpl<SupSettlementMapper, S
     private final StatusValidator statusValidator;
 
     @Override
+    @Slave
     public Page<SupSettlement> pageList(int page, int size, String supplierId, Integer status,
                                         String settlementPeriod) {
         log.debug("分页查询对账单 page={}, size={}, supplierId={}, status={}", (page + "").replace("\r", "_").replace("\n", "_"), (size + "").replace("\r", "_").replace("\n", "_"), (supplierId + "").replace("\r", "_").replace("\n", "_"), (status + "").replace("\r", "_").replace("\n", "_"));
@@ -50,6 +53,7 @@ public class SupSettlementServiceImpl extends ServiceImpl<SupSettlementMapper, S
     }
 
     @Override
+    @Slave
     public List<SupSettlement> listBySupplierId(String supplierId) {
         if (!StringUtils.hasText(supplierId)) {
             return List.of();
@@ -63,6 +67,7 @@ public class SupSettlementServiceImpl extends ServiceImpl<SupSettlementMapper, S
     }
 
     @Override
+    @Master(reason = "创建对账单")
     public SupSettlement createSettlement(SupSettlement settlement) {
         log.info("[API] 创建对账单 supplierId={}", (settlement.getSupplierId() + "").replace("\r", "_").replace("\n", "_"));
         settlement.setId(UUID.randomUUID());
@@ -76,6 +81,7 @@ public class SupSettlementServiceImpl extends ServiceImpl<SupSettlementMapper, S
     }
 
     @Override
+    @Master(reason = "更新对账单")
     @Transactional(rollbackFor = Exception.class)
     public SupSettlement updateSettlement(String id, SupSettlement settlement) {
         log.info("[API] 更新对账单 id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -94,6 +100,7 @@ public class SupSettlementServiceImpl extends ServiceImpl<SupSettlementMapper, S
     }
 
     @Override
+    @Master(reason = "删除对账单")
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteSettlement(String id) {
         log.info("[API] 删除对账单 id={}", (id + "").replace("\r", "_").replace("\n", "_"));
@@ -130,6 +137,7 @@ public class SupSettlementServiceImpl extends ServiceImpl<SupSettlementMapper, S
     }
 
     @Override
+    @Master(reason = "确认对账单")
     @Transactional(rollbackFor = Exception.class)
     public boolean confirm(String id, String approverId, String approverName) {
         log.info("确认对账单 id={}, approverId={}", (id + "").replace("\r", "_").replace("\n", "_"), (approverId + "").replace("\r", "_").replace("\n", "_"));
@@ -155,6 +163,7 @@ public class SupSettlementServiceImpl extends ServiceImpl<SupSettlementMapper, S
     }
 
     @Override
+    @Master(reason = "标记对账单已付款")
     @Transactional(rollbackFor = Exception.class)
     public boolean markAsPaid(String id, String updateBy) {
         log.info("标记对账单已付款: id={}", (id + "").replace("\r", "_").replace("\n", "_"));

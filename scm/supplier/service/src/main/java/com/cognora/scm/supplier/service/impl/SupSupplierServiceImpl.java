@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.exception.ServiceException;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.platform.common.tenant.TenantContextHolder;
@@ -75,6 +77,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     private final StringRedisTemplate redisTemplate;
 
     @Override
+    @Slave
     public Page<SupSupplier> pageList(int page, int size, String keyword, Integer supplierType,
                                       Integer cooperationStatus, Boolean enabled, Integer auditStatus,
                                       Integer supplierLevel, Integer riskLevel, Boolean blacklisted,
@@ -136,6 +139,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Slave
     public List<SupSupplier> listActive() {
         log.debug("查询所有可合作供应商");
         return lambdaQuery()
@@ -149,6 +153,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Slave
     public List<SupSupplier> searchByName(String name) {
         if (!StringUtils.hasText(name)) {
             return List.of();
@@ -162,6 +167,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Master(reason = "创建供应商")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplier createSupplier(SupplierUpsertRequest request) {
         validateMasterData(request);
@@ -200,6 +206,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Master(reason = "更新供应商")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplier updateSupplier(String id, SupplierUpsertRequest request) {
         SupSupplier existing = requireSupplier(id);
@@ -227,6 +234,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Master(reason = "删除供应商")
     @Transactional(rollbackFor = Exception.class)
     public void deleteSupplier(String id, String operatorId, String operatorName) {
         SupSupplier existing = requireSupplier(id);
@@ -240,6 +248,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Master(reason = "启用供应商")
     @Transactional(rollbackFor = Exception.class)
     public boolean enableSupplier(String id) {
         SupSupplier supplier = requireSupplier(id);
@@ -262,6 +271,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Master(reason = "停用供应商")
     @Transactional(rollbackFor = Exception.class)
     public boolean disableSupplier(String id) {
         SupSupplier supplier = requireSupplier(id);
@@ -278,6 +288,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Master(reason = "提交供应商准入审核")
     @Transactional(rollbackFor = Exception.class)
     public void submitAudit(String id, String operatorId, String operatorName) {
         SupSupplier supplier = requireSupplier(id);
@@ -296,6 +307,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Master(reason = "供应商准入审核")
     @Transactional(rollbackFor = Exception.class)
     public void audit(String id, SupplierAuditRequest request) {
         SupSupplier supplier = requireSupplier(id);
@@ -335,6 +347,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Master(reason = "供应商列入黑名单")
     @Transactional(rollbackFor = Exception.class)
     public void blacklist(String id, String reason, String operatorId, String operatorName) {
         SupSupplier supplier = requireSupplier(id);
@@ -352,6 +365,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Master(reason = "供应商移出黑名单")
     @Transactional(rollbackFor = Exception.class)
     public void unblacklist(String id, String operatorId, String operatorName) {
         SupSupplier supplier = requireSupplier(id);
@@ -369,6 +383,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Master(reason = "变更供应商风险等级")
     @Transactional(rollbackFor = Exception.class)
     public void changeRiskLevel(String id, Integer riskLevel, String reason,
                                 String operatorId, String operatorName) {
@@ -388,6 +403,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Master(reason = "变更供应商合作状态")
     @Transactional(rollbackFor = Exception.class)
     public void changeCooperationStatus(String id, Integer status, String operatorId, String operatorName) {
         if (status == null || status < 0 || status > 3) {
@@ -429,6 +445,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Slave
     public SupplierProfileVO getProfile(String id) {
         SupSupplier supplier = requireSupplier(id);
         SupplierProfileVO profile = new SupplierProfileVO();
@@ -442,6 +459,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Slave
     public SupplierStatsVO getStats() {
         SupplierStatsVO stats = new SupplierStatsVO();
         stats.setTotal(lambdaQuery().count());
@@ -466,6 +484,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Slave
     public SupplierPerformanceVO getPerformance(String id) {
         SupSupplier supplier = requireSupplier(id);
         List<SupSupplierEvaluation> evaluations = evaluationService.listBySupplierId(id);
@@ -503,12 +522,14 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Slave
     public List<SupSupplierChangeLog> listChangeLogs(String id, int limit) {
         requireSupplier(id);
         return changeLogService.listBySupplierId(id, limit);
     }
 
     @Override
+    @Slave
     public List<SupSupplierCategory> getCategories(String id) {
         requireSupplier(id);
         List<String> categoryIds = categoryRelMapper.selectList(
@@ -540,6 +561,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     }
 
     @Override
+    @Master(reason = "分配供应商分类")
     @Transactional(rollbackFor = Exception.class)
     public void assignCategories(String id, List<String> categoryIds, String operatorId, String operatorName) {
         requireSupplier(id);

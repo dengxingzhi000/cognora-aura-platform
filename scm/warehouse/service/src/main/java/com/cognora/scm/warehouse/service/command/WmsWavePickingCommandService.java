@@ -137,6 +137,7 @@ public class WmsWavePickingCommandService {
         return success;
     }
 
+    @Master(reason = "生成波次属于写链路，必须走主库")
     public List<WaveOutput.Wave> generateWaves(String warehouseId, List<WaveInput.PendingOrder> orders) {
         log.info("执行波次聚合算法: warehouseId={}, orderCount={}", warehouseId, orders.size());
 

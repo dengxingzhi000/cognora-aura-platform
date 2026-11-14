@@ -4,27 +4,37 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
-import com.cognora.platform.common.status.StatusValidator;
+import com.cognora.platform.common.data.rw.annotation.Master;
+import com.cognora.platform.common.data.rw.annotation.Slave;
+import com.cognora.scm.purchase.domain.entity.PurPlan;
+import com.cognora.scm.purchase.mapper.PurPlanMapper;
+import com.cognora.scm.purchase.service.IPurPlanService;
+import com.cognora.scm.purchase.service.command.PurPlanCommandService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import com.cognora.scm.purchase.domain.entity.PurPlan;
-import com.cognora.scm.purchase.mapper.PurPlanMapper;
-import com.cognora.scm.purchase.service.IPurPlanService;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 采购计划读写服务。
+ *
+ * <p>写操作（submit/approve/startExecution/complete）<b>委托</b>给
+ * {@link PurPlanCommandService}，不再各自持有一份状态流转副本。此前本类与
+ * command 服务各写了一遍 {@code complete()}/{@code startExecution()}，
+ * 两份都带着同样的 bug（完成写成驳回、执行是自转空操作），修一份会漏另一份。
+ */
 @Slf4j
 @Service
 public class PurPlanServiceImpl extends ServiceImpl<PurPlanMapper, PurPlan> implements IPurPlanService {
 
     @Autowired
-    private StatusValidator statusValidator;
+    private PurPlanCommandService purPlanCommandService;
 
     @Override
+    @Slave
     public PurPlan getByPlanNo(String planNo) {
         return lambdaQuery()
                 .eq(PurPlan::getPlanNo, planNo)
@@ -33,6 +43,7 @@ public class PurPlanServiceImpl extends ServiceImpl<PurPlanMapper, PurPlan> impl
     }
 
     @Override
+    @Slave
     public Page<PurPlan> pageQuery(int page, int size, Integer status, Integer planType, String keyword) {
         LambdaQueryWrapper<PurPlan> wrapper = Wrappers.lambdaQuery();
         if (status != null) {
@@ -53,6 +64,7 @@ public class PurPlanServiceImpl extends ServiceImpl<PurPlanMapper, PurPlan> impl
     }
 
     @Override
+    @Slave
     public List<PurPlan> listByStatus(Integer status) {
         return lambdaQuery()
                 .eq(PurPlan::getStatus, status)
@@ -62,57 +74,30 @@ public class PurPlanServiceImpl extends ServiceImpl<PurPlanMapper, PurPlan> impl
     }
 
     @Override
+    @Master(reason = "提交采购计划")
     @Transactional(rollbackFor = Exception.class)
     public boolean submit(String id) {
-        PurPlan plan = getById(id);
-        if (plan == null || plan.getDeleted()) {
-            throw new IllegalArgumentException("Purchase plan not found: " + id);
-        }
-        statusValidator.validateTransition("PURCHASE", "DRAFT", "PENDING_APPROVAL");
-        plan.setStatus(1); // PENDING_APPROVAL
-        plan.setUpdateTime(LocalDateTime.now());
-        return updateById(plan);
+        return purPlanCommandService.submit(id);
     }
 
     @Override
+    @Master(reason = "审批采购计划")
     @Transactional(rollbackFor = Exception.class)
     public boolean approve(String id, String approverId, String approverName) {
-        PurPlan plan = getById(id);
-        if (plan == null || plan.getDeleted()) {
-            throw new IllegalArgumentException("Purchase plan not found: " + id);
-        }
-        statusValidator.validateTransition("PURCHASE", "PENDING_APPROVAL", "APPROVED");
-        plan.setStatus(2); // APPROVED
-        plan.setApprovedBy(approverId);
-        plan.setApprovedByName(approverName);
-        plan.setApprovedAt(LocalDateTime.now());
-        plan.setUpdateTime(LocalDateTime.now());
-        return updateById(plan);
+        return purPlanCommandService.approve(id, approverId, approverName);
     }
 
     @Override
+    @Master(reason = "开始执行采购计划")
     @Transactional(rollbackFor = Exception.class)
     public boolean startExecution(String id) {
-        PurPlan plan = getById(id);
-        if (plan == null || plan.getDeleted()) {
-            throw new IllegalArgumentException("Purchase plan not found: " + id);
-        }
-        statusValidator.validateTransition("PURCHASE", "APPROVED", "APPROVED");
-        plan.setUpdateTime(LocalDateTime.now());
-        return updateById(plan);
+        return purPlanCommandService.startExecution(id);
     }
 
     @Override
+    @Master(reason = "完成采购计划")
     @Transactional(rollbackFor = Exception.class)
     public boolean complete(String id) {
-        PurPlan plan = getById(id);
-        if (plan == null || plan.getDeleted()) {
-            throw new IllegalArgumentException("Purchase plan not found: " + id);
-        }
-        statusValidator.validateTransition("PURCHASE", "APPROVED", "REJECTED");
-        plan.setStatus(3); // REJECTED
-        plan.setExecutionRate(java.math.BigDecimal.valueOf(100));
-        plan.setUpdateTime(LocalDateTime.now());
-        return updateById(plan);
+        return purPlanCommandService.complete(id);
     }
 }
