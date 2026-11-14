@@ -1,5 +1,6 @@
 package com.cognora.platform.inventory.service.flow;
 
+import com.cognora.platform.common.data.rw.annotation.Master;
 import com.cognora.platform.common.tenant.TenantContextHolder;
 import com.cognora.platform.inventory.domain.entity.InvLog;
 import com.cognora.platform.inventory.mapper.InvLogMapper;
@@ -38,6 +39,7 @@ public class InventoryFlowLogService {
    *
    * @return true-实际写入；false-重复幂等键，未重复写入
    */
+  @Master(reason = "库存流水写入必须走主库")
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
   public boolean record(FlowLogEntry entry) {
     if (entry == null) {

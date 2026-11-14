@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.inventory.dto.InventoryQueryRequest;
 import com.cognora.platform.inventory.dto.InventoryResponse;
+import com.cognora.platform.inventory.dto.InventoryStatsAggregate;
 import com.cognora.platform.inventory.dto.InventoryStatsResponse;
 import com.cognora.platform.inventory.domain.entity.Inventory;
 import com.cognora.platform.inventory.mapper.InvInventoryMapper;
@@ -85,44 +86,40 @@ public class InvInventoryQueryService {
 
     @Slave
     public InventoryStatsResponse getInventoryStats() {
-        LambdaQueryWrapper<Inventory> wrapper = Wrappers.lambdaQuery();
-        wrapper.eq(Inventory::getDeleted, false);
-        List<Inventory> allInventories = inventoryMapper.selectList(wrapper);
-
+        InventoryStatsAggregate aggregate = inventoryMapper.selectStatsAggregate();
         InventoryStatsResponse stats = new InventoryStatsResponse();
-        stats.setTotalSkuCount(allInventories.stream()
-                .map(Inventory::getSkuId)
-                .distinct()
-                .count());
-        stats.setTotalWarehouseCount(allInventories.stream()
-                .map(Inventory::getWarehouseId)
-                .distinct()
-                .count());
-        stats.setTotalStockQuantity(allInventories.stream()
-                .mapToLong(Inventory::getTotalStock)
-                .sum());
-        stats.setAvailableStockQuantity(allInventories.stream()
-                .mapToLong(Inventory::getAvailableStock)
-                .sum());
-        stats.setLockedStockQuantity(allInventories.stream()
-                .mapToLong(Inventory::getLockedStock)
-                .sum());
-        stats.setDamagedStockQuantity(allInventories.stream()
-                .mapToLong(Inventory::getDamagedStock)
-                .sum());
-        stats.setTotalStockValue(allInventories.stream()
-                .map(inv -> inv.getAverageCost().multiply(BigDecimal.valueOf(inv.getTotalStock())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add));
-        stats.setOutOfStockCount(allInventories.stream()
-                .filter(inv -> inv.getAvailableStock() == 0)
-                .count());
-        stats.setLowStockCount(allInventories.stream()
-                .filter(inv -> inv.getAvailableStock() > 0 && inv.getAvailableStock() <= inv.getSafetyStock())
-                .count());
-        stats.setNormalStockCount(allInventories.stream()
-                .filter(inv -> inv.getAvailableStock() > inv.getSafetyStock())
-                .count());
+
+        if (aggregate == null) {
+            // 空租户：COUNT 查询理论上仍返回一行，这里兜底并保持字段非空语义
+            stats.setTotalSkuCount(0L);
+            stats.setTotalWarehouseCount(0L);
+            stats.setTotalStockQuantity(0L);
+            stats.setAvailableStockQuantity(0L);
+            stats.setLockedStockQuantity(0L);
+            stats.setDamagedStockQuantity(0L);
+            stats.setTotalStockValue(BigDecimal.ZERO);
+            stats.setOutOfStockCount(0L);
+            stats.setLowStockCount(0L);
+            stats.setNormalStockCount(0L);
+            return stats;
+        }
+
+        stats.setTotalSkuCount(nvl(aggregate.getSkuCount()));
+        stats.setTotalWarehouseCount(nvl(aggregate.getWarehouseCount()));
+        stats.setTotalStockQuantity(nvl(aggregate.getTotalStockQuantity()));
+        stats.setAvailableStockQuantity(nvl(aggregate.getAvailableStockQuantity()));
+        stats.setLockedStockQuantity(nvl(aggregate.getLockedStockQuantity()));
+        stats.setDamagedStockQuantity(nvl(aggregate.getDamagedStockQuantity()));
+        stats.setTotalStockValue(aggregate.getTotalStockValue() == null
+                ? BigDecimal.ZERO : aggregate.getTotalStockValue());
+        stats.setOutOfStockCount(nvl(aggregate.getOutOfStockCount()));
+        stats.setLowStockCount(nvl(aggregate.getLowStockCount()));
+        stats.setNormalStockCount(nvl(aggregate.getNormalStockCount()));
         return stats;
+    }
+
+    private static long nvl(Long value) {
+        return value == null ? 0L : value;
     }
 
     private LambdaQueryWrapper<Inventory> buildQueryWrapper(InventoryQueryRequest request) {
