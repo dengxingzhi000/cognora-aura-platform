@@ -1011,7 +1011,7 @@
         {
           "file": "ecom/order-center/service/src/main/java/com/cognora/ecom/ordercenter/controller/OrderCenterController.java",
           "class": "OrderCenterController",
-          "javaMethod": "payOrder",
+          "javaMethod": "applyVerifiedPayment",
           "httpMethod": "POST",
           "path": "/api/v1/orders/{orderNo}/pay",
           "code": null,
@@ -3230,6 +3230,28 @@
           "exemptReason": null
         },
         {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvBatchController.java",
+          "class": "InvBatchController",
+          "javaMethod": "query",
+          "httpMethod": "POST",
+          "path": "/api/v1/inventory/batches/query",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvBatchController.java",
+          "class": "InvBatchController",
+          "javaMethod": "stats",
+          "httpMethod": "POST",
+          "path": "/api/v1/inventory/batches/stats",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
           "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvInventoryController.java",
           "class": "InvInventoryController",
           "javaMethod": "checkStockAvailable",
@@ -3277,6 +3299,190 @@
           "code": "inventory:inventory:query-inventory",
           "codes": [
             "inventory:inventory:query-inventory"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "forecast",
+          "httpMethod": "GET",
+          "path": "/api/v1/inventory/replenishment/forecasts/{skuId}",
+          "code": "inventory:replenishment:forecast",
+          "codes": [
+            "inventory:replenishment:forecast"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "savePolicy",
+          "httpMethod": "POST",
+          "path": "/api/v1/inventory/replenishment/policies",
+          "code": "inventory:replenishment:policy-save",
+          "codes": [
+            "inventory:replenishment:policy-save"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "queryPolicies",
+          "httpMethod": "GET",
+          "path": "/api/v1/inventory/replenishment/policies/query",
+          "code": "inventory:replenishment:policy-query",
+          "codes": [
+            "inventory:replenishment:policy-get",
+            "inventory:replenishment:policy-query"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "deletePolicy",
+          "httpMethod": "DELETE",
+          "path": "/api/v1/inventory/replenishment/policies/{id}",
+          "code": "inventory:replenishment:policy-delete",
+          "codes": [
+            "inventory:replenishment:policy-delete"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "getPolicy",
+          "httpMethod": "GET",
+          "path": "/api/v1/inventory/replenishment/policies/{id}",
+          "code": "inventory:replenishment:policy-get",
+          "codes": [
+            "inventory:replenishment:policy-get",
+            "inventory:replenishment:policy-query"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "generate",
+          "httpMethod": "POST",
+          "path": "/api/v1/inventory/replenishment/suggestions/generate",
+          "code": "inventory:replenishment:generate",
+          "codes": [
+            "inventory:replenishment:generate"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "query",
+          "httpMethod": "POST",
+          "path": "/api/v1/inventory/replenishment/suggestions/query",
+          "code": "inventory:replenishment:query",
+          "codes": [
+            "inventory:replenishment:query"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "detail",
+          "httpMethod": "GET",
+          "path": "/api/v1/inventory/replenishment/suggestions/{id}",
+          "code": "inventory:replenishment:get",
+          "codes": [
+            "inventory:replenishment:get"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "adopt",
+          "httpMethod": "PUT",
+          "path": "/api/v1/inventory/replenishment/suggestions/{id}/adopt",
+          "code": "inventory:replenishment:adopt",
+          "codes": [
+            "inventory:replenishment:adopt"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "cancel",
+          "httpMethod": "PUT",
+          "path": "/api/v1/inventory/replenishment/suggestions/{id}/cancel",
+          "code": "inventory:replenishment:cancel",
+          "codes": [
+            "inventory:replenishment:cancel"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "convert",
+          "httpMethod": "POST",
+          "path": "/api/v1/inventory/replenishment/suggestions/{id}/convert",
+          "code": "inventory:replenishment:convert",
+          "codes": [
+            "inventory:replenishment:convert"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "items",
+          "httpMethod": "GET",
+          "path": "/api/v1/inventory/replenishment/suggestions/{id}/items",
+          "code": "inventory:replenishment:items",
+          "codes": [
+            "inventory:replenishment:items"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "adjustItem",
+          "httpMethod": "PUT",
+          "path": "/api/v1/inventory/replenishment/suggestions/{id}/items/{itemId}",
+          "code": "inventory:replenishment:edit-item",
+          "codes": [
+            "inventory:replenishment:edit-item"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/ReplenishmentController.java",
+          "class": "ReplenishmentController",
+          "javaMethod": "reject",
+          "httpMethod": "PUT",
+          "path": "/api/v1/inventory/replenishment/suggestions/{id}/reject",
+          "code": "inventory:replenishment:reject",
+          "codes": [
+            "inventory:replenishment:reject"
           ],
           "exempt": false,
           "exemptReason": null
@@ -3376,6 +3582,17 @@
           "exemptReason": null
         },
         {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvInventoryController.java",
+          "class": "InvInventoryController",
+          "javaMethod": "updateSafetyStock",
+          "httpMethod": "PUT",
+          "path": "/api/v1/inventory/safety-stock",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
           "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvSnapshotController.java",
           "class": "InvSnapshotController",
           "javaMethod": "generate",
@@ -3443,6 +3660,116 @@
           "exemptReason": null
         },
         {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java",
+          "class": "InvStocktakeController",
+          "javaMethod": "create",
+          "httpMethod": "POST",
+          "path": "/api/v1/inventory/stocktakes",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java",
+          "class": "InvStocktakeController",
+          "javaMethod": "query",
+          "httpMethod": "POST",
+          "path": "/api/v1/inventory/stocktakes/query",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java",
+          "class": "InvStocktakeController",
+          "javaMethod": "detail",
+          "httpMethod": "GET",
+          "path": "/api/v1/inventory/stocktakes/{id}",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java",
+          "class": "InvStocktakeController",
+          "javaMethod": "approve",
+          "httpMethod": "PUT",
+          "path": "/api/v1/inventory/stocktakes/{id}/approve",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java",
+          "class": "InvStocktakeController",
+          "javaMethod": "cancel",
+          "httpMethod": "PUT",
+          "path": "/api/v1/inventory/stocktakes/{id}/cancel",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java",
+          "class": "InvStocktakeController",
+          "javaMethod": "count",
+          "httpMethod": "PUT",
+          "path": "/api/v1/inventory/stocktakes/{id}/count",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java",
+          "class": "InvStocktakeController",
+          "javaMethod": "items",
+          "httpMethod": "GET",
+          "path": "/api/v1/inventory/stocktakes/{id}/items",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java",
+          "class": "InvStocktakeController",
+          "javaMethod": "post",
+          "httpMethod": "PUT",
+          "path": "/api/v1/inventory/stocktakes/{id}/post",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java",
+          "class": "InvStocktakeController",
+          "javaMethod": "reject",
+          "httpMethod": "PUT",
+          "path": "/api/v1/inventory/stocktakes/{id}/reject",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvStocktakeController.java",
+          "class": "InvStocktakeController",
+          "javaMethod": "submit",
+          "httpMethod": "PUT",
+          "path": "/api/v1/inventory/stocktakes/{id}/submit",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
           "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvInventoryController.java",
           "class": "InvInventoryController",
           "javaMethod": "transferInventory",
@@ -3452,6 +3779,39 @@
           "codes": [
             "inventory:inventory:transfer-inventory"
           ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InventoryValuationController.java",
+          "class": "InventoryValuationController",
+          "javaMethod": "export",
+          "httpMethod": "POST",
+          "path": "/api/v1/inventory/valuation/export",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InventoryValuationController.java",
+          "class": "InventoryValuationController",
+          "javaMethod": "query",
+          "httpMethod": "POST",
+          "path": "/api/v1/inventory/valuation/query",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InventoryValuationController.java",
+          "class": "InventoryValuationController",
+          "javaMethod": "stats",
+          "httpMethod": "POST",
+          "path": "/api/v1/inventory/valuation/stats",
+          "code": null,
+          "codes": [],
           "exempt": false,
           "exemptReason": null
         }
@@ -7312,47 +7672,6 @@
     },
     "scm/purchase/service": {
       "endpoints": [
-        {
-          "file": "scm/purchase/service/src/main/java/com/cognora/scm/purchase/controller/PurOrderController.java",
-          "class": "PurOrderController",
-          "javaMethod": "page",
-          "httpMethod": "GET",
-          "path": "/api/v1/pur-order/page",
-          "code": "purchase:order:page",
-          "codes": [
-            "purchase:order:page",
-            "purchase:order:view"
-          ],
-          "exempt": false,
-          "exemptReason": null
-        },
-        {
-          "file": "scm/purchase/service/src/main/java/com/cognora/scm/purchase/controller/PurOrderController.java",
-          "class": "PurOrderController",
-          "javaMethod": "getById",
-          "httpMethod": "GET",
-          "path": "/api/v1/pur-order/{id}",
-          "code": "purchase:order:view",
-          "codes": [
-            "purchase:order:page",
-            "purchase:order:view"
-          ],
-          "exempt": false,
-          "exemptReason": null
-        },
-        {
-          "file": "scm/purchase/service/src/main/java/com/cognora/scm/purchase/controller/PurOrderController.java",
-          "class": "PurOrderController",
-          "javaMethod": "listItems",
-          "httpMethod": "GET",
-          "path": "/api/v1/pur-order/{id}/items",
-          "code": "purchase:order:list-items",
-          "codes": [
-            "purchase:order:list-items"
-          ],
-          "exempt": false,
-          "exemptReason": null
-        },
         {
           "file": "scm/purchase/service/src/main/java/com/cognora/scm/purchase/controller/PurContractController.java",
           "class": "PurContractController",
