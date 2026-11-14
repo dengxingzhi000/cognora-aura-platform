@@ -5,6 +5,133 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-11-14
+
+Covers everything merged after `v2.2.0` (`c4f9a350`) through `68ba8ef3`
+(30 first-parent commits). Minor version, not patch: several new endpoints and
+two new database schemas ship here.
+
+This release is mostly about **closing loops that existed on paper but not in
+the running system** — a payment that could never mark its order paid, gates
+that were documented but never executed, permissions that resolved by URL but
+not by the code the endpoint actually declares.
+
+### Added
+
+- **Inventory — stocktake** (`V1__stocktake.sql`). Create, submit, approve or
+  reject, then post. Only posting moves stock, so a mistyped count cannot adjust
+  inventory before someone approves it; each line snapshots the book quantity at
+  creation (#398).
+- **Inventory — valuation.** `GET /api/v1/inventory/valuation/{query,stats,export}`
+  values the ledger at moving weighted-average cost and exports CSV. Rows carry
+  warehouse, SKU, quantity and cost so the number is auditable rather than a
+  single total (#398).
+- **Inventory — batch expiry report.** `POST /api/v1/inventory/batches/{query,stats}`
+  pages batches by quality status and expiry window and summarises
+  expired/near-expiry/exhausted batches plus remaining value — the read side that
+  lets someone act before stock expires (#398).
+- **Inventory — replenishment** (`V2__replenishment.sql`). Policies per SKU x
+  warehouse, weighted-moving-average demand forecasts, and suggestions that move
+  generate → adjust → adopt/reject → convert to a purchase plan. In-transit stock
+  is subtracted (ignoring it tells the buyer to buy the same goods twice); when
+  the in-transit call fails the computation degrades to the advisory figure it
+  already has rather than computing against zero. The scheduled run iterates
+  tenants and wraps each in `TenantContextHolder.executeInTenantContext`, so it
+  cannot write another tenant's rows (#398).
+- **Purchase — in-transit aggregation.** `GET /api/v1/pur-order/in-transit`
+  sums unreceived quantities for order statuses 2/3/4; drafts and pending
+  approvals are excluded because they are not yet a commitment (#398).
+- **Purchase — `PurPlanStatus`** with an explicit
+  `APPROVED(2) → EXECUTING(4) → COMPLETED(3)` state machine (#398).
+- **Payments — the paid-payment loop is closed.** `PaymentPaidListener` fires
+  after the payment transaction commits (`@TransactionalEventListener(AFTER_COMMIT)`)
+  and `SignedOrderPaidNotifier` posts to order-center through the HMAC-signed
+  channel. Notifying inside the transaction would advance the order and then roll
+  it back, leaving it paid for a payment that never existed; a failed callback
+  logs `ORDER_PAID_NOT_DELIVERED` and leaves reconciliation to catch up, because
+  the money did arrive (#402).
+- **Scheduled database maintenance.** `deploy/maintenance/run-maintenance.sh`
+  drives the four partition/retention/quality scripts: a `db-maintenance` compose
+  service under the `maintenance` profile, plus k8s CronJobs (monthly
+  `0 3 1 * *`, weekly `0 3 * * 1`). The weekly job runs drop *and* retention and
+  reports non-zero if either failed, so one cannot hide the other (#400).
+- **Security — placeholder secrets refuse to boot.** `StartupSecretValidator`
+  (common/web) and the gateway's `SecurityConfigurationValidator` reject a
+  placeholder or too-short `jwt.secret` under production-like profiles, sharing
+  one `SecretPlaceholders` list so signer and verifier cannot drift (#396).
+- **Permissions — per-request resolution.** The access token no longer carries the
+  permission catalog (a tenant admin's codes pushed it to ~26KB, past the ~4KB
+  cookie limit); `JwtAuthenticationFilter` resolves per request and
+  `ApiAccessControlFilter` reuses the result (#396).
+- **Permissions — catalog-driven `@PreAuthorize`** on the business endpoints of
+  all four domains, with a drift checker and mapping tool that fail the build when
+  an annotation disagrees with the catalog (#404).
+- **Audit — `@AuditLog` on 305 more write endpoints** (404 in total), with one
+  risk-level rubric based on business effect rather than HTTP verb (#399).
+- **Read-write separation active on six more services** — scm-order,
+  platform-inventory, scm-warehouse, scm-supplier, scm-purchase, lms-tms — each
+  pinned by a `ReadWriteApplicationConfigTest` and exposing
+  `GET /actuator/readwrite` (#403).
+- **System / auth — enterprise user management**, password policy, self-service
+  2FA and single-device revocation; token audience for the single-gateway
+  two-frontend model (#383, #384, #385).
+- **E-commerce images are now published.** The 8 `ecom-*` Dockerfiles existed but
+  the matrix omitted them, so no ecom image was ever produced (#403).
+- **CI gates** — coverage ratchet, port-conflict check, ecom manifest drift check,
+  permission annotation drift check, maintenance scheduling validation (#401, #406).
+
+### Changed
+
+- **Order center marks an order paid through exactly one route.** `POST
+  /api/v1/orders/{orderNo}/pay` accepts only the service-to-service HMAC-signed
+  call and requires `paidAmount` matching the order's `payableAmount` plus a
+  transaction id; the old amount-less form is gone (#402).
+- **Port collisions are fixed in the config**, not left to a per-operator
+  override: `platform-message` → 8215 (approval keeps 8209), `schema-registry` →
+  host 18081, Grafana → host 13000, `alertmanager` → host 9094 (#403).
+- **Coverage is a ratchet, not a wish.** `jacoco.skip=true` meant `mvn verify`
+  enforced nothing; the `coverage-gate` job passes per-module thresholds from
+  `scripts/ci/coverage-baseline.tsv`, and a module's numbers may only go up.
+
+### Fixed
+
+- **`complete()` on a purchase plan** validated `APPROVED→REJECTED` and wrote
+  status 3 ("rejected") while reporting success; `startExecution()` was a
+  same-state no-op (#398).
+- **The permission catalogue checker misattributed dependency failures as
+  coverage regressions**, and the baseline file carried doubled tabs that left the
+  line threshold empty (silently enforcing `line>=0`) (#406).
+- **The gated modules could not resolve their own reactor siblings** on a clean
+  runner: the root aggregator POM was never installed, so every `-pl` run died
+  before compiling. Fixed with an explicit aggregator install plus `-am` (#406).
+- **The ReDoS security test asserted a wall-clock budget** and failed under load;
+  it now asserts scaling (4x input must not cost ~16x time), which is the property
+  that actually distinguishes truncated linear scanning from the original bug.
+- Inventory's duplicate top-level `cognora` YAML key silently dropped its
+  `security.headers` block (HSTS, frame-options) while the app still started
+  (#387).
+- Reservation query NPE, gateway ClickHouse config and `StatusValidator`'s eager
+  Dubbo reference (#405).
+- Audit no longer records the webhook signature in tracking-callback params — a
+  credential was being copied into an append-only table (#399).
+
+### Removed
+
+- **The `context-smoke` CI job was withdrawn.** It booted a Spring context for
+  `ecom-payment` and `ecom-order-center` that could not start, making the job red
+  for reasons unrelated to the change under test. The defect class it targeted is
+  real and still uncovered: CI constructs no beans, so a missing `@Service`, an
+  ambiguous bean or an unsatisfied dependency ships silently. This is recorded as
+  a known gap in `AGENTS.md` rather than implied to be guarded (#401).
+
+### Security
+
+Deployments **must** set `JWT_SECRET` (>= 64 chars) and
+`API_SECRET_INTERNAL_SERVICE` (>= 32 random chars, identical on every service that
+reports audit records). Services now refuse to start otherwise — that is the
+point, since the previous defaults were public constants anyone who read the
+repository could use to forge tokens or audit writes.
+
 ## [2.2.0] - 2026-11-06
 
 Covers everything merged after `v2.1.0` (`5732ab1b`) through `b523612d`

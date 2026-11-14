@@ -859,10 +859,17 @@ npm run test:e2e     # Playwright
   the coverage rules. The `coverage-gate` CI job passes
   `-Djacoco.skip=false` plus `-Djacoco.line.minimum` / `-Djacoco.branch.minimum`
   per module, reading them from `scripts/ci/coverage-baseline.tsv`. Measured
-  2026-11-14: gateway 71.9%/55.0%, payment 62.4%/57.6%, order-center 44.7%/44.1%,
-  common-web 28.8%/26.1% — a flat 70/60 gate would be red forever and then get
-  switched off again. **A module's numbers may only go up**: add tests, then
-  raise that row. Modules absent from the TSV are not gated yet.
+  2026-11-14: gateway 71.8%/54.9%, payment 62.4%/57.6%, order-center 39.1%/39.3%,
+  common-web 20.8%/17.7% — a flat 70/60 gate would be red forever and then get
+  switched off again. Note the last two are *lower* than an earlier reading
+  because the context-smoke tests were withdrawn (see above): booting a Spring
+  context executed a lot of wiring code, and its coverage left with it. The
+  numbers are the real水位, not the goal. **A module's numbers may only go up**:
+  add tests, then raise that row; a deliberate test/code removal is the only
+  reason to lower one, recorded in the TSV. Modules absent from the TSV are not
+  gated yet. The `coverage-gate` job installs the root aggregator POM and uses
+  `-am` for the gated modules' dependencies — without both, every `-pl` run
+  fails to resolve a reactor sibling before any test executes.
   See `docs/development/COVERAGE_GATE.md`.
 
 ### 端口冲突与覆盖率相关脚本
