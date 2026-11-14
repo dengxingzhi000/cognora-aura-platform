@@ -2,7 +2,9 @@ package com.cognora.scm.purchase.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurPriceComparisonItem;
 import com.cognora.scm.purchase.service.IPurPriceComparisonItemService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,36 +24,46 @@ public class PurPriceComparisonItemController {
 
     @Operation(summary = "根据 ID 查询比价明细", description = "按主键查询单条比价明细。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:comparison-item:view')")
     public PurPriceComparisonItem getById(@Parameter(description = "比价明细 ID") @PathVariable String id) {
         return purPriceComparisonItemService.getById(id);
     }
 
     @Operation(summary = "按比价单查询明细列表", description = "查询指定比价单下的全部比价明细。")
     @GetMapping("/list/{comparisonId}")
+    @PreAuthorize("hasAuthority('purchase:comparison-item:list-by-comparison-id')")
     public List<PurPriceComparisonItem> listByComparisonId(@Parameter(description = "比价单 ID") @PathVariable String comparisonId) {
         return purPriceComparisonItemService.listByComparisonId(comparisonId);
     }
 
     @Operation(summary = "新增比价明细", description = "为比价单新增一条供应商报价明细。")
     @PostMapping
+    @PreAuthorize("hasAuthority('purchase:comparison-item:create')")
+    @AuditLog(operation = "新增比价明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurPriceComparisonItem purPriceComparisonItem) {
         return purPriceComparisonItemService.save(purPriceComparisonItem);
     }
 
     @Operation(summary = "更新比价明细", description = "按主键更新比价明细信息。")
     @PutMapping
+    @PreAuthorize("hasAuthority('purchase:comparison-item:update')")
+    @AuditLog(operation = "更新比价明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurPriceComparisonItem purPriceComparisonItem) {
         return purPriceComparisonItemService.updateById(purPriceComparisonItem);
     }
 
     @Operation(summary = "删除比价明细", description = "按主键删除单条比价明细。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:comparison-item:delete')")
+    @AuditLog(operation = "删除比价明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "比价明细 ID") @PathVariable String id) {
         return purPriceComparisonItemService.removeById(id);
     }
 
     @Operation(summary = "按比价单删除明细", description = "删除指定比价单下的全部比价明细。")
     @DeleteMapping("/comparison/{comparisonId}")
+    @PreAuthorize("hasAuthority('purchase:comparison-item:delete-by-comparison-id')")
+    @AuditLog(operation = "按比价单删除明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean deleteByComparisonId(@Parameter(description = "比价单 ID") @PathVariable String comparisonId) {
         return purPriceComparisonItemService.deleteByComparisonId(comparisonId);
     }

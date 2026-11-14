@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +30,7 @@ public class ReconciliationDiffController {
 
     @Operation(summary = "登记对账差异", description = "在对账记录下登记差异，初始状态为待处理。")
     @PostMapping
+    @PreAuthorize("hasAuthority('finance:reconciliation-diff:create')")
     @AuditLog(operation = "登记对账差异", businessType = "FINANCE_RECONCILIATION_DIFF", riskLevel = 3)
     public ApiResponse<ReconciliationDiff> create(@RequestBody ReconciliationDiff diff) {
         return ApiResponse.success(reconciliationDiffService.create(diff));
@@ -36,6 +38,7 @@ public class ReconciliationDiffController {
 
     @Operation(summary = "确认差异", description = "待处理 → 已确认；只有已确认差异才能核销。")
     @PostMapping("/{id}/confirm")
+    @PreAuthorize("hasAuthority('finance:reconciliation-diff:confirm')")
     @AuditLog(operation = "确认对账差异", businessType = "FINANCE_RECONCILIATION_DIFF", riskLevel = 3)
     public ApiResponse<ReconciliationDiff> confirm(
             @Parameter(description = "差异 ID") @PathVariable String id,
@@ -46,6 +49,7 @@ public class ReconciliationDiffController {
 
     @Operation(summary = "驳回差异", description = "待处理 → 已驳回（终态）。")
     @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAuthority('finance:reconciliation-diff:reject')")
     @AuditLog(operation = "驳回对账差异", businessType = "FINANCE_RECONCILIATION_DIFF", riskLevel = 3)
     public ApiResponse<ReconciliationDiff> reject(
             @Parameter(description = "差异 ID") @PathVariable String id,
@@ -56,6 +60,7 @@ public class ReconciliationDiffController {
 
     @Operation(summary = "核销差异", description = "已确认 → 已核销（终态）；非法流转返回 409。")
     @PostMapping("/{id}/write-off")
+    @PreAuthorize("hasAuthority('finance:reconciliation-diff:write-off')")
     @AuditLog(operation = "核销对账差异", businessType = "FINANCE_RECONCILIATION_DIFF", riskLevel = 4)
     public ApiResponse<ReconciliationDiff> writeOff(
             @Parameter(description = "差异 ID") @PathVariable String id,
@@ -66,12 +71,14 @@ public class ReconciliationDiffController {
 
     @Operation(summary = "查询差异详情", description = "根据差异 ID 查询差异状态与处理记录。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('finance:reconciliation-diff:view', 'finance:reconciliation-diff:page')")
     public ApiResponse<ReconciliationDiff> getById(@Parameter(description = "差异 ID") @PathVariable String id) {
         return ApiResponse.success(reconciliationDiffService.getById(id));
     }
 
     @Operation(summary = "分页查询差异", description = "按对账记录与状态分页查询差异。")
     @GetMapping("/page")
+    @PreAuthorize("hasAnyAuthority('finance:reconciliation-diff:page', 'finance:reconciliation-diff:view')")
     public ApiResponse<Page<ReconciliationDiff>> page(
             @Parameter(description = "对账记录 ID") @RequestParam(required = false) String reconciliationId,
             @Parameter(description = "差异状态") @RequestParam(required = false) Integer status,

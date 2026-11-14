@@ -1,10 +1,12 @@
 package com.cognora.scm.supplier.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.scm.supplier.domain.entity.SupSupplierEvaluation;
 import com.cognora.scm.supplier.service.ISupSupplierEvaluationService;
@@ -26,6 +28,7 @@ public class SupSupplierEvaluationController {
 
     @Operation(summary = "查询评价详情", description = "根据评价ID查询供应商评价详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:evaluation:view')")
     public ApiResponse<SupSupplierEvaluation> getById(@Parameter(description = "评价ID") @PathVariable String id) {
         log.info("[API] 查询评价详情: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         SupSupplierEvaluation evaluation = evaluationService.getById(id);
@@ -37,6 +40,8 @@ public class SupSupplierEvaluationController {
 
     @Operation(summary = "创建供应商评价", description = "新增供应商评价，按质量/交付/服务/价格加权计算总分并回写供应商绩效。")
     @PostMapping
+    @PreAuthorize("hasAuthority('supplier:evaluation:create')")
+    @AuditLog(operation = "创建供应商评价", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSupplierEvaluation> create(@RequestBody SupSupplierEvaluation evaluation) {
         log.info("[API] 创建供应商评价 supplierId={}", LogUtils.sanitizeForLog(evaluation.getSupplierId()));
         return ApiResponse.success(evaluationService.createEvaluation(evaluation));
@@ -44,6 +49,8 @@ public class SupSupplierEvaluationController {
 
     @Operation(summary = "更新评价", description = "根据评价ID更新供应商评价并重新计算总分、回写供应商绩效。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:evaluation:update')")
+    @AuditLog(operation = "更新供应商评价", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupSupplierEvaluation> update(@Parameter(description = "评价ID") @PathVariable String id,
                                                      @RequestBody SupSupplierEvaluation evaluation) {
         log.info("[API] 更新评价: id={}", LogUtils.sanitizeForLog(id));
@@ -52,6 +59,8 @@ public class SupSupplierEvaluationController {
 
     @Operation(summary = "删除评价", description = "根据评价ID删除供应商评价并重新回写供应商绩效。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:evaluation:delete')")
+    @AuditLog(operation = "删除供应商评价", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "评价ID") @PathVariable String id) {
         log.info("[API] 删除评价: id={}", LogUtils.sanitizeForLog(id));
         boolean success = evaluationService.deleteEvaluation(id);
@@ -60,6 +69,7 @@ public class SupSupplierEvaluationController {
 
     @Operation(summary = "分页查询评价", description = "按供应商与评价周期分页查询供应商评价列表。")
     @GetMapping
+    @PreAuthorize("hasAuthority('supplier:evaluation:page')")
     public ApiResponse<Page<SupSupplierEvaluation>> pageList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -72,6 +82,7 @@ public class SupSupplierEvaluationController {
 
     @Operation(summary = "查询供应商评价列表", description = "查询指定供应商的全部评价记录。")
     @GetMapping("/supplier/{supplierId}")
+    @PreAuthorize("hasAuthority('supplier:evaluation:list-by-supplier-id')")
     public ApiResponse<List<SupSupplierEvaluation>> listBySupplierId(@Parameter(description = "供应商ID") @PathVariable String supplierId) {
         log.info("[API] 查询供应商评价列表 supplierId={}", (supplierId + "").replace("\r", "_").replace("\n", "_"));
         return ApiResponse.success(evaluationService.listBySupplierId(supplierId));
@@ -79,6 +90,7 @@ public class SupSupplierEvaluationController {
 
     @Operation(summary = "查询供应商平均得分", description = "计算并返回指定供应商的平均评价得分。")
     @GetMapping("/supplier/{supplierId}/average-score")
+    @PreAuthorize("hasAuthority('supplier:evaluation:get-average-score')")
     public ApiResponse<BigDecimal> getAverageScore(@Parameter(description = "供应商ID") @PathVariable String supplierId) {
         log.info("[API] 计算供应商平均评价 supplierId={}", (supplierId + "").replace("\r", "_").replace("\n", "_"));
         return ApiResponse.success(evaluationService.calculateAverageScore(supplierId));

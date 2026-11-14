@@ -70,3 +70,7 @@ typecheck.txt
 npm-build.txt
 npm-lint.txt
 npm-typecheck.txt
+
+# Python tooling caches (scripts/ci, scripts/tools)
+__pycache__/
+*.pyc

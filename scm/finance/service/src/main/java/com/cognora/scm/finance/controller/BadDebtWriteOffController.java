@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -26,6 +27,7 @@ public class BadDebtWriteOffController {
 
     @Operation(summary = "分页查询核销单", description = "按核销单号/往来单位关键字、账期和状态分页查询核销单。")
     @GetMapping("/page")
+    @PreAuthorize("hasAnyAuthority('finance:bad-debt:page', 'finance:bad-debt:view')")
     public ApiResponse<Page<BadDebtWriteOff>> page(
             @Parameter(description = "页码，默认 1") @RequestParam(required = false) Integer page,
             @Parameter(description = "每页数量，默认 20") @RequestParam(required = false) Integer size,
@@ -38,12 +40,14 @@ public class BadDebtWriteOffController {
 
     @Operation(summary = "查询核销单详情", description = "根据核销单 ID 查询申请、审批与生效信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('finance:bad-debt:view', 'finance:bad-debt:page')")
     public ApiResponse<BadDebtWriteOff> getById(@Parameter(description = "核销单 ID") @PathVariable String id) {
         return ApiResponse.success(badDebtWriteOffService.getById(id));
     }
 
     @Operation(summary = "提交核销申请", description = "金额与账期绑定，同一结算单/发票只允许一张进行中的核销单。")
     @PostMapping
+    @PreAuthorize("hasAuthority('finance:bad-debt:apply')")
     @AuditLog(operation = "提交坏账核销申请", businessType = "FINANCE_BAD_DEBT_WRITE_OFF", riskLevel = 3)
     public ApiResponse<BadDebtWriteOff> apply(@RequestBody CreateBadDebtWriteOffRequest request) {
         return ApiResponse.success(badDebtWriteOffService.apply(request));
@@ -51,6 +55,7 @@ public class BadDebtWriteOffController {
 
     @Operation(summary = "审批通过核销申请", description = "申请中 → 已批准，只有已批准的核销单才能生效。")
     @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAuthority('finance:bad-debt:approve')")
     @AuditLog(operation = "审批坏账核销申请", businessType = "FINANCE_BAD_DEBT_WRITE_OFF", riskLevel = 4)
     public ApiResponse<BadDebtWriteOff> approve(
             @Parameter(description = "核销单 ID") @PathVariable String id,
@@ -62,6 +67,7 @@ public class BadDebtWriteOffController {
 
     @Operation(summary = "驳回核销申请", description = "申请中 → 已驳回；已批准、已核销的单据拒绝驳回。")
     @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAuthority('finance:bad-debt:reject')")
     @AuditLog(operation = "驳回坏账核销申请", businessType = "FINANCE_BAD_DEBT_WRITE_OFF", riskLevel = 4)
     public ApiResponse<BadDebtWriteOff> reject(
             @Parameter(description = "核销单 ID") @PathVariable String id,
@@ -72,6 +78,7 @@ public class BadDebtWriteOffController {
 
     @Operation(summary = "核销生效", description = "已批准 → 已核销；生效前重新校验账期可写，已关账账期拒绝核销。")
     @PostMapping("/{id}/write-off")
+    @PreAuthorize("hasAuthority('finance:bad-debt:write-off')")
     @AuditLog(operation = "坏账核销生效", businessType = "FINANCE_BAD_DEBT_WRITE_OFF", riskLevel = 4)
     public ApiResponse<BadDebtWriteOff> writeOff(
             @Parameter(description = "核销单 ID") @PathVariable String id,

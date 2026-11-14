@@ -135,7 +135,8 @@ public class OrderCenterServiceImpl extends ServiceImpl<OcOrderMapper, OcOrder> 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void payOrder(String orderNo, String paymentNo) {
+    public void applyVerifiedPayment(String orderNo, String paymentNo,
+                                     BigDecimal paidAmount, String transactionId) {
         OcOrder order = getOrder(orderNo);
         if (order == null) {
             throw new IllegalArgumentException("Order not found: " + orderNo);
@@ -147,13 +148,27 @@ public class OrderCenterServiceImpl extends ServiceImpl<OcOrderMapper, OcOrder> 
         if (order.getPayableAmount() == null || order.getPayableAmount().signum() <= 0) {
             throw new IllegalStateException("Order has no payable amount: " + orderNo);
         }
+        if (!StringUtils.hasText(paymentNo)) {
+            throw new IllegalArgumentException("paymentNo is required");
+        }
+        if (!StringUtils.hasText(transactionId)) {
+            throw new IllegalArgumentException("transactionId is required");
+        }
+        // The amount check is the business-level guard against a verified payment that settled a
+        // different order or a stale amount. The payment service already compared the channel
+        // amount against its own record; comparing it again here keeps the two independent.
+        if (paidAmount == null || paidAmount.compareTo(order.getPayableAmount()) != 0) {
+            throw new IllegalStateException("Paid amount does not match the order payable amount: "
+                    + paidAmount + " vs " + order.getPayableAmount());
+        }
 
         order.setStatus(2);
-        order.setPaidAmount(order.getPayableAmount());
+        order.setPaidAmount(paidAmount);
         order.setUpdatedAt(LocalDateTime.now());
         updateById(order);
 
-        log.info("Order paid: orderNo={}, paymentNo={}", (orderNo + "").replace("\r", "_").replace("\n", "_"), (paymentNo + "").replace("\r", "_").replace("\n", "_"));
+        log.info("Order paid by verified payment: orderNo={}, paymentNo={}",
+                safe(orderNo), safe(paymentNo));
     }
 
     @Override
