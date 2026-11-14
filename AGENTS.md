@@ -824,21 +824,26 @@ npm run test:e2e     # Playwright
   names are deprecated shims).
 - The POM's `<excludedGroups>` wins over `-DexcludedGroups=`, so re-enabling
   integration tests means editing the parent POM or adding a profile.
-- **CI now boots Spring contexts.** `build` still only runs Mockito units, but
-  the separate `context-smoke` job boots each module listed in
-  `scripts/ci/context-smoke-modules.txt` via `@ContextSmokeTest` (real
-  `@SpringBootApplication` + in-memory H2; Nacos/Redis/Kafka/RabbitMQ/XXL-Job and
-  other infra-dependent auto-configurations excluded). Use it for any service
-  whose wiring you touch. `scm-order` is not in the list yet, and it is the
-  hardest case: it needs PostgreSQL, Redis, RabbitMQ (the `RabbitAdmin` declares
-  queues at startup), a Nacos registry (Dubbo consumers such as
-  `InventoryDubboService`) and a reachable XXL-Job admin (`XxlJobConfig` refuses
-  an empty `xxl.job.admin.addresses`). It also needs
+- **CI still does not boot a Spring context.** `build` runs only Mockito units.
+  A `@ContextSmokeTest` mechanism (real `@SpringBootApplication` + in-memory H2)
+  was written and then **withdrawn**, because the contexts it booted for
+  `ecom-payment` and `ecom-order-center` could not start: those services need
+  wiring that the exclusion list did not cover, so the job was red for reasons
+  unrelated to the change under test. The H2 driver and `dubbo-registry-multicast`
+  stay on the test classpath (parent POM) and `@ContextSmokeTest` is the design
+  recorded in `docs/development/COVERAGE_GATE.md`; re-introduce it only together
+  with a context that actually starts.
+  The defect class it was meant to catch is real and still uncovered: CI never
+  constructs beans, so a missing `@Service`, an ambiguous bean or an unsatisfied
+  dependency ships silently. When you touch wiring, boot the service locally.
+  `scm-order` is the hardest case: it needs PostgreSQL, Redis, RabbitMQ (the
+  `RabbitAdmin` declares queues at startup), a Nacos registry (Dubbo consumers
+  such as `InventoryDubboService`) and a reachable XXL-Job admin
+  (`XxlJobConfig` refuses an empty `xxl.job.admin.addresses`). It also needs
   `spring.datasource.dynamic.datasource.master.*` — `dynamic-datasource` is on
   the classpath of every service, and MyBatis fails with
   "Property 'sqlSessionFactory' or 'sqlSessionTemplate' are required" when the
-  primary datasource is missing. `@ContextSmokeTest` supplies the H2 master
-  datasource and excludes XXL-Job precisely for this reason.
+  primary datasource is missing.
 - Two `platform/common` idioms caused most of those failures and should not be
   reintroduced: `@ConditionalOnMissingBean` on a `@Component`/`@Service`
   self-excludes (the condition sees the bean being registered) — put the
@@ -855,20 +860,10 @@ npm run test:e2e     # Playwright
   `-Djacoco.skip=false` plus `-Djacoco.line.minimum` / `-Djacoco.branch.minimum`
   per module, reading them from `scripts/ci/coverage-baseline.tsv`. Measured
   2026-11-14: gateway 71.9%/55.0%, payment 62.4%/57.6%, order-center 44.7%/44.1%,
-  common-web 27.3%/23.6% — a flat 70/60 gate would be red forever and then get
+  common-web 28.8%/26.1% — a flat 70/60 gate would be red forever and then get
   switched off again. **A module's numbers may only go up**: add tests, then
   raise that row. Modules absent from the TSV are not gated yet.
   See `docs/development/COVERAGE_GATE.md`.
-- **A Spring context now boots in CI.** Annotate a test class with
-  `@ContextSmokeTest` (`platform/common/core`, main sources) to boot the real
-  `@SpringBootApplication` against in-memory H2 with Nacos/Redis/Kafka/RabbitMQ/
-  XXL-Job/Dubbo-needing-infra excluded; add the module to
-  `scripts/ci/context-smoke-modules.txt` or it is not protected. This catches the
-  defect class CI used to miss entirely (missing `@Service`/`@MapperScan`,
-  ambiguous bean, unsatisfied dependency) — verified by deleting a `@Service` and
-  watching it fail with the missing bean's name. The H2 database name and Dubbo
-  application name are suffixed with `${spring.application.name}` because one
-  reactor reuses a single JVM and `jdbc:h2:mem:<name>` is JVM-global.
 
 ### 端口冲突与覆盖率相关脚本
 

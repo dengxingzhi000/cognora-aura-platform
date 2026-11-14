@@ -427,27 +427,11 @@
       <scope>provided</scope>
     </dependency>
 
-    <!-- H2 (test scope) for the shared @ContextSmokeTest annotation.
-         The smoke test boots the real @SpringBootApplication against an in-memory database so
-         MyBatis mappers, controllers and services are all constructed; without a JDBC driver
-         the mapper wiring — the defect this test exists to catch — cannot be exercised.
-         Keeping it here means a module only has to add a test class, not a dependency. -->
+    <!-- H2 (test scope): available to every module so a test that needs an in-memory database does
+         not have to declare the driver itself. -->
     <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <!-- Multicast registry (test scope) for @ContextSmokeTest.
-         platform/common/web's StatusValidator used to carry a @DubboReference field, which made
-         every service's startup depend on a reachable registry. It now resolves the reference
-         lazily through an ObjectProvider, so the context starts without one; this dependency is
-         kept so a smoke test can still create the reference when a module needs one for real.
-         Test scope only: production keeps using Nacos exclusively. -->
-    <dependency>
-      <groupId>org.apache.dubbo</groupId>
-      <artifactId>dubbo-registry-multicast</artifactId>
-      <version>${dubbo.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

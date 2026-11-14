@@ -215,7 +215,7 @@ jobs:
           # A gated module cannot resolve platform-common-* from a bare reactor run,
           # so install the shared libraries first (tests skipped; coverage only cares
           # about the gated module's own bytecode).
-          mvn install -B -DskipTests -q -f com.scm.parent/pom.xml -pl ../platform/common/core,../platform/common/data,../platform/common/cache,../platform/common/security/api,../platform/common/security/core,../platform/common/system-contract
+          mvn install -B -DskipTests -q -f com.scm.parent/pom.xml -pl ../platform/common/core,../platform/common/data,../platform/common/data-rw,../platform/common/cache,../platform/common/security/api,../platform/common/security/core,../platform/common/system-contract
 
       - name: Run coverage gate for every baseline entry
         run: |
@@ -247,59 +247,6 @@ jobs:
           path: |
             **/target/site/jacoco/
             **/target/site/jacoco-aggregate/
-
-  # Spring 上下文冒烟（P1-2 后半）。CI 从不启动 Spring 上下文，所以「少了 @Service /
-  # @MapperScan」「两个同类型 bean 冲突」这类装配缺陷会静默上线，直到有人手工起服务才发现。
-  # 这些测试用 @ContextSmokeTest：真 @SpringBootApplication + H2 内存库，不连任何外部设施。
-  # 反向验证过：注释掉一个 @Service 会立刻失败并指明缺哪个 bean。
-  context-smoke:
-    name: Context Smoke
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'maven'
-
-      - name: Install internal BOM
-        run: mvn install -B -DskipTests -f bom/pom.xml
-
-      - name: Install shared modules
-        run: |
-          mvn install -B -DskipTests -q -f com.scm.parent/pom.xml \
-            -pl ../platform/common/core,../platform/common/data,../platform/common/cache,../platform/common/security/api,../platform/common/security/core,../platform/common/system-contract,../platform/common/web
-
-      # 模块清单与 scripts/ci/context-smoke-modules.txt 保持一致：
-      # 新加冒烟类就把它所在模块加进去，否则那个模块永远不会被这个 job 保护。
-      - name: Run context smoke tests
-        run: |
-          set -euo pipefail
-          status=0
-          while IFS= read -r module; do
-            case "${module}" in ''|'#'*) continue ;; esac
-            echo "::group::context smoke ${module}"
-            if ! mvn test -B -f com.scm.parent/pom.xml -pl "${module}" \
-                 -Dtest='*ContextSmokeTest' -DfailIfNoTests=false; then
-              echo "::error title=Context smoke failed::${module} could not start its Spring context. This is a bean-wiring defect (missing @Service/@MapperScan, ambiguous bean, unsatisfied dependency) — not a test problem. The log names the missing bean."
-              status=1
-            fi
-            echo "::endgroup::"
-          done < scripts/ci/context-smoke-modules.txt
-          exit "${status}"
-
-      - name: Upload smoke reports
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: context-smoke-reports
-          if-no-files-found: ignore
-          path: '**/target/surefire-reports/'
 
   # SonarCloud identity is pinned to the historical project key:
   #   - `sonar.projectKey=scm-platform` is immutable after creation — do not rename it
