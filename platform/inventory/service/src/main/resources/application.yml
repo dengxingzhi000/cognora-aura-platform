@@ -227,7 +227,10 @@ xxl:
       logretentiondays: 30
     accessToken: default_token
 
-# Logging
+# ONE top-level `cognora` block only: Spring Boot's YAML loader accepts duplicate
+# keys but keeps the LAST one, silently discarding the first — which dropped this
+# service's whole `security.headers` block (HSTS, frame-options, content-type
+# options) at runtime while the app still started.
 cognora:
   security:
     headers:
@@ -240,6 +243,7 @@ cognora:
     alert:
       # Comma-separated user ids that receive stock alerts when the alert row names none.
       notify-user-ids: ${INVENTORY_ALERT_NOTIFY_USER_IDS:}
+
     # 智能补货的跨服务只读依赖。
     replenishment:
       # 采购在途量：available + inTransit 才决定是否触发补货，漏算会重复下单。
