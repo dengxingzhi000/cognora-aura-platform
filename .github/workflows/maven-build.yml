@@ -215,7 +215,14 @@ jobs:
           # A gated module cannot resolve platform-common-* from a bare reactor run,
           # so install the shared libraries first (tests skipped; coverage only cares
           # about the gated module's own bytecode).
-          mvn install -B -DskipTests -q -f com.scm.parent/pom.xml -pl ../platform/common/core,../platform/common/data,../platform/common/data-rw,../platform/common/cache,../platform/common/security/api,../platform/common/security/core,../platform/common/system-contract
+          #
+          # `../platform/common` must be in the list: the shared libraries declare it as
+          # their parent, and Maven resolves the parent POM from the repository, not from
+          # the reactor. Without it every -pl run below fails with
+          # "Failed to read artifact descriptor ... platform-common:pom" — and because the
+          # loop reports any failure as "below its baseline", that dependency error was
+          # being reported as a coverage regression.
+          mvn install -B -DskipTests -q -f com.scm.parent/pom.xml -pl ../platform/common,../platform/common/core,../platform/common/data,../platform/common/data-rw,../platform/common/cache,../platform/common/security/api,../platform/common/security/core,../platform/common/system-contract,../platform/common/web
 
       - name: Run coverage gate for every baseline entry
         run: |
@@ -227,13 +234,22 @@ jobs:
               ''|'#'*) continue ;;
             esac
             echo "::group::coverage gate ${module} (line>=${line_min}, branch>=${branch_min})"
+            log="$(mktemp)"
             if ! mvn verify -B -f com.scm.parent/pom.xml -pl "${module}" \
                  -Djacoco.skip=false \
                  -Djacoco.line.minimum="${line_min}" \
-                 -Djacoco.branch.minimum="${branch_min}"; then
-              echo "::error title=Coverage dropped::${module} is below its baseline (line>=${line_min}, branch>=${branch_min}). Add tests, or if this is a deliberate scope change, update scripts/ci/coverage-baseline.tsv with the measured values and justify it in the PR."
+                 -Djacoco.branch.minimum="${branch_min}" 2>&1 | tee "${log}"; then
+              # A dependency/build failure is not a coverage regression. Reporting one as
+              # "below its baseline" sends the reader looking for missing tests that would
+              # not have helped; say which it is.
+              if grep -qE 'Could not (resolve|collect|find) dependencies|Failed to read artifact descriptor|Could not find artifact' "${log}"; then
+                echo "::error title=Coverage gate could not build::${module} failed to resolve its dependencies, so coverage was never measured. This is a build/install problem, not a coverage regression — fix the module's install step (see the 'Install shared modules' step above)."
+              else
+                echo "::error title=Coverage dropped::${module} is below its baseline (line>=${line_min}, branch>=${branch_min}). Add tests, or if this is a deliberate scope change, update scripts/ci/coverage-baseline.tsv with the measured values and justify it in the PR."
+              fi
               status=1
             fi
+            rm -f "${log}"
             echo "::endgroup::"
           done < scripts/ci/coverage-baseline.tsv
           exit "${status}"
