@@ -210,6 +210,18 @@ jobs:
       - name: Install internal BOM
         run: mvn install -B -DskipTests -f bom/pom.xml
 
+      - name: Install the root aggregator POM
+        run: |
+          # `com.scm.parent/pom.xml` IS `com.cognora:cognora-aura-platform` (packaging: pom),
+          # and every module below it declares it as its parent. Maven resolves a parent POM
+          # from the repository, not from the reactor, so on a clean runner the gated modules
+          # fail with "Could not find artifact com.cognora:cognora-aura-platform:pom:2.2.0"
+          # as soon as they are built with -pl instead of as part of a full reactor run.
+          #
+          # A developer's ~/.m2 usually has it from an earlier `mvn install`, which is exactly
+          # why this only showed up in CI.
+          mvn install -B -N -DskipTests -f com.scm.parent/pom.xml
+
       - name: Install shared modules the gated modules compile against
         run: |
           # A gated module cannot resolve platform-common-* from a bare reactor run,
@@ -217,11 +229,11 @@ jobs:
           # about the gated module's own bytecode).
           #
           # `../platform/common` must be in the list: the shared libraries declare it as
-          # their parent, and Maven resolves the parent POM from the repository, not from
-          # the reactor. Without it every -pl run below fails with
-          # "Failed to read artifact descriptor ... platform-common:pom" — and because the
-          # loop reports any failure as "below its baseline", that dependency error was
-          # being reported as a coverage regression.
+          # their parent (the aggregator above installs the root one), and Maven resolves
+          # the parent POM from the repository, not from the reactor. Without it every -pl
+          # run below fails with "Failed to read artifact descriptor ...
+          # platform-common:pom" — and because the loop reports any failure as "below its
+          # baseline", that dependency error was being reported as a coverage regression.
           mvn install -B -DskipTests -q -f com.scm.parent/pom.xml -pl ../platform/common,../platform/common/core,../platform/common/data,../platform/common/data-rw,../platform/common/cache,../platform/common/security/api,../platform/common/security/core,../platform/common/system-contract,../platform/common/web
 
       - name: Run coverage gate for every baseline entry

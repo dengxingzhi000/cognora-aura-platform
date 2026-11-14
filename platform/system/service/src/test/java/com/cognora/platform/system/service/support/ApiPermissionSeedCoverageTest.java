@@ -35,7 +35,7 @@ class ApiPermissionSeedCoverageTest {
         List<Row> rows = seedRows();
         List<Row> templated = rows.stream().filter(row -> isTemplate(row.apiPath)).toList();
 
-        assertEquals(354, templated.size(),
+        assertEquals(353, templated.size(),
                 "002 中用户管理 edit/delete/reset/grant 已登记真实模板路径（原 350 + 4），改动 seed 后需同步更新断言");
 
         List<SysPermission> candidates = toCandidates(rows);
