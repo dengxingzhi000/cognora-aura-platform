@@ -33,14 +33,19 @@ public class InvReservationPageQueryService {
   @Slave
   public Page<InvReservationResponse> query(InvReservationQueryRequest request) {
     LambdaQueryWrapper<InvReservationRecord> wrapper = Wrappers.lambdaQuery();
+    // normalizeStatus() must not run when the filter is absent: Java evaluates every
+    // argument before the call, so passing it inline threw NPE on a null status even
+    // though the `hasText` condition was false.
+    String status = StringUtils.hasText(request.getStatus())
+        ? normalizeStatus(request.getStatus())
+        : null;
     wrapper.eq(StringUtils.hasText(request.getSkuId()),
             InvReservationRecord::getSkuId, request.getSkuId())
         .eq(StringUtils.hasText(request.getWarehouseId()),
             InvReservationRecord::getWarehouseId, request.getWarehouseId())
         .like(StringUtils.hasText(request.getBusinessKey()),
             InvReservationRecord::getBusinessKey, request.getBusinessKey())
-        .eq(StringUtils.hasText(request.getStatus()),
-            InvReservationRecord::getStatus, normalizeStatus(request.getStatus()))
+        .eq(status != null, InvReservationRecord::getStatus, status)
         .ge(request.getStartTime() != null,
             InvReservationRecord::getCreateTime, request.getStartTime())
         .le(request.getEndTime() != null,

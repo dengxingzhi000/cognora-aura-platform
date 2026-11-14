@@ -6,6 +6,25 @@
 
 ---
 
+> [!WARNING]
+> **文档与代码已出现漂移，阅读前请先看这一节。**
+>
+> 部分 ADR 记录的是**当时的备选评估**，而项目的实际实现已经变了。我们保留原文作为决策历史
+> （改写历史会让"为什么当初这么选"无从追溯），但下面这张表是**当前事实**，与代码一致：
+>
+> | ADR 里写的 | 代码里实际是 | 以哪个为准 |
+> |---|---|---|
+> | 数据库 **MySQL** | **PostgreSQL**（分区表、`timestamptz`、PgBouncer） | 代码 |
+> | 搜索同步 **Canal 监听 MySQL binlog** | **两者都未引入**：仓库里没有 Canal，也没有 Debezium；ES 索引由 `scm-search` 的索引接口（`POST /api/v1/search/index/**`）写入 | 代码 |
+> | 状态机 **Spring State Machine** | 枚举状态机 `OrderStatus.canTransitionTo()`；通用路径是 `StatusValidator` → `StatusMachineDubboService`。父 POM 声明了 `spring-statemachine`，但**代码零引用** | 代码 |
+> | 分库分表 **ShardingSphere** | **未引入**（POM 中无任何 shardingsphere 依赖）；`inv_reservation`/`sup_purchase_order`/`ord_order` 用 PostgreSQL 原生分区 | 代码 |
+> | 库存同步「Redis → MySQL 每 10 分钟」 | 库存热点走 Redis + Lua 并同步写 PostgreSQL；**没有**定时全量同步任务 | 代码 |
+>
+> 权威来源优先级：**代码 > `AGENTS.md` > `docs/design/*`**。发现不一致时请直接修本文档的
+> 这张表，而不是在别处再写一份"现状"。
+
+---
+
 ## ADR-001: 选择 Seata AT 模式作为主要分布式事务方案
 
 **状态**: ✅ 已采纳
