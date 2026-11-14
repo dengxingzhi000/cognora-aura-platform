@@ -61,6 +61,7 @@ db_product:010_product.sql
 db_supplier:013_supplier.sql
 db_warehouse:014_warehouse.sql
 db_inventory:011_inventory.sql
+db_inventory:034_replenishment_policy.sql
 db_order:012_order.sql
 db_logistics:015_logistics.sql
 db_finance:016_finance.sql
