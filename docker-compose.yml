@@ -864,8 +864,6 @@ services:
       # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
       # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
       SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
-      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
-      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_product?stringtype=unspecified
       # 搜索索引由 ES 提供；没有 ES 时搜索接口会报错，但启动与其余接口正常
       ELASTICSEARCH_URIS: http://elasticsearch:9200
     ports:
@@ -884,8 +882,6 @@ services:
       # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
       # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
       SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
-      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
-      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_inventory?stringtype=unspecified
     ports:
       - "8202:8202"
 
@@ -902,8 +898,6 @@ services:
       # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
       # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
       SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
-      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
-      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_order?stringtype=unspecified
     ports:
       - "8203:8203"
 
@@ -920,8 +914,6 @@ services:
       # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
       # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
       SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
-      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
-      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_warehouse?stringtype=unspecified
     ports:
       - "8204:8204"
 
@@ -938,8 +930,6 @@ services:
       # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
       # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
       SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
-      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
-      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_logistics?stringtype=unspecified
     ports:
       - "8205:8205"
 
@@ -956,8 +946,6 @@ services:
       # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
       # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
       SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
-      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
-      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_supplier?stringtype=unspecified
     ports:
       - "8206:8206"
 
@@ -974,8 +962,6 @@ services:
       # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
       # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
       SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
-      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
-      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_purchase?stringtype=unspecified
     ports:
       - "8207:8207"
 
