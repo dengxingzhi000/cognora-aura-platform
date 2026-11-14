@@ -1,9 +1,11 @@
 package com.cognora.scm.warehouse.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.scm.warehouse.domain.entity.WmsInbound;
 import com.cognora.scm.warehouse.service.command.WmsInboundCommandService;
@@ -24,6 +26,8 @@ public class WmsInboundController {
 
     @Operation(summary = "创建入库单", description = "根据仓库与入库类型新建一张入库单并生成入库单号。")
     @PostMapping
+    @PreAuthorize("hasAuthority('warehouse:inbound:create')")
+    @AuditLog(operation = "创建入库单", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsInbound> create(@RequestBody WmsInbound inbound) {
         log.info("[API] 创建入库单 warehouseId={}, type={}", (inbound.getWarehouseId() + "").replace("\r", "_").replace("\n", "_"), (inbound.getInboundType() + "").replace("\r", "_").replace("\n", "_"));
         WmsInbound created = inboundCommandService.create(inbound);
@@ -33,6 +37,8 @@ public class WmsInboundController {
 
     @Operation(summary = "更新入库单", description = "按主键更新入库单信息，仅允许在未收货状态下修改。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:inbound:update')")
+    @AuditLog(operation = "更新入库单", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<WmsInbound> update(@Parameter(description = "入库单主键 ID") @PathVariable String id, @RequestBody WmsInbound inbound) {
         log.info("[API] 更新入库单 id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         inbound.setId(id);
@@ -49,6 +55,8 @@ public class WmsInboundController {
 
     @Operation(summary = "删除入库单", description = "按主键逻辑删除入库单，已删除的单据不再对外可见。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:inbound:delete')")
+    @AuditLog(operation = "删除入库单", businessType = "WAREHOUSE", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "入库单主键 ID") @PathVariable String id) {
         log.info("[API] 删除入库单 id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         boolean success = inboundCommandService.softDeleteById(id);
@@ -57,6 +65,7 @@ public class WmsInboundController {
 
     @Operation(summary = "查询入库单详情", description = "按主键查询入库单，单据不存在或已删除时返回 404。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('warehouse:inbound:view')")
     public ApiResponse<WmsInbound> getById(@Parameter(description = "入库单主键 ID") @PathVariable String id) {
         WmsInbound inbound = inboundQueryService.getById(id);
         if (inbound == null || Boolean.TRUE.equals(inbound.getDeleted())) {
@@ -67,6 +76,7 @@ public class WmsInboundController {
 
     @Operation(summary = "分页查询入库单", description = "按仓库、入库类型与单据状态分页查询入库单列表。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('warehouse:inbound:page')")
     public ApiResponse<Page<WmsInbound>> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -78,6 +88,8 @@ public class WmsInboundController {
 
     @Operation(summary = "入库收货", description = "对指定入库单执行收货确认，并记录操作人信息。")
     @PutMapping("/{id}/receive")
+    @PreAuthorize("hasAuthority('warehouse:inbound:receive')")
+    @AuditLog(operation = "入库收货", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<Void> receive(
             @Parameter(description = "入库单主键 ID") @PathVariable String id,
             @Parameter(description = "操作人用户 ID") @RequestParam String operatorId,
@@ -93,6 +105,8 @@ public class WmsInboundController {
 
     @Operation(summary = "取消入库单", description = "取消指定入库单并记录操作人，仅未完成的单据允许取消。")
     @PutMapping("/{id}/cancel")
+    @PreAuthorize("hasAuthority('warehouse:inbound:cancel')")
+    @AuditLog(operation = "取消入库单", businessType = "WAREHOUSE", riskLevel = 3)
     public ApiResponse<Void> cancel(
             @Parameter(description = "入库单主键 ID") @PathVariable String id,
             @Parameter(description = "操作人用户 ID") @RequestParam String operatorId,

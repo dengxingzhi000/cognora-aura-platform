@@ -1,8 +1,10 @@
 package com.cognora.platform.tenant.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.tenant.domain.entity.TenantFeature;
 import com.cognora.platform.tenant.service.ITenantFeatureService;
@@ -22,6 +24,8 @@ public class TenantFeatureController {
 
     @Operation(summary = "创建租户功能", description = "为指定租户新增一个功能开关记录并返回创建结果。")
     @PostMapping
+    @PreAuthorize("hasAuthority('tenant:feature:create')")
+    @AuditLog(operation = "创建租户功能", businessType = "TENANT", riskLevel = 3)
     public TenantFeature create(@RequestBody TenantFeature entity) {
         log.info("[API] Create tenant feature: tenantId={}, featureCode={}", (entity.getTenantId() + "").replace("\r", "_").replace("\n", "_"), (entity.getFeatureCode() + "").replace("\r", "_").replace("\n", "_"));
         return tenantFeatureService.createFeature(entity);
@@ -29,6 +33,7 @@ public class TenantFeatureController {
 
     @Operation(summary = "查询功能详情", description = "根据功能记录 ID 查询租户功能开关详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('tenant:feature:view')")
     public TenantFeature getById(@Parameter(description = "功能记录ID") @PathVariable String id) {
         log.info("[API] Query tenant feature: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantFeatureService.getById(id);
@@ -36,6 +41,8 @@ public class TenantFeatureController {
 
     @Operation(summary = "更新租户功能", description = "根据功能记录 ID 更新租户功能开关配置。")
     @PutMapping
+    @PreAuthorize("hasAuthority('tenant:feature:update')")
+    @AuditLog(operation = "更新租户功能", businessType = "TENANT", riskLevel = 3)
     public TenantFeature update(@RequestBody TenantFeature entity) {
         log.info("[API] Update tenant feature: id={}", (entity.getId() + "").replace("\r", "_").replace("\n", "_"));
         return tenantFeatureService.updateFeature(entity);
@@ -43,6 +50,8 @@ public class TenantFeatureController {
 
     @Operation(summary = "删除租户功能", description = "根据功能记录 ID 删除指定的租户功能开关。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('tenant:feature:delete')")
+    @AuditLog(operation = "删除租户功能", businessType = "TENANT", riskLevel = 4)
     public boolean deleteById(@Parameter(description = "功能记录ID") @PathVariable String id) {
         log.info("[API] Delete tenant feature: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantFeatureService.deleteById(id);
@@ -50,6 +59,7 @@ public class TenantFeatureController {
 
     @Operation(summary = "校验功能是否启用", description = "判断指定租户的某个功能开关当前是否处于启用状态。")
     @GetMapping("/check")
+    @PreAuthorize("hasAuthority('tenant:feature:is-feature-enabled')")
     public boolean isFeatureEnabled(
             @Parameter(description = "租户ID") @RequestParam String tenantId,
             @Parameter(description = "功能编码") @RequestParam String featureCode) {
@@ -59,6 +69,7 @@ public class TenantFeatureController {
 
     @Operation(summary = "查询租户功能列表", description = "查询指定租户下全部功能开关记录。")
     @GetMapping("/tenant/{tenantId}")
+    @PreAuthorize("hasAuthority('tenant:feature:list-by-tenant-id')")
     public List<TenantFeature> listByTenantId(@Parameter(description = "租户ID") @PathVariable String tenantId) {
         log.info("[API] Query tenant features list: tenantId={}", (tenantId + "").replace("\r", "_").replace("\n", "_"));
         return tenantFeatureService.listByTenantId(tenantId);
@@ -66,6 +77,7 @@ public class TenantFeatureController {
 
     @Operation(summary = "分页查询租户功能", description = "按租户、功能编码和启用状态分页查询租户功能开关。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('tenant:feature:page')")
     public Page<TenantFeature> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

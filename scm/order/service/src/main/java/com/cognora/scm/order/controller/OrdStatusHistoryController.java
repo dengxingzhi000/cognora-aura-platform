@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,6 +36,7 @@ public class OrdStatusHistoryController {
 
     @Operation(summary = "查询状态历史", description = "根据状态历史 ID 查询单条状态变更记录。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('order:status-history:view')")
     public ApiResponse<StatusHistoryResponse> getById(@Parameter(description = "状态历史 ID") @PathVariable UUID id) {
         log.info("[API] Query status history: id={}", id);
         return ApiResponse.success(queryService.getResponseById(id.toString()));
@@ -42,6 +44,7 @@ public class OrdStatusHistoryController {
 
     @Operation(summary = "按订单查询状态历史", description = "根据订单 ID 查询该订单的全部状态变更记录。")
     @GetMapping("/order/{orderId}")
+    @PreAuthorize("hasAuthority('order:status-history:list-by-order-id')")
     public ApiResponse<List<StatusHistoryResponse>> listByOrderId(@Parameter(description = "订单 ID") @PathVariable UUID orderId) {
         log.info("[API] Query order status history: orderId={}", orderId);
         return ApiResponse.success(queryService.listResponsesByOrderId(orderId));

@@ -1,6 +1,7 @@
 package com.cognora.platform.inventory.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.inventory.dto.InvLogQueryRequest;
 import com.cognora.platform.inventory.dto.InvLogResponse;
@@ -10,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,6 +37,8 @@ public class InvLogController {
   @Operation(summary = "分页查询库存流水",
       description = "按 SKU、单据号、仓库、变更类型与时间范围分页查询，返回变更前后四元组。")
   @PostMapping("/query")
+  @PreAuthorize("hasAuthority('inventory:log:view')")
+  @AuditLog(operation = "分页查询库存流水", businessType = "INVENTORY", riskLevel = 2)
   public ApiResponse<Page<InvLogResponse>> query(
       @RequestBody @Valid InvLogQueryRequest request) {
     return ApiResponse.success(queryService.query(request));

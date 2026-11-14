@@ -5,6 +5,7 @@ import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.scm.finance.domain.entity.ReconciliationRecord;
 import com.cognora.scm.finance.service.IReconciliationRecordService;
@@ -24,6 +25,7 @@ public class ReconciliationRecordController {
 
     @Operation(summary = "分页查询对账记录", description = "按单号/往来单位关键字、账期、状态和差异标记分页查询对账记录。")
     @GetMapping("/page")
+    @PreAuthorize("hasAuthority('finance:reconciliation:page')")
     public ApiResponse<Page<ReconciliationRecord>> page(
             @Parameter(description = "页码，默认 1") @RequestParam(required = false) Integer page,
             @Parameter(description = "每页数量，默认 20") @RequestParam(required = false) Integer size,
@@ -38,6 +40,7 @@ public class ReconciliationRecordController {
 
     @Operation(summary = "查询对账记录详情", description = "根据对账记录 ID 查询双方对账的完整信息。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:reconciliation:view')")
     public ApiResponse<ReconciliationRecord> getById(@Parameter(description = "对账记录 ID") @PathVariable String id) {
         ReconciliationRecord record = reconciliationRecordService.getById(id);
         return ApiResponse.success(record);
@@ -45,6 +48,7 @@ public class ReconciliationRecordController {
 
     @Operation(summary = "创建对账记录", description = "根据对账数据创建对账记录并计算双方金额差异。")
     @PostMapping
+    @PreAuthorize("hasAuthority('finance:reconciliation:create')")
     @AuditLog(operation = "创建对账记录", businessType = "FINANCE_RECONCILIATION", riskLevel = 3)
     public ApiResponse<ReconciliationRecord> create(@RequestBody ReconciliationRecord record) {
         ReconciliationRecord created = reconciliationRecordService.createReconciliation(record);
@@ -53,6 +57,7 @@ public class ReconciliationRecordController {
 
     @Operation(summary = "更新对账记录", description = "按对账记录 ID 更新对账信息并刷新更新时间。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:reconciliation:update')")
     @AuditLog(operation = "修改对账记录", businessType = "FINANCE_RECONCILIATION", riskLevel = 3)
     public ApiResponse<ReconciliationRecord> update(@Parameter(description = "对账记录 ID") @PathVariable String id, @RequestBody ReconciliationRecord record) {
         ReconciliationRecord updated = reconciliationRecordService.updateReconciliation(id, record);
@@ -61,6 +66,7 @@ public class ReconciliationRecordController {
 
     @Operation(summary = "删除对账记录", description = "按对账记录 ID 对对账记录执行逻辑删除。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('finance:reconciliation:delete')")
     @AuditLog(operation = "删除对账记录", businessType = "FINANCE_RECONCILIATION", riskLevel = 3)
     public ApiResponse<Void> delete(@Parameter(description = "对账记录 ID") @PathVariable String id) {
         reconciliationRecordService.deleteReconciliation(id);
@@ -69,6 +75,7 @@ public class ReconciliationRecordController {
 
     @Operation(summary = "执行对账", description = "记录对账人与对账结果，将对账记录置为已对账状态。")
     @PostMapping("/{id}/reconcile")
+    @PreAuthorize("hasAuthority('finance:reconciliation:reconcile')")
     @AuditLog(operation = "执行对账", businessType = "FINANCE_RECONCILIATION", riskLevel = 3)
     public ApiResponse<ReconciliationRecord> reconcile(
             @Parameter(description = "对账记录 ID") @PathVariable String id,
@@ -80,6 +87,7 @@ public class ReconciliationRecordController {
 
     @Operation(summary = "确认对账", description = "记录确认人并确认对账结果，完成对账流程。")
     @PostMapping("/{id}/confirm")
+    @PreAuthorize("hasAuthority('finance:reconciliation:confirm')")
     @AuditLog(operation = "确认对账", businessType = "FINANCE_RECONCILIATION", riskLevel = 3)
     public ApiResponse<ReconciliationRecord> confirm(
             @Parameter(description = "对账记录 ID") @PathVariable String id,
@@ -91,6 +99,7 @@ public class ReconciliationRecordController {
 
     @Operation(summary = "标记对账差异", description = "将对账记录标记为存在差异并记录差异类型与原因。")
     @PostMapping("/{id}/mark-diff")
+    @PreAuthorize("hasAuthority('finance:reconciliation:mark-as-diff')")
     @AuditLog(operation = "标记对账差异", businessType = "FINANCE_RECONCILIATION", riskLevel = 3)
     public ApiResponse<ReconciliationRecord> markAsDiff(
             @Parameter(description = "对账记录 ID") @PathVariable String id,
@@ -103,6 +112,7 @@ public class ReconciliationRecordController {
 
     @Operation(summary = "驳回对账", description = "驳回已对账或有差异的对账结果；已确认、已驳回的记录拒绝再次流转。")
     @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAuthority('finance:reconciliation:reject')")
     @AuditLog(operation = "驳回对账", businessType = "FINANCE_RECONCILIATION", riskLevel = 3)
     public ApiResponse<ReconciliationRecord> reject(
             @Parameter(description = "对账记录 ID") @PathVariable String id,
