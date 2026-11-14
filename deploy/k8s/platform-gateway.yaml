@@ -97,3 +97,7 @@ data:
   kafka-bootstrap: "kafka-headless.kafka:9092"
   elasticsearch-uris: "http://elasticsearch-master.elasticsearch:9200"
   seata-server: "seata-server.seata:8091"
+  # ecom-analytics reads ClickHouse on its native HTTP port (8123). It was missing from
+  # this ConfigMap while the service already defaulted to localhost:8123, so a k8s deploy
+  # silently pointed the analytics queries at an in-pod port that nothing listens on.
+  clickhouse-host: "clickhouse.clickhouse:8123"
