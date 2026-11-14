@@ -1,8 +1,10 @@
 package com.cognora.platform.tenant.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.tenant.domain.entity.TenantOperationLog;
 import com.cognora.platform.tenant.service.ITenantOperationLogService;
@@ -22,6 +24,8 @@ public class TenantOperationLogController {
 
     @Operation(summary = "创建操作日志", description = "写入一条租户操作日志记录并返回创建结果。")
     @PostMapping
+    @PreAuthorize("hasAuthority('tenant:operation-log:create')")
+    @AuditLog(operation = "登记租户操作日志", businessType = "TENANT", riskLevel = 2)
     public TenantOperationLog create(@RequestBody TenantOperationLog entity) {
         log.info("[API] 创建租户操作日志: tenantId={}, operationType={}", (entity.getTenantId() + "").replace("\r", "_").replace("\n", "_"), (entity.getOperationType() + "").replace("\r", "_").replace("\n", "_"));
         return tenantOperationLogService.createLog(entity);
@@ -29,6 +33,7 @@ public class TenantOperationLogController {
 
     @Operation(summary = "查询日志详情", description = "根据日志 ID 查询租户操作日志详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('tenant:operation-log:view', 'tenant:operation-log:page')")
     public TenantOperationLog getById(@Parameter(description = "日志ID") @PathVariable String id) {
         log.info("[API] 查询租户操作日志: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantOperationLogService.getById(id);
@@ -36,6 +41,8 @@ public class TenantOperationLogController {
 
     @Operation(summary = "删除操作日志", description = "根据日志 ID 删除指定的租户操作日志。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('tenant:operation-log:delete')")
+    @AuditLog(operation = "删除租户操作日志", businessType = "TENANT", riskLevel = 4)
     public boolean deleteById(@Parameter(description = "日志ID") @PathVariable String id) {
         log.info("[API] 删除租户操作日志: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantOperationLogService.deleteById(id);
@@ -43,6 +50,7 @@ public class TenantOperationLogController {
 
     @Operation(summary = "查询租户日志列表", description = "查询指定租户的全部操作日志。")
     @GetMapping("/tenant/{tenantId}")
+    @PreAuthorize("hasAuthority('tenant:operation-log:list-by-tenant-id')")
     public List<TenantOperationLog> listByTenantId(@Parameter(description = "租户ID") @PathVariable String tenantId) {
         log.info("[API] 查询租户操作日志: tenantId={}", (tenantId + "").replace("\r", "_").replace("\n", "_"));
         return tenantOperationLogService.listByTenantId(tenantId);
@@ -50,6 +58,7 @@ public class TenantOperationLogController {
 
     @Operation(summary = "按操作类型查询日志", description = "查询指定操作类型下的全部租户操作日志。")
     @GetMapping("/operation-type/{operationType}")
+    @PreAuthorize("hasAuthority('tenant:operation-log:list-by-operation-type')")
     public List<TenantOperationLog> listByOperationType(@Parameter(description = "操作类型") @PathVariable String operationType) {
         log.info("[API] 查询操作类型日志: operationType={}", (operationType + "").replace("\r", "_").replace("\n", "_"));
         return tenantOperationLogService.listByOperationType(operationType);
@@ -57,6 +66,7 @@ public class TenantOperationLogController {
 
     @Operation(summary = "分页查询操作日志", description = "按租户、操作类型和操作模块分页查询租户操作日志。")
     @GetMapping("/page")
+    @PreAuthorize("hasAnyAuthority('tenant:operation-log:page', 'tenant:operation-log:view')")
     public Page<TenantOperationLog> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

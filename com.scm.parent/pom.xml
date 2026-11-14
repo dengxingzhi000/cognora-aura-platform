@@ -66,13 +66,13 @@
     <fastjson2.version>2.0.66</fastjson2.version>
 
     <!-- Messaging (5.30.0 is the version managed by Spring Boot 4.1.2) -->
-    <rabbitmq.version>5.37.0</rabbitmq.version>
+    <rabbitmq.version>5.37.1</rabbitmq.version>
 
     <!-- Testcontainers -->
     <testcontainers.version>2.0.5</testcontainers.version>
 
     <!-- Database Migration -->
-    <flyway.version>13.11.1</flyway.version>
+    <flyway.version>13.12.1</flyway.version>
 
     <!-- Modules that own Flyway migrations but are temporarily exempt from the
          Flyway auto-configuration guard, because their migration to
@@ -159,7 +159,7 @@
       <dependency>
         <groupId>jakarta.validation</groupId>
         <artifactId>jakarta.validation-api</artifactId>
-        <version>3.0.2</version>
+        <version>3.1.1</version>
       </dependency>
 
       <!-- Spring Cloud -->
@@ -467,7 +467,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.6.0</version>
+        <version>3.6.1</version>
         <configuration>
           <excludedGroups>integration</excludedGroups>
         </configuration>

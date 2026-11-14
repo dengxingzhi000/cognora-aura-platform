@@ -1,9 +1,11 @@
 package com.cognora.scm.supplier.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.scm.supplier.domain.entity.SupPurchaseOrderItem;
 import com.cognora.scm.supplier.service.ISupPurchaseOrderItemService;
@@ -25,6 +27,7 @@ public class SupPurchaseOrderItemController {
 
     @Operation(summary = "查询采购单明细", description = "根据明细ID查询采购订单明细详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:purchase-order-item:view')")
     public ApiResponse<SupPurchaseOrderItem> getById(@Parameter(description = "采购单明细ID") @PathVariable UUID id) {
         log.info("[API] 查询采购单明细详情 id={}", id);
         SupPurchaseOrderItem item = purchaseOrderItemService.getById(id);
@@ -36,6 +39,8 @@ public class SupPurchaseOrderItemController {
 
     @Operation(summary = "创建采购单明细", description = "新增采购订单明细，未填写小计时按单价与数量自动计算。")
     @PostMapping
+    @PreAuthorize("hasAuthority('supplier:purchase-order-item:create')")
+    @AuditLog(operation = "创建采购单明细", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupPurchaseOrderItem> create(@RequestBody SupPurchaseOrderItem item) {
         SupPurchaseOrderItem created = purchaseOrderItemService.createItem(item);
         return ApiResponse.success(created);
@@ -43,6 +48,8 @@ public class SupPurchaseOrderItemController {
 
     @Operation(summary = "更新采购单明细", description = "根据明细ID更新采购订单明细，并重新计算小计金额。")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:purchase-order-item:update')")
+    @AuditLog(operation = "更新采购单明细", businessType = "SUPPLIER", riskLevel = 3)
     public ApiResponse<SupPurchaseOrderItem> update(@Parameter(description = "采购单明细ID") @PathVariable UUID id,
                                                     @RequestBody SupPurchaseOrderItem item) {
         SupPurchaseOrderItem updated = purchaseOrderItemService.updateItem(id, item);
@@ -54,6 +61,8 @@ public class SupPurchaseOrderItemController {
 
     @Operation(summary = "删除采购单明细", description = "根据明细ID删除采购订单明细。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('supplier:purchase-order-item:delete')")
+    @AuditLog(operation = "删除采购单明细", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> delete(@Parameter(description = "采购单明细ID") @PathVariable UUID id) {
         log.info("[API] 删除采购单明细 id={}", id);
         boolean success = purchaseOrderItemService.removeById(id);
@@ -62,6 +71,7 @@ public class SupPurchaseOrderItemController {
 
     @Operation(summary = "分页查询采购单明细", description = "按采购单ID与SKU分页查询采购订单明细列表。")
     @GetMapping
+    @PreAuthorize("hasAuthority('supplier:purchase-order-item:page')")
     public ApiResponse<Page<SupPurchaseOrderItem>> pageList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -74,6 +84,7 @@ public class SupPurchaseOrderItemController {
 
     @Operation(summary = "查询采购单明细列表", description = "查询指定采购单下的全部明细。")
     @GetMapping("/purchase/{purchaseId}")
+    @PreAuthorize("hasAuthority('supplier:purchase-order-item:list-by-purchase-id')")
     public ApiResponse<List<SupPurchaseOrderItem>> listByPurchaseId(@Parameter(description = "采购单ID") @PathVariable String purchaseId) {
         log.info("[API] 查询采购单明细列表 purchaseId={}", (purchaseId + "").replace("\r", "_").replace("\n", "_"));
         return ApiResponse.success(purchaseOrderItemService.listByPurchaseId(purchaseId));

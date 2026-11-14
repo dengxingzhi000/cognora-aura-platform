@@ -65,47 +65,4 @@ public class InvAlertController {
    */
   @Operation(summary = "查询告警统计", description = "统计告警总数、未解决数量以及库存不足与缺货告警数量。")
   @GetMapping("/stats")
-  @PreAuthorize("hasAuthority('inventory:alert:stats')")
-  public ApiResponse<InvAlertStatsResponse> stats() {
-    return ApiResponse.success(queryService.stats());
-  }
-
-  /**
-   * 查询告警详情
-   */
-  @Operation(summary = "查询告警详情", description = "根据告警 ID 查询告警明细。")
-  @GetMapping("/{id}")
-  @PreAuthorize("hasAuthority('inventory:alert:view')")
-  public ApiResponse<InvAlertResponse> get(
-      @Parameter(description = "告警 ID") @PathVariable @NotBlank(message = "告警 ID 不能为空") String id) {
-    InvAlert alert = queryService.getById(id);
-    return alert == null
-        ? ApiResponse.fail(ResultCode.NOT_FOUND.getCode(), "告警不存在")
-        : ApiResponse.success(InvAlertResponse.from(alert));
-  }
-
-  /**
-   * 处理告警
-   */
-  @Operation(summary = "处理告警", description = "将指定告警标记为已解决，并记录处理人与处理时间。")
-  @PutMapping("/{id}/resolve")
-  @PreAuthorize("hasAuthority('inventory:alert:resolve')")
-  @AuditLog(operation = "处理库存告警", businessType = "INVENTORY", riskLevel = 3)
-  public ApiResponse<Boolean> resolve(
-      @Parameter(description = "告警 ID") @PathVariable @NotBlank(message = "告警 ID 不能为空") String id,
-      @Parameter(description = "处理人，缺省记为 SYSTEM")
-      @RequestParam(required = false) String resolvedBy) {
-    return ApiResponse.success(commandService.resolve(id, resolvedBy) > 0);
-  }
-
-  /**
-   * 手动触发告警扫描
-   */
-  @Operation(summary = "触发告警扫描", description = "扫描当前租户全部库存，生成或刷新库存水位告警，并自动解除已恢复库存的告警。")
-  @PostMapping("/scan")
-  @PreAuthorize("hasAuthority('inventory:alert:scan')")
-  @AuditLog(operation = "扫描库存并生成告警", businessType = "INVENTORY", riskLevel = 2)
-  public ApiResponse<InvAlertScanResult> scan() {
-    return ApiResponse.success(commandService.scanAndGenerate());
-  }
-}
+  @PreAuthorize("hasAnyAuthority('inventory:alert:view', 'inventory:alert:stats')")

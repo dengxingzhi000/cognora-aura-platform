@@ -1,8 +1,10 @@
 package com.cognora.platform.tenant.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.cognora.platform.tenant.domain.entity.TenantResourceQuota;
 import com.cognora.platform.tenant.service.ITenantResourceQuotaService;
@@ -22,6 +24,8 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "创建资源配额", description = "为指定租户新增资源配额记录并返回创建结果。")
     @PostMapping
+    @PreAuthorize("hasAuthority('tenant:quota:create')")
+    @AuditLog(operation = "创建租户资源配额", businessType = "TENANT", riskLevel = 3)
     public TenantResourceQuota create(@RequestBody TenantResourceQuota entity) {
         log.info("[API] Create tenant resource quota: tenantId={}", (entity.getTenantId() + "").replace("\r", "_").replace("\n", "_"));
         return tenantResourceQuotaService.createQuota(entity);
@@ -29,6 +33,7 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "查询配额详情", description = "根据配额 ID 查询租户资源配额详情。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('tenant:quota:view', 'tenant:quota:check-quota', 'tenant:quota:page')")
     public TenantResourceQuota getById(@Parameter(description = "配额ID") @PathVariable String id) {
         log.info("[API] Query tenant resource quota: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantResourceQuotaService.getById(id);
@@ -36,6 +41,8 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "更新资源配额", description = "根据配额 ID 更新租户各项资源的上限配置。")
     @PutMapping
+    @PreAuthorize("hasAuthority('tenant:quota:update')")
+    @AuditLog(operation = "更新租户资源配额", businessType = "TENANT", riskLevel = 3)
     public TenantResourceQuota update(@RequestBody TenantResourceQuota entity) {
         log.info("[API] Update tenant resource quota: id={}", (entity.getId() + "").replace("\r", "_").replace("\n", "_"));
         return tenantResourceQuotaService.updateQuota(entity);
@@ -43,6 +50,8 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "删除资源配额", description = "根据配额 ID 删除指定的租户资源配额。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('tenant:quota:delete')")
+    @AuditLog(operation = "删除租户资源配额", businessType = "TENANT", riskLevel = 4)
     public boolean deleteById(@Parameter(description = "配额ID") @PathVariable String id) {
         log.info("[API] Delete tenant resource quota: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
         return tenantResourceQuotaService.deleteById(id);
@@ -50,6 +59,7 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "校验资源配额", description = "检查租户在指定资源类型下是否仍有可用配额。")
     @GetMapping("/check")
+    @PreAuthorize("hasAnyAuthority('tenant:quota:check-quota', 'tenant:quota:view')")
     public boolean checkQuota(
             @Parameter(description = "租户ID") @RequestParam String tenantId,
             @Parameter(description = "资源类型") @RequestParam String resourceType) {
@@ -59,6 +69,7 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "查询租户配额列表", description = "查询指定租户的全部资源配额记录。")
     @GetMapping("/tenant/{tenantId}")
+    @PreAuthorize("hasAuthority('tenant:quota:list-by-tenant-id')")
     public List<TenantResourceQuota> listByTenantId(@Parameter(description = "租户ID") @PathVariable String tenantId) {
         log.info("[API] Query tenant resource quotas: tenantId={}", (tenantId + "").replace("\r", "_").replace("\n", "_"));
         return tenantResourceQuotaService.listByTenantId(tenantId);
@@ -66,6 +77,7 @@ public class TenantResourceQuotaController {
 
     @Operation(summary = "分页查询资源配额", description = "按租户分页查询租户资源配额列表。")
     @GetMapping("/page")
+    @PreAuthorize("hasAnyAuthority('tenant:quota:page', 'tenant:quota:view')")
     public Page<TenantResourceQuota> pageQuery(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

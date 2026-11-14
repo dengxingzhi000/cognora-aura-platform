@@ -130,6 +130,25 @@ public class SecurityConfig {
                                 // Signed service-to-service audit write channel. Only scm-audit
                                 // exposes this route; AuditWriteRequestGuard enforces the HMAC.
                                 "/sys-audit-log",
+                                // Signed "order is paid" write-back. Only ecom-order-center exposes
+                                // this route; it is listed in
+                                // ApiAccessControlProperties.internalSignaturePaths, and
+                                // InternalEndpointSignatureFilter (ordered before this chain)
+                                // rejects anything without a valid service signature. Without
+                                // permitAll here the caller is a service with no user token, so
+                                // Spring Security answered 401 before the signature was checked.
+                                "/api/v1/orders/*/pay",
+                                // Signed service-to-service permission lookups. Access tokens no
+                                // longer carry the permission list (a tenant administrator's token
+                                // was ~26KB, past a browser's ~4KB per-cookie limit), so every
+                                // service resolves permissions per request through these two
+                                // routes. They are protected by the HMAC in
+                                // ApiAccessControlProperties.internalSignaturePaths — the same
+                                // channel /find-by-url already uses — so requiring a user
+                                // authentication here made the lookup impossible: the caller is
+                                // a service, not a logged-in user.
+                                "/api/system/permissions/find-by-url",
+                                "/api/system/permissions/user/**",
                                 "/api/public/**",
                                 // Error dispatches carry no authentication (the JWT filter skips
                                 // ERROR dispatch), so denying /error rewrites every 5xx as a 401.

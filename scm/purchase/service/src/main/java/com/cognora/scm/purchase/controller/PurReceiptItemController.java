@@ -2,7 +2,9 @@ package com.cognora.scm.purchase.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.scm.purchase.domain.entity.PurReceiptItem;
 import com.cognora.scm.purchase.service.IPurReceiptItemService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,36 +24,46 @@ public class PurReceiptItemController {
 
     @Operation(summary = "根据 ID 查询收货明细", description = "按明细主键查询单条采购收货明细记录。")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:receipt-item:view')")
     public PurReceiptItem getById(@Parameter(description = "收货明细主键 ID") @PathVariable String id) {
         return purReceiptItemService.getById(id);
     }
 
     @Operation(summary = "查询收货单下的明细列表", description = "根据收货单 ID 查询该收货单包含的全部明细行。")
     @GetMapping("/list/{receiptId}")
+    @PreAuthorize("hasAuthority('purchase:receipt-item:list-by-receipt-id')")
     public List<PurReceiptItem> listByReceiptId(@Parameter(description = "收货单 ID") @PathVariable String receiptId) {
         return purReceiptItemService.listByReceiptId(receiptId);
     }
 
     @Operation(summary = "新增收货明细", description = "创建一条新的采购收货明细记录。")
     @PostMapping
+    @PreAuthorize("hasAuthority('purchase:receipt-item:create')")
+    @AuditLog(operation = "新增收货明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean save(@RequestBody PurReceiptItem purReceiptItem) {
         return purReceiptItemService.save(purReceiptItem);
     }
 
     @Operation(summary = "修改收货明细", description = "按主键更新已有的收货明细记录。")
     @PutMapping
+    @PreAuthorize("hasAuthority('purchase:receipt-item:update')")
+    @AuditLog(operation = "修改收货明细", businessType = "PURCHASE", riskLevel = 3)
     public boolean update(@RequestBody PurReceiptItem purReceiptItem) {
         return purReceiptItemService.updateById(purReceiptItem);
     }
 
     @Operation(summary = "删除收货明细", description = "按明细主键删除单条收货明细记录。")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('purchase:receipt-item:delete')")
+    @AuditLog(operation = "删除收货明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean delete(@Parameter(description = "收货明细主键 ID") @PathVariable String id) {
         return purReceiptItemService.removeById(id);
     }
 
     @Operation(summary = "按收货单删除明细", description = "删除指定收货单下的全部明细行。")
     @DeleteMapping("/receipt/{receiptId}")
+    @PreAuthorize("hasAuthority('purchase:receipt-item:delete-by-receipt-id')")
+    @AuditLog(operation = "按收货单删除明细", businessType = "PURCHASE", riskLevel = 4)
     public boolean deleteByReceiptId(@Parameter(description = "收货单 ID") @PathVariable String receiptId) {
         return purReceiptItemService.deleteByReceiptId(receiptId);
     }

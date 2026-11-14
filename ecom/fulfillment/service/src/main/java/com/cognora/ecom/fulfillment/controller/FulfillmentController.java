@@ -3,6 +3,7 @@ package com.cognora.ecom.fulfillment.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.ecom.fulfillment.domain.entity.FulfillmentOrder;
 import com.cognora.ecom.fulfillment.service.IFulfillmentOrderService;
+import com.cognora.platform.common.log.annotation.AuditLog;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +15,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +31,7 @@ public class FulfillmentController {
 
     @Operation(summary = "分页查询履约单", description = "按订单号、用户与状态分页查询履约单。")
     @GetMapping("/page")
+    @PreAuthorize("hasAnyAuthority('fulfillment:fulfillment:page', 'fulfillment:fulfillment:get-fulfillment')")
     public Page<FulfillmentOrder> page(
             @Parameter(description = "页码，默认 1") @RequestParam(defaultValue = "1") @Min(1) int page,
             @Parameter(description = "每页数量，默认 20，最大 100") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
@@ -40,6 +43,8 @@ public class FulfillmentController {
 
     @Operation(summary = "创建履约单", description = "根据订单号与履约类型创建一张新的履约单。")
     @PostMapping
+    @PreAuthorize("hasAuthority('fulfillment:fulfillment:create-fulfillment')")
+    @AuditLog(operation = "创建履约单", businessType = "FULFILLMENT", riskLevel = 3)
     public FulfillmentOrder createFulfillment(@Valid @RequestBody CreateFulfillmentRequest request) {
         log.info("[API] Create fulfillment: orderNo={}", (request.getOrderNo() + "").replace("\r", "_").replace("\n", "_"));
         return fulfillmentService.createFulfillment(request.getOrderNo(), request.getUserId(), request.getFulfillmentType());
@@ -47,6 +52,7 @@ public class FulfillmentController {
 
     @Operation(summary = "查询履约单", description = "根据履约单号查询履约单的明细与当前状态。")
     @GetMapping("/{fulfillmentNo}")
+    @PreAuthorize("hasAnyAuthority('fulfillment:fulfillment:get-fulfillment', 'fulfillment:fulfillment:page')")
     public FulfillmentOrder getFulfillment(@Parameter(description = "履约单号") @PathVariable String fulfillmentNo) {
         log.info("[API] Get fulfillment: fulfillmentNo={}", (fulfillmentNo + "").replace("\r", "_").replace("\n", "_"));
         return fulfillmentService.getFulfillment(fulfillmentNo);
@@ -54,6 +60,8 @@ public class FulfillmentController {
 
     @Operation(summary = "取消履约单", description = "根据履约单号取消履约单，并记录取消原因。")
     @PostMapping("/{fulfillmentNo}/cancel")
+    @PreAuthorize("hasAuthority('fulfillment:fulfillment:cancel-fulfillment')")
+    @AuditLog(operation = "取消履约单", businessType = "FULFILLMENT", riskLevel = 3)
     public boolean cancelFulfillment(@Parameter(description = "履约单号") @PathVariable String fulfillmentNo, @Valid @RequestBody CancelRequest request) {
         log.info("[API] Cancel fulfillment: fulfillmentNo={}, reason={}", (fulfillmentNo + "").replace("\r", "_").replace("\n", "_"), (request.getReason() + "").replace("\r", "_").replace("\n", "_"));
         fulfillmentService.cancelFulfillment(fulfillmentNo, request.getReason());
@@ -62,6 +70,8 @@ public class FulfillmentController {
 
     @Operation(summary = "拣货", description = "对指定履约单执行拣货操作，将履约单推进至拣货完成状态。")
     @PostMapping("/{fulfillmentNo}/pick")
+    @PreAuthorize("hasAuthority('fulfillment:fulfillment:pick-items')")
+    @AuditLog(operation = "拣货履约单", businessType = "FULFILLMENT", riskLevel = 3)
     public boolean pickItems(@Parameter(description = "履约单号") @PathVariable String fulfillmentNo) {
         log.info("[API] Pick items: fulfillmentNo={}", (fulfillmentNo + "").replace("\r", "_").replace("\n", "_"));
         fulfillmentService.pickItems(fulfillmentNo);
@@ -70,6 +80,8 @@ public class FulfillmentController {
 
     @Operation(summary = "打包", description = "对指定履约单执行打包操作，将履约单推进至打包完成状态。")
     @PostMapping("/{fulfillmentNo}/pack")
+    @PreAuthorize("hasAuthority('fulfillment:fulfillment:pack-items')")
+    @AuditLog(operation = "打包履约单", businessType = "FULFILLMENT", riskLevel = 3)
     public boolean packItems(@Parameter(description = "履约单号") @PathVariable String fulfillmentNo) {
         log.info("[API] Pack items: fulfillmentNo={}", (fulfillmentNo + "").replace("\r", "_").replace("\n", "_"));
         fulfillmentService.packItems(fulfillmentNo);
@@ -78,6 +90,8 @@ public class FulfillmentController {
 
     @Operation(summary = "发货", description = "登记物流单号与承运商，对指定履约单执行发货操作。")
     @PostMapping("/{fulfillmentNo}/ship")
+    @PreAuthorize("hasAuthority('fulfillment:fulfillment:ship-items')")
+    @AuditLog(operation = "履约单发货", businessType = "FULFILLMENT", riskLevel = 3)
     public boolean shipItems(@Parameter(description = "履约单号") @PathVariable String fulfillmentNo, @Valid @RequestBody ShipRequest request) {
         log.info("[API] Ship items: fulfillmentNo={}, trackingNo={}, carrier={}", (fulfillmentNo + "").replace("\r", "_").replace("\n", "_"), (request.getTrackingNo() + "").replace("\r", "_").replace("\n", "_"), (request.getCarrier() + "").replace("\r", "_").replace("\n", "_"));
         fulfillmentService.shipItems(fulfillmentNo, request.getTrackingNo(), request.getCarrier());
@@ -86,6 +100,8 @@ public class FulfillmentController {
 
     @Operation(summary = "确认签收", description = "对指定履约单确认收货签收，将履约单推进至已完成状态。")
     @PostMapping("/{fulfillmentNo}/deliver")
+    @PreAuthorize("hasAuthority('fulfillment:fulfillment:confirm-delivery')")
+    @AuditLog(operation = "确认签收", businessType = "FULFILLMENT", riskLevel = 3)
     public boolean confirmDelivery(@Parameter(description = "履约单号") @PathVariable String fulfillmentNo) {
         log.info("[API] Confirm delivery: fulfillmentNo={}", (fulfillmentNo + "").replace("\r", "_").replace("\n", "_"));
         fulfillmentService.confirmDelivery(fulfillmentNo);

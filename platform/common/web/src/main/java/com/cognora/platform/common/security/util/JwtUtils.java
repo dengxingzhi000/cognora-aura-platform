@@ -479,7 +479,13 @@ public class JwtUtils {
     }
 
     /**
-     * 锟絋oken涓彁鍙栨潈锟?
+     * Permissions carried by the token.
+     *
+     * <p>Tokens no longer embed the permission list (see {@link #buildClaims}); this always
+     * returns an empty set for a token minted by the current build, and still returns the
+     * embedded list for a token issued before the shortening so in-flight sessions keep working
+     * until they expire. Callers that need an authoritative answer must resolve permissions
+     * server-side (see {@code JwtAuthenticationFilter}).
      */
     @SuppressWarnings("unchecked")
     public Set<String> getPermissionsFromToken(String token) {
@@ -676,6 +682,20 @@ public class JwtUtils {
                 .compact();
     }
 
+    /**
+     * Builds the access-token claims.
+     *
+     * <p><strong>The permission list is deliberately NOT serialised into the token.</strong>
+     * A tenant administrator holds several hundred permission codes, which put the signed token
+     * around 26 KB. That is larger than the ~4 KB a browser stores in a single cookie, so the
+     * cookie was silently dropped and the session could not survive a navigation or reload; it
+     * also forced every hop (front proxy, gateway, Tomcat) to raise its request-header ceiling.
+     * Keeping {@code roles} (a handful of values) and resolving permissions on the server
+     * (see {@code JwtAuthenticationFilter}) keeps the token near 1 KB.
+     *
+     * <p>The {@code permissions} argument stays in the signature because the login response
+     * still returns it to the SPA in the body, and refresh callers pass the user's current set.
+     */
     private Map<String, Object> buildClaims(UUID userId, String username, Set<String> roles, Set<String> permissions,
                                             String tokenType, String deviceId, String ipAddress, String jti,
                                             UUID tenantId, String tenantCode, String audience) {
@@ -683,7 +703,6 @@ public class JwtUtils {
         claims.put("userId", userId);
         claims.put("username", username);
         claims.put("roles", roles);
-        claims.put("permissions", permissions);
         claims.put("tokenType", tokenType);
         claims.put("deviceId", deviceId);
         claims.put("ipAddress", ipAddress);
