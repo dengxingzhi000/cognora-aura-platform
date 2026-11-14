@@ -1011,7 +1011,7 @@
         {
           "file": "ecom/order-center/service/src/main/java/com/cognora/ecom/ordercenter/controller/OrderCenterController.java",
           "class": "OrderCenterController",
-          "javaMethod": "applyVerifiedPayment",
+          "javaMethod": "payOrder",
           "httpMethod": "POST",
           "path": "/api/v1/orders/{orderNo}/pay",
           "code": null,
@@ -3230,28 +3230,6 @@
           "exemptReason": null
         },
         {
-          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvBatchController.java",
-          "class": "InvBatchController",
-          "javaMethod": "query",
-          "httpMethod": "POST",
-          "path": "/api/v1/inventory/batches/query",
-          "code": null,
-          "codes": [],
-          "exempt": false,
-          "exemptReason": null
-        },
-        {
-          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvBatchController.java",
-          "class": "InvBatchController",
-          "javaMethod": "stats",
-          "httpMethod": "POST",
-          "path": "/api/v1/inventory/batches/stats",
-          "code": null,
-          "codes": [],
-          "exempt": false,
-          "exemptReason": null
-        },
-        {
           "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvInventoryController.java",
           "class": "InvInventoryController",
           "javaMethod": "checkStockAvailable",
@@ -3394,17 +3372,6 @@
           "codes": [
             "inventory:reservation:get"
           ],
-          "exempt": false,
-          "exemptReason": null
-        },
-        {
-          "file": "platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvInventoryController.java",
-          "class": "InvInventoryController",
-          "javaMethod": "updateSafetyStock",
-          "httpMethod": "PUT",
-          "path": "/api/v1/inventory/safety-stock",
-          "code": null,
-          "codes": [],
           "exempt": false,
           "exemptReason": null
         },
@@ -7345,19 +7312,6 @@
     },
     "scm/purchase/service": {
       "endpoints": [
-        {
-          "file": "scm/purchase/service/src/main/java/com/cognora/scm/purchase/controller/PurOrderController.java",
-          "class": "PurOrderController",
-          "javaMethod": "inTransit",
-          "httpMethod": "GET",
-          "path": "/api/v1/pur-order/in-transit",
-          "code": "purchase:order:view",
-          "codes": [
-            "purchase:order:view"
-          ],
-          "exempt": true,
-          "exemptReason": "internalSignaturePaths"
-        },
         {
           "file": "scm/purchase/service/src/main/java/com/cognora/scm/purchase/controller/PurOrderController.java",
           "class": "PurOrderController",

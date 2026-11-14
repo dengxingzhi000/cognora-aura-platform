@@ -119,16 +119,12 @@ resolve_scripts_root() {
 # create-partitions.sh 用 `|| true` 吞掉了 psql 的失败，脚本本身会退出 0。
 # 为了不把「数据库根本连不上」报成维护成功，这里在脚本跑完之后补一次连通性校验：
 #   0 = 连得上，1 = 连不上，2 = psql 不可用
-# 参数是探测用的数据库，必须是该任务**真正连过**的那个库。不要用 `-d postgres`：
-# 受限角色常常没有 postgres 库的 CONNECT 权限，那样会把已经成功的维护报成 FAILED。
-# `DB_PROBE_DB` 可整体覆盖（见 run_task 的映射）。
 pg_reachable() {
-    local database="${1:-${DB_PROBE_DB:-db_order}}"
     if ! command -v psql >/dev/null 2>&1; then
         return 2
     fi
     PGCONNECT_TIMEOUT="${MAINTENANCE_CONNECT_TIMEOUT}" PGPASSWORD="${DB_PASSWORD}" \
-        psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${database}" -tAc 'SELECT 1' >/dev/null 2>&1
+        psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d postgres -tAc 'SELECT 1' >/dev/null 2>&1
 }
 
 target_of() {
@@ -182,22 +178,14 @@ run_task() {
     fi
 
     # 脚本退出 0 不等于维护真的做过了：补一次连通性校验。
-    # 探测库跟着任务走：create/drop 动的是 db_order，create-audit/retention 动的是 db_audit。
-    case "${task}" in
-        create-audit | retention)
-            pg_reachable "${DB_PROBE_DB:-db_audit}"
-            ;;
-        *)
-            pg_reachable "${DB_PROBE_DB:-db_order}"
-            ;;
-    esac
+    pg_reachable
     status=$?
     if [ "${status}" -eq 2 ]; then
         log "${task} FAILED (exit 1) psql not available in PATH - the script could not have reached the database"
         return 1
     fi
     if [ "${status}" -ne 0 ]; then
-        log "${task} FAILED (exit 1) postgres target ${DB_HOST}:${DB_PORT} database ${DB_PROBE_DB:-db_order} unreachable - the script exited 0 but no connection was possible"
+        log "${task} FAILED (exit 1) postgres target ${DB_HOST}:${DB_PORT} unreachable - the script exited 0 but no connection was possible"
         return 1
     fi
 

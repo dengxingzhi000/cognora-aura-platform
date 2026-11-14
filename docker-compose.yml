@@ -597,9 +597,6 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
-      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
-      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8302:8302"
     depends_on:
@@ -621,9 +618,6 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
-      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
-      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8303:8303"
     depends_on:
@@ -645,9 +639,6 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
-      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
-      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8304:8304"
     depends_on:
@@ -669,9 +660,6 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
-      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
-      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8305:8305"
     depends_on:
@@ -693,9 +681,6 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
-      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
-      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8301:8301"
     depends_on:
@@ -717,9 +702,6 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
-      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
-      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8306:8306"
     depends_on:
@@ -737,9 +719,6 @@ services:
     environment:
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
-      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
-      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
       ELASTICSEARCH_URIS: http://elasticsearch:9200
     ports:
       - "8307:8307"
@@ -762,9 +741,6 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
-      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
-      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
       KAFKA_BOOTSTRAP: kafka:9092
       CH_HOST: clickhouse
       XXL_JOB_ADMIN: ${XXL_JOB_ADMIN:-http://xxl-job-admin:8080/}
@@ -861,9 +837,8 @@ services:
       SPRING_APPLICATION_NAME: platform-product
       # classpath 上 application.yaml / .yml 同时存在时端口会被盖成 8080，OS 环境变量优先级最高
       SERVER_PORT: 8201
-      # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
-      # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
-      SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
+      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_product?stringtype=unspecified
       # 搜索索引由 ES 提供；没有 ES 时搜索接口会报错，但启动与其余接口正常
       ELASTICSEARCH_URIS: http://elasticsearch:9200
     ports:
@@ -879,9 +854,8 @@ services:
       SPRING_APPLICATION_NAME: platform-inventory
       # classpath 上 application.yaml / .yml 同时存在时端口会被盖成 8080，OS 环境变量优先级最高
       SERVER_PORT: 8202
-      # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
-      # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
-      SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
+      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_inventory?stringtype=unspecified
     ports:
       - "8202:8202"
 
@@ -895,9 +869,8 @@ services:
       SPRING_APPLICATION_NAME: scm-order
       # classpath 上 application.yaml / .yml 同时存在时端口会被盖成 8080，OS 环境变量优先级最高
       SERVER_PORT: 8203
-      # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
-      # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
-      SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
+      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_order?stringtype=unspecified
     ports:
       - "8203:8203"
 
@@ -911,9 +884,8 @@ services:
       SPRING_APPLICATION_NAME: scm-warehouse
       # classpath 上 application.yaml / .yml 同时存在时端口会被盖成 8080，OS 环境变量优先级最高
       SERVER_PORT: 8204
-      # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
-      # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
-      SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
+      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_warehouse?stringtype=unspecified
     ports:
       - "8204:8204"
 
@@ -927,9 +899,8 @@ services:
       SPRING_APPLICATION_NAME: lms-tms
       # classpath 上 application.yaml / .yml 同时存在时端口会被盖成 8080，OS 环境变量优先级最高
       SERVER_PORT: 8205
-      # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
-      # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
-      SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
+      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_logistics?stringtype=unspecified
     ports:
       - "8205:8205"
 
@@ -943,9 +914,8 @@ services:
       SPRING_APPLICATION_NAME: scm-supplier
       # classpath 上 application.yaml / .yml 同时存在时端口会被盖成 8080，OS 环境变量优先级最高
       SERVER_PORT: 8206
-      # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
-      # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
-      SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
+      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_supplier?stringtype=unspecified
     ports:
       - "8206:8206"
 
@@ -959,9 +929,8 @@ services:
       SPRING_APPLICATION_NAME: scm-purchase
       # classpath 上 application.yaml / .yml 同时存在时端口会被盖成 8080，OS 环境变量优先级最高
       SERVER_PORT: 8207
-      # 读写分离已激活（application.yml 里 dynamic.enabled=false）：这里再显式关一次 baomidou dynamic-datasource，
-      # 否则 anchor 里的 SPRING_DATASOURCE_DYNAMIC_PRIMARY=master 会与 rw group 冲突，服务启动即失败
-      SPRING_DATASOURCE_DYNAMIC_ENABLED: "false"
+      # dynamic-datasource 需要显式 master，否则启动时 CannotFindDataSourceException
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_purchase?stringtype=unspecified
     ports:
       - "8207:8207"
 
@@ -1084,6 +1053,7 @@ services:
       SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:postgresql://postgres:5432/db_system?stringtype=unspecified
     ports:
       - "8214:8214"
+
 
   # ============================================================
   # 数据库维护（可选：docker compose --profile maintenance up -d db-maintenance）

@@ -17,22 +17,22 @@
 | 指标 | 数量 |
 | --- | ---: |
 | 服务（有 controller 的模块） | 24 |
-| 端点总数 | 794 |
+| 端点总数 | 790 |
 | 运行时候选码 > 1 的端点 | 144 |
 | seed 目录行 / 唯一 (url, method) 对 | 663 / 662 |
-| 已映射到权限码 | 656 |
-| 豁免端点 | 100 |
-| 其中既命中目录又被豁免 | 24 |
-| **目录缺口** | **62** |
+| 已映射到权限码 | 655 |
+| 豁免端点 | 99 |
+| 其中既命中目录又被豁免 | 23 |
+| **目录缺口** | **59** |
 
-`已映射 + 豁免 - 既映射又豁免 + 缺口 = 656 + 100 - 24 + 62 = 794`。「既命中目录又被豁免」的端点（如 `/api/v1/payments/{id}`）运行时先命中豁免，目录行不参与放行。
+`已映射 + 豁免 - 既映射又豁免 + 缺口 = 655 + 99 - 23 + 59 = 790`。「既命中目录又被豁免」的端点（如 `/api/v1/payments/{id}`）运行时先命中豁免，目录行不参与放行。
 
 豁免端点按规则分布：
 
 | 豁免规则 | 数量 |
 | --- | ---: |
 | `exemptPaths` | 86 |
-| `internalSignaturePaths` | 7 |
+| `internalSignaturePaths` | 6 |
 | `signatureOrPermissionPaths` | 5 |
 | `whitelist` | 2 |
 
@@ -54,14 +54,14 @@
 | `platform/auth` | 23 | 0 | 14 | 9 |
 | `platform/document/service` | 21 | 21 | 0 | 0 |
 | `platform/file/service` | 13 | 13 | 0 | 0 |
-| `platform/inventory/service` | 30 | 21 | 6 | 4 |
+| `platform/inventory/service` | 27 | 21 | 6 | 1 |
 | `platform/notify/service` | 27 | 13 | 19 | 0 |
 | `platform/product/service` | 40 | 40 | 0 | 0 |
 | `platform/system/service` | 85 | 52 | 5 | 29 |
 | `platform/tenant/service` | 52 | 52 | 0 | 0 |
 | `scm/finance/service` | 68 | 68 | 0 | 0 |
 | `scm/order/service` | 24 | 24 | 4 | 0 |
-| `scm/purchase/service` | 116 | 116 | 1 | 0 |
+| `scm/purchase/service` | 115 | 115 | 0 | 0 |
 | `scm/supplier/service` | 62 | 62 | 0 | 0 |
 | `scm/warehouse/service` | 46 | 46 | 0 | 0 |
 
@@ -106,14 +106,11 @@
 | POST | `/api/auth/webauthn/register/challenge` | `generateRegistrationChallenge` | `platform/auth/src/main/java/com/cognora/platform/auth/controller/WebAuthnRegistrationController.java` |
 | POST | `/api/auth/webauthn/register/verify` | `registerCredential` | `platform/auth/src/main/java/com/cognora/platform/auth/controller/WebAuthnRegistrationController.java` |
 
-### `platform/inventory/service`（4 个）
+### `platform/inventory/service`（1 个）
 
 | HTTP | 路径 | Java 方法 | 源文件 |
 | --- | --- | --- | --- |
 | POST | `/api/v1/inventory/batches/fefo-preview` | `preview` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvBatchController.java` |
-| POST | `/api/v1/inventory/batches/query` | `query` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvBatchController.java` |
-| POST | `/api/v1/inventory/batches/stats` | `stats` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvBatchController.java` |
-| PUT | `/api/v1/inventory/safety-stock` | `updateSafetyStock` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InvInventoryController.java` |
 
 ### `platform/system/service`（29 个）
 
