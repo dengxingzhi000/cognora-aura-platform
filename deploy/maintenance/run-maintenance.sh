@@ -1,31 +1,23 @@
 #!/bin/bash
 # deploy/maintenance/run-maintenance.sh
 #
-# 分区 / 保留策略的调度 runner。
-# 本脚本不实现任何 SQL 语义，只负责：定时调用 scripts/db 下既有的 4 个脚本，
-# 把连接目标打到 stdout（容器日志驱动会收集 stdout），并保证单个任务失败不影响其余任务。
+# 鍒嗗尯 / 淇濈暀绛栫暐鐨勮皟搴?runner銆?# 鏈剼鏈笉瀹炵幇浠讳綍 SQL 璇箟锛屽彧璐熻矗锛氬畾鏃惰皟鐢?scripts/db 涓嬫棦鏈夌殑 4 涓剼鏈紝
+# 鎶婅繛鎺ョ洰鏍囨墦鍒?stdout锛堝鍣ㄦ棩蹇楅┍鍔ㄤ細鏀堕泦 stdout锛夛紝骞朵繚璇佸崟涓换鍔″け璐ヤ笉褰卞搷鍏朵綑浠诲姟銆?#
+# 鐢ㄦ硶锛?#   run-maintenance.sh once <create|create-audit|drop|retention|all>   # 璺戜竴涓换鍔″悗閫€鍑猴紙k8s CronJob 鐢級
+#   run-maintenance.sh loop                                           # 甯搁┗寰幆锛坈ompose maintenance profile 鐢級
 #
-# 用法：
-#   run-maintenance.sh once <create|create-audit|drop|retention|all>   # 跑一个任务后退出（k8s CronJob 用）
-#   run-maintenance.sh loop                                           # 常驻循环（compose maintenance profile 用）
+# 鐜鍙橀噺锛堜笌鏃㈡湁鑴氭湰鐨勭害瀹氬畬鍏ㄤ竴鑷达紝缂虹渷鍊间篃涓€鑷达級锛?#   DB_HOST / DB_PORT / DB_USER / DB_PASSWORD   -> postgres 杩炴帴锛堥粯璁?localhost / 5432 / admin / admin123锛?#   CH_HOST / CH_PORT / CH_USERNAME / CH_PASSWORD -> clickhouse 杩炴帴锛堥粯璁?localhost / 8123 / default / 绌猴級
+#   MAINTENANCE_SCRIPTS_DIR   瑕嗙洊鑴氭湰鏍圭洰褰曪紙鍐呭惈 partition/ 涓?retention/锛夛紝榛樿鑷姩鎺㈡祴
+#   MAINTENANCE_DAY_SECONDS   loop 妯″紡姣忚疆 sleep 绉掓暟锛堥粯璁?86400锛屽嵆涓€澶╋級锛岀敤浜庡揩閫熷啋鐑?#   MAINTENANCE_MONTHLY_DAYS  鏈堝害鍛ㄦ湡锛坈reate + create-audit锛夌殑澶╂暟锛岄粯璁?30
+#   MAINTENANCE_WEEKLY_DAYS   鍛ㄥ害鍛ㄦ湡锛坉rop + retention锛夌殑澶╂暟锛岄粯璁?7
+#   MAINTENANCE_CONNECT_TIMEOUT 杩為€氭€ф牎楠岀殑瓒呮椂绉掓暟锛岄粯璁?5
 #
-# 环境变量（与既有脚本的约定完全一致，缺省值也一致）：
-#   DB_HOST / DB_PORT / DB_USER / DB_PASSWORD   -> postgres 连接（默认 localhost / 5432 / admin / admin123）
-#   CH_HOST / CH_PORT / CH_USERNAME / CH_PASSWORD -> clickhouse 连接（默认 localhost / 8123 / default / 空）
-#   MAINTENANCE_SCRIPTS_DIR   覆盖脚本根目录（内含 partition/ 与 retention/），默认自动探测
-#   MAINTENANCE_DAY_SECONDS   loop 模式每轮 sleep 秒数（默认 86400，即一天），用于快速冒烟
-#   MAINTENANCE_MONTHLY_DAYS  月度周期（create + create-audit）的天数，默认 30
-#   MAINTENANCE_WEEKLY_DAYS   周度周期（drop + retention）的天数，默认 7
-#   MAINTENANCE_CONNECT_TIMEOUT 连通性校验的超时秒数，默认 5
-#
-# 说明：apply-retention.sh 自己带 ClickHouse 探活（curl 缺失或连不上时只跳过 DWH 那一段，
-# PostgreSQL 侧的保留策略照常执行），本 runner 不去干预这个自保护逻辑。
-
+# 璇存槑锛歛pply-retention.sh 鑷繁甯?ClickHouse 鎺㈡椿锛坈url 缂哄け鎴栬繛涓嶄笂鏃跺彧璺宠繃 DWH 閭ｄ竴娈碉紝
+# PostgreSQL 渚х殑淇濈暀绛栫暐鐓у父鎵ц锛夛紝鏈?runner 涓嶅幓骞查杩欎釜鑷繚鎶ら€昏緫銆?
 set -u
 
-# ---------------------------------------------------------------- 连接参数
-# 缺省值与 4 个既有脚本保持一致；导出后子脚本继承同一份配置。
-DB_HOST="${DB_HOST:-localhost}"
+# ---------------------------------------------------------------- 杩炴帴鍙傛暟
+# 缂虹渷鍊间笌 4 涓棦鏈夎剼鏈繚鎸佷竴鑷达紱瀵煎嚭鍚庡瓙鑴氭湰缁ф壙鍚屼竴浠介厤缃€?DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 DB_USER="${DB_USER:-admin}"
 DB_PASSWORD="${DB_PASSWORD:-admin123}"
@@ -40,7 +32,7 @@ MAINTENANCE_MONTHLY_DAYS="${MAINTENANCE_MONTHLY_DAYS:-30}"
 MAINTENANCE_WEEKLY_DAYS="${MAINTENANCE_WEEKLY_DAYS:-7}"
 MAINTENANCE_CONNECT_TIMEOUT="${MAINTENANCE_CONNECT_TIMEOUT:-5}"
 
-# 任务名 -> 相对脚本根目录的脚本路径
+# 浠诲姟鍚?-> 鐩稿鑴氭湰鏍圭洰褰曠殑鑴氭湰璺緞
 SCRIPT_CREATE="partition/create-partitions.sh"
 SCRIPT_CREATE_AUDIT="partition/create-audit-partitions.sh"
 SCRIPT_DROP="partition/drop-old-partitions.sh"
@@ -48,13 +40,11 @@ SCRIPT_RETENTION="retention/apply-retention.sh"
 
 SCRIPT_ROOT=""
 
-# ---------------------------------------------------------------- 小工具
-log() {
+# ---------------------------------------------------------------- 灏忓伐鍏?log() {
     printf '[maintenance] %s\n' "$*"
 }
 
-# ISO-8601 时间戳；GNU date 支持 -Iseconds，BSD/macOS 退回到等价格式。
-now_iso() {
+# ISO-8601 鏃堕棿鎴筹紱GNU date 鏀寔 -Iseconds锛孊SD/macOS 閫€鍥炲埌绛変环鏍煎紡銆?now_iso() {
     date -Iseconds 2>/dev/null || date "+%Y-%m-%dT%H:%M:%S%z"
 }
 
@@ -65,16 +55,13 @@ Usage:
   run-maintenance.sh loop
 
 Tasks:
-  create        partition/create-partitions.sh      预建未来 3 个月的分区
-  create-audit  partition/create-audit-partitions.sh  预建审计表的分区
-  drop          partition/drop-old-partitions.sh     清理超过保留期的分区
-  retention     retention/apply-retention.sh         执行数据保留策略
-  all           以上四个，按 create -> create-audit -> drop -> retention 的顺序
-EOF
+  create        partition/create-partitions.sh      棰勫缓鏈潵 3 涓湀鐨勫垎鍖?  create-audit  partition/create-audit-partitions.sh  棰勫缓瀹¤琛ㄧ殑鍒嗗尯
+  drop          partition/drop-old-partitions.sh     娓呯悊瓒呰繃淇濈暀鏈熺殑鍒嗗尯
+  retention     retention/apply-retention.sh         鎵ц鏁版嵁淇濈暀绛栫暐
+  all           浠ヤ笂鍥涗釜锛屾寜 create -> create-audit -> drop -> retention 鐨勯『搴?EOF
 }
 
-# ---------------------------------------------------------------- 脚本根目录探测
-# 顺序：$MAINTENANCE_SCRIPTS_DIR -> runner 自身位置推导出的仓库布局 -> /opt/db（compose 挂载点）
+# ---------------------------------------------------------------- 鑴氭湰鏍圭洰褰曟帰娴?# 椤哄簭锛?MAINTENANCE_SCRIPTS_DIR -> runner 鑷韩浣嶇疆鎺ㄥ鍑虹殑浠撳簱甯冨眬 -> /opt/db锛坈ompose 鎸傝浇鐐癸級
 resolve_scripts_root() {
     local candidates=()
     local runner_dir=""
@@ -105,8 +92,7 @@ resolve_scripts_root() {
                 SCRIPT_ROOT="${candidate}"
                 return 0
             fi
-            # 目录存在但内容不对：留作兜底，缺哪个脚本由每个任务自己报错
-            if [ -z "${SCRIPT_ROOT}" ]; then
+            # 鐩綍瀛樺湪浣嗗唴瀹逛笉瀵癸細鐣欎綔鍏滃簳锛岀己鍝釜鑴氭湰鐢辨瘡涓换鍔¤嚜宸辨姤閿?            if [ -z "${SCRIPT_ROOT}" ]; then
                 SCRIPT_ROOT="${candidate}"
             fi
         fi
@@ -115,16 +101,14 @@ resolve_scripts_root() {
     [ -n "${SCRIPT_ROOT}" ]
 }
 
-# ---------------------------------------------------------------- 连通性校验
-# create-partitions.sh 用 `|| true` 吞掉了 psql 的失败，脚本本身会退出 0。
-# 为了不把「数据库根本连不上」报成维护成功，这里在脚本跑完之后补一次连通性校验：
-#   0 = 连得上，1 = 连不上，2 = psql 不可用
-pg_reachable() {
+# ---------------------------------------------------------------- 杩為€氭€ф牎楠?# create-partitions.sh 鐢?`|| true` 鍚炴帀浜?psql 鐨勫け璐ワ紝鑴氭湰鏈韩浼氶€€鍑?0銆?# 涓轰簡涓嶆妸銆屾暟鎹簱鏍规湰杩炰笉涓娿€嶆姤鎴愮淮鎶ゆ垚鍔燂紝杩欓噷鍦ㄨ剼鏈窇瀹屼箣鍚庤ˉ涓€娆¤繛閫氭€ф牎楠岋細
+#   0 = 杩炲緱涓婏紝1 = 杩炰笉涓婏紝2 = psql 涓嶅彲鐢?# 鍙傛暟鏄帰娴嬬敤鐨勬暟鎹簱锛屽繀椤绘槸璇ヤ换鍔?*鐪熸杩炶繃**鐨勯偅涓簱銆備笉瑕佺敤 `-d postgres`锛?# 鍙楅檺瑙掕壊甯稿父娌℃湁 postgres 搴撶殑 CONNECT 鏉冮檺锛岄偅鏍蜂細鎶婂凡缁忔垚鍔熺殑缁存姢鎶ユ垚 FAILED銆?# `DB_PROBE_DB` 鍙暣浣撹鐩栵紙瑙?run_task 鐨勬槧灏勶級銆?pg_reachable() {
+    local database="${1:-${DB_PROBE_DB:-db_order}}"
     if ! command -v psql >/dev/null 2>&1; then
         return 2
     fi
     PGCONNECT_TIMEOUT="${MAINTENANCE_CONNECT_TIMEOUT}" PGPASSWORD="${DB_PASSWORD}" \
-        psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d postgres -tAc 'SELECT 1' >/dev/null 2>&1
+        psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${database}" -tAc 'SELECT 1' >/dev/null 2>&1
 }
 
 target_of() {
@@ -139,9 +123,8 @@ target_of() {
     esac
 }
 
-# ---------------------------------------------------------------- 单个任务
-# 失败只返回非 0，不中断调用方（循环靠它继续下一个任务）。
-run_task() {
+# ---------------------------------------------------------------- 鍗曚釜浠诲姟
+# 澶辫触鍙繑鍥為潪 0锛屼笉涓柇璋冪敤鏂癸紙寰幆闈犲畠缁х画涓嬩竴涓换鍔★級銆?run_task() {
     local task="$1"
     local relative="$2"
     local absolute=""
@@ -168,8 +151,7 @@ run_task() {
         return 1
     fi
 
-    # 先 cd 进脚本自己的目录，脚本内部的相对路径才能解析；再以绝对路径调用。
-    ( cd "${directory}" && bash "${absolute}" )
+    # 鍏?cd 杩涜剼鏈嚜宸辩殑鐩綍锛岃剼鏈唴閮ㄧ殑鐩稿璺緞鎵嶈兘瑙ｆ瀽锛涘啀浠ョ粷瀵硅矾寰勮皟鐢ㄣ€?    ( cd "${directory}" && bash "${absolute}" )
     status=$?
 
     if [ "${status}" -ne 0 ]; then
@@ -177,15 +159,21 @@ run_task() {
         return "${status}"
     fi
 
-    # 脚本退出 0 不等于维护真的做过了：补一次连通性校验。
-    pg_reachable
+    # 鑴氭湰閫€鍑?0 涓嶇瓑浜庣淮鎶ょ湡鐨勫仛杩囦簡锛氳ˉ涓€娆¤繛閫氭€ф牎楠屻€?    # 鎺㈡祴搴撹窡鐫€浠诲姟璧帮細create/drop 鍔ㄧ殑鏄?db_order锛宑reate-audit/retention 鍔ㄧ殑鏄?db_audit銆?    case "${task}" in
+        create-audit | retention)
+            pg_reachable "${DB_PROBE_DB:-db_audit}"
+            ;;
+        *)
+            pg_reachable "${DB_PROBE_DB:-db_order}"
+            ;;
+    esac
     status=$?
     if [ "${status}" -eq 2 ]; then
         log "${task} FAILED (exit 1) psql not available in PATH - the script could not have reached the database"
         return 1
     fi
     if [ "${status}" -ne 0 ]; then
-        log "${task} FAILED (exit 1) postgres target ${DB_HOST}:${DB_PORT} unreachable - the script exited 0 but no connection was possible"
+        log "${task} FAILED (exit 1) postgres target ${DB_HOST}:${DB_PORT} database ${DB_PROBE_DB:-db_order} unreachable - the script exited 0 but no connection was possible"
         return 1
     fi
 
@@ -193,7 +181,7 @@ run_task() {
     return 0
 }
 
-# ---------------------------------------------------------------- 周期
+# ---------------------------------------------------------------- 鍛ㄦ湡
 monthly_cycle() {
     log "monthly cycle start $(now_iso)"
     run_task create "${SCRIPT_CREATE}" || true
@@ -208,7 +196,7 @@ weekly_cycle() {
     log "cycle done $(now_iso)"
 }
 
-# ---------------------------------------------------------------- once 模式
+# ---------------------------------------------------------------- once 妯″紡
 run_once() {
     local task="${1:-}"
     local failed=0
@@ -247,19 +235,17 @@ run_once() {
     return "${failed}"
 }
 
-# ---------------------------------------------------------------- loop 模式
-# 月度周期（create + create-audit）启动即跑，之后每 30 天一次；
-# 周度周期（drop + retention）每 7 天一次。逐日 sleep + 两个计数器，不用 cron。
-run_loop() {
+# ---------------------------------------------------------------- loop 妯″紡
+# 鏈堝害鍛ㄦ湡锛坈reate + create-audit锛夊惎鍔ㄥ嵆璺戯紝涔嬪悗姣?30 澶╀竴娆★紱
+# 鍛ㄥ害鍛ㄦ湡锛坉rop + retention锛夋瘡 7 澶╀竴娆°€傞€愭棩 sleep + 涓や釜璁℃暟鍣紝涓嶇敤 cron銆?run_loop() {
     local monthly_days="${MAINTENANCE_MONTHLY_DAYS}"
     local weekly_days="${MAINTENANCE_WEEKLY_DAYS}"
     local monthly_left="${MAINTENANCE_MONTHLY_DAYS}"
     local weekly_left="${MAINTENANCE_WEEKLY_DAYS}"
     local sleep_pid=""
 
-    # sleep 放后台 + wait：这样 SIGTERM（docker stop / k8s 驱逐）能立刻打断等待，
-    # 否则 bash 会等前台 sleep 结束才跑 trap，容器会等到被 SIGKILL。
-    trap 'if [ -n "${sleep_pid:-}" ]; then kill "${sleep_pid}" 2>/dev/null; fi; log "loop stopping"; exit 0' TERM INT
+    # sleep 鏀惧悗鍙?+ wait锛氳繖鏍?SIGTERM锛坉ocker stop / k8s 椹遍€愶級鑳界珛鍒绘墦鏂瓑寰咃紝
+    # 鍚﹀垯 bash 浼氱瓑鍓嶅彴 sleep 缁撴潫鎵嶈窇 trap锛屽鍣ㄤ細绛夊埌琚?SIGKILL銆?    trap 'if [ -n "${sleep_pid:-}" ]; then kill "${sleep_pid}" 2>/dev/null; fi; log "loop stopping"; exit 0' TERM INT
 
     log "loop start $(now_iso) monthly=${monthly_days}d weekly=${weekly_days}d day=${MAINTENANCE_DAY_SECONDS}s"
 
@@ -285,7 +271,7 @@ run_loop() {
     done
 }
 
-# ---------------------------------------------------------------- 入口
+# ---------------------------------------------------------------- 鍏ュ彛
 main() {
     local mode=""
     local task=""

@@ -597,6 +597,9 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
+      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
+      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8302:8302"
     depends_on:
@@ -618,6 +621,9 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
+      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
+      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8303:8303"
     depends_on:
@@ -639,6 +645,9 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
+      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
+      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8304:8304"
     depends_on:
@@ -660,6 +669,9 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
+      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
+      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8305:8305"
     depends_on:
@@ -681,6 +693,9 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
+      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
+      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8301:8301"
     depends_on:
@@ -702,6 +717,9 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
+      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
+      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8306:8306"
     depends_on:
@@ -720,6 +738,9 @@ services:
       REDIS_HOST: redis
       NACOS_SERVER: nacos:8848
       ELASTICSEARCH_URIS: http://elasticsearch:9200
+      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
+      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8307:8307"
     depends_on:
@@ -745,6 +766,9 @@ services:
       CH_HOST: clickhouse
       XXL_JOB_ADMIN: ${XXL_JOB_ADMIN:-http://xxl-job-admin:8080/}
       XXL_JOB_ACCESS_TOKEN: ${XXL_JOB_ACCESS_TOKEN:-}
+      # ecom 服务同样要校验访问令牌与上报审计：与 core 一样强制注入，避免用仓库里公开的默认值启动
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (>= 64 chars)}
+      API_SECRET_INTERNAL_SERVICE: ${API_SECRET_INTERNAL_SERVICE:?API_SECRET_INTERNAL_SERVICE must be set in .env}
     ports:
       - "8308:8308"
     depends_on:
