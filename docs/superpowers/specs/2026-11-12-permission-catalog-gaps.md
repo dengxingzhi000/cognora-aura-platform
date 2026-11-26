@@ -1,7 +1,8 @@
 # 权限目录缺口报告（D1）
 
-> 生成：`py -3 scripts/tools/permission_annotation_map.py`  
-> 机器可读映射：`docs/superpowers/specs/2026-11-12-permission-mapping.json`  
+> 生成：`py -3 scripts/tools/permission_annotation_map.py`
+>
+> 机器可读映射：`docs/superpowers/specs/2026-11-12-permission-mapping.json`
 > 输入：`platform|scm|ecom|lms` 四域 `*Controller.java` + `scripts/db/seed/*.sql`
 
 ## 口径
@@ -16,16 +17,16 @@
 
 | 指标 | 数量 |
 | --- | ---: |
-| 服务（有 controller 的模块） | 24 |
-| 端点总数 | 821 |
+| 服务（有 controller 的模块） | 25 |
+| 端点总数 | 856 |
 | 运行时候选码 > 1 的端点 | 146 |
-| seed 目录行 / 唯一 (url, method) 对 | 663 / 662 |
-| 已映射到权限码 | 670 |
+| seed 目录行 / 唯一 (url, method) 对 | 701 / 700 |
+| 已映射到权限码 | 705 |
 | 豁免端点 | 100 |
 | 其中既命中目录又被豁免 | 24 |
 | **目录缺口** | **75** |
 
-`已映射 + 豁免 - 既映射又豁免 + 缺口 = 670 + 100 - 24 + 75 = 821`。「既命中目录又被豁免」的端点（如 `/api/v1/payments/{id}`）运行时先命中豁免，目录行不参与放行。
+`已映射 + 豁免 - 既映射又豁免 + 缺口 = 705 + 100 - 24 + 75 = 856`。「既命中目录又被豁免」的端点（如 `/api/v1/payments/{id}`）运行时先命中豁免，目录行不参与放行。
 
 豁免端点按规则分布：
 
@@ -49,6 +50,7 @@
 | `ecom/promotion/service` | 12 | 2 | 12 | 0 |
 | `ecom/search/service` | 8 | 5 | 8 | 0 |
 | `lms/tms/service` | 56 | 36 | 0 | 20 |
+| `platform/agent` | 35 | 35 | 0 | 0 |
 | `platform/approval/service` | 10 | 10 | 0 | 0 |
 | `platform/audit/service` | 10 | 9 | 1 | 0 |
 | `platform/auth` | 23 | 0 | 14 | 9 |

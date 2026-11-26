@@ -1,0 +1,96 @@
+{
+  "annotations": {"list": []},
+  "description": "Operator assistance prediction, knowledge feedback and model drift",
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Intervention Rate",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "fieldConfig": {"defaults": {"unit": "percentunit", "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.25}, {"color": "red", "value": 0.5}]}}},
+      "targets": [{"expr": "sum(rate(agent_assistance_predictions_total{decision=\"OFFER_ASSISTANCE\"}[5m])) / sum(rate(agent_assistance_predictions_total[5m]))", "legendFormat": "Intervention"}]
+    },
+    {
+      "id": 2,
+      "title": "Feedback Coverage",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "fieldConfig": {"defaults": {"unit": "percentunit", "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 0.2}, {"color": "green", "value": 0.6}]}}},
+      "targets": [{"expr": "sum(agent_assistance_feedback_total) / sum(agent_assistance_predictions_total)", "legendFormat": "Coverage"}]
+    },
+    {
+      "id": 3,
+      "title": "Probability Mean Drift",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+      "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.05}, {"color": "red", "value": 0.1}]}}},
+      "targets": [{"expr": "abs(agent_assistance_probability_drift)", "legendFormat": "Absolute delta"}]
+    },
+    {
+      "id": 4,
+      "title": "Prediction Rate by Decision",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}},
+      "targets": [{"expr": "sum by (decision) (rate(agent_assistance_predictions_total[5m]))", "legendFormat": "{{decision}}"}]
+    },
+    {
+      "id": 5,
+      "title": "Prediction Probability p50 / p95",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum by (le) (rate(agent_assistance_probability_bucket[5m])))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.95, sum by (le) (rate(agent_assistance_probability_bucket[5m])))", "legendFormat": "p95"}
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Prediction Latency p95",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(agent_assistance_prediction_duration_seconds_bucket[5m])))", "legendFormat": "p95"}]
+    },
+    {
+      "id": 7,
+      "title": "Feedback Rate by Source",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}},
+      "targets": [{"expr": "sum by (source) (rate(agent_assistance_feedback_total[5m]))", "legendFormat": "{{source}}"}]
+    },
+    {
+      "id": 8,
+      "title": "Knowledge Helpfulness",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}}},
+      "targets": [{"expr": "sum by (helpful) (rate(agent_assistance_knowledge_feedback_total[5m]))", "legendFormat": "{{helpful}}"}]
+    },
+    {
+      "id": 9,
+      "title": "Knowledge Recommendation Rate",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+      "targets": [{"expr": "rate(agent_assistance_knowledge_recommendations_total[5m])", "legendFormat": "Articles"}]
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 38,
+  "tags": ["agent", "assistance", "model"],
+  "time": {"from": "now-24h", "to": "now"},
+  "uid": "agent-assistance",
+  "version": 1
+}

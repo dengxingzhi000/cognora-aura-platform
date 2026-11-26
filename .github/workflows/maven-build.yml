@@ -426,6 +426,8 @@ jobs:
             path: platform/product
           - service: platform-inventory
             path: platform/inventory
+          - service: platform-agent
+            path: platform/agent
           - service: scm-order
             path: scm/order
           - service: scm-warehouse

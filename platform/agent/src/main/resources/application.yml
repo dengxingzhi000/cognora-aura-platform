@@ -1,0 +1,79 @@
+server:
+  port: ${SERVER_PORT:8217}
+
+spring:
+  main:
+    web-application-type: servlet
+  application:
+    name: platform-agent
+  autoconfigure:
+    exclude:
+      - com.cognora.platform.common.data.rw.config.ReadWriteAutoConfiguration
+      - com.cognora.platform.common.data.rw.web.ReadWriteWebAutoConfiguration
+      - com.cognora.platform.common.mybatisPlus.config.DataPermissionAutoConfiguration
+      - com.cognora.platform.common.tenant.TenantMybatisAutoConfiguration
+      - com.cognora.platform.common.xxl.XxlJobAutoConfiguration
+  datasource:
+    dynamic:
+      enabled: false
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/db_agent?stringtype=unspecified
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD:admin123}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    validate-on-migrate: true
+    out-of-order: false
+    table: flyway_history_agent
+  cloud:
+    nacos:
+      server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+      discovery:
+        enabled: true
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
+
+cognora:
+  agent:
+    enterprise-base-url: ${AGENT_ENTERPRISE_URL:http://127.0.0.1:8762}
+    browser-base-url: ${AGENT_BROWSER_URL:http://127.0.0.1:4320}
+    internal-app-id: ${AGENT_INTERNAL_APP_ID:platform-agent}
+    connect-timeout: 3s
+    read-timeout: 130s
+    task-center:
+      enabled: ${AGENT_TASK_CENTER_ENABLED:true}
+
+security:
+  signature:
+    app-secrets:
+      internal-service: ${API_SECRET_INTERNAL_SERVICE:}
+  audience:
+    enabled: true
+    allowed:
+      - cognora-admin
+    allow-legacy-token: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    db:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    com.cognora.platform.agent: INFO

@@ -65,6 +65,31 @@ groups:
           description: "Order {{ $labels.order_no }} has been pending for {{ $value | humanizeDuration }}"
 
   # ============================================================
+  # AI 介入预测闭环告警
+  # ============================================================
+  - name: agent-assistance-alerts
+    rules:
+      - alert: AssistanceModelDrift
+        expr: abs(agent_assistance_probability_drift) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          team: agent
+        annotations:
+          summary: "AI assistance prediction distribution drifted"
+          description: "Live mean probability delta is {{ $value }} (threshold: 0.1)"
+
+      - alert: AssistanceFeedbackCoverageLow
+        expr: sum(agent_assistance_predictions_total) > 100 and sum(agent_assistance_feedback_total) / sum(agent_assistance_predictions_total) < 0.2
+        for: 30m
+        labels:
+          severity: warning
+          team: agent
+        annotations:
+          summary: "AI assistance feedback coverage is low"
+          description: "Feedback coverage is {{ $value | humanizePercentage }} (threshold: 20%)"
+
+  # ============================================================
   # 审计链路告警
   # 指标来源：platform/common/web 的审计上报/写入计数器
   # - security_audit_delivery_failed_total：调用方上报审计失败（被吞掉的异常）

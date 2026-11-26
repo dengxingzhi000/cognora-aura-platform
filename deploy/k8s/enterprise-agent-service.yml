@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: enterprise-agent
+  namespace: scm-prod
+  labels:
+    app: enterprise-agent
+spec:
+  selector:
+    app: enterprise-agent
+  ports:
+    - port: 8762
+      targetPort: 8762
+      name: http
+  type: ClusterIP

@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-agent
+  namespace: scm-prod
+  labels:
+    app: platform-agent
+    tier: business
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: platform-agent
+  template:
+    metadata:
+      labels:
+        app: platform-agent
+    spec:
+      containers:
+        - name: platform-agent
+          image: docker.io/scmcloud/platform-agent:latest
+          ports:
+            - containerPort: 8217
+          envFrom:
+            - configMapRef:
+                name: scm-config
+            - secretRef:
+                name: scm-secrets
+          env:
+            - name: AGENT_ENTERPRISE_URL
+              value: http://enterprise-agent:8762
+            - name: AGENT_BROWSER_URL
+              value: http://browser-agent:4320
+            - name: AGENT_INTERNAL_APP_ID
+              value: platform-agent
+            - name: API_SECRET_INTERNAL_SERVICE
+              valueFrom:
+                secretKeyRef:
+                  name: scm-secrets
+                  key: api-secret-internal-service
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8217
+            initialDelaySeconds: 45
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8217
+            initialDelaySeconds: 20
+            periodSeconds: 5

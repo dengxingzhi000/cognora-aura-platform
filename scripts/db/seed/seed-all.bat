@@ -46,6 +46,7 @@ for %%s in (
     "db_permission:031_user_lifecycle_permissions.sql"
     "db_permission:032_user_import_export_permissions.sql"
     "db_permission:033_replenishment_permissions.sql"
+    "db_permission:035_agent_permissions.sql"
     "db_permission:025_finance_period_close_permissions.sql"
     "db_permission:026_finance_bad_debt_permissions.sql"
     "db_org:003_org_dept.sql"

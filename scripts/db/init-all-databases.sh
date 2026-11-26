@@ -42,6 +42,8 @@ DATABASES=(
     "db_finance:财务服务"
     "db_promotion:促销服务"
     "db_analytics:分析服务"
+    "db_agent:企业 Agent"
+    "db_browser_agent:浏览器 Agent"
 )
 
 echo -e "${GREEN}========================================${NC}"
