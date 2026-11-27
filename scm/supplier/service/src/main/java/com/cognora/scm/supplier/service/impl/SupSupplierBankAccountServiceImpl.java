@@ -12,6 +12,7 @@ import com.cognora.scm.supplier.domain.entity.SupSupplierBankAccount;
 import com.cognora.scm.supplier.mapper.SupSupplierBankAccountMapper;
 import com.cognora.scm.supplier.mapper.SupSupplierMapper;
 import com.cognora.scm.supplier.service.ISupSupplierBankAccountService;
+import com.cognora.scm.supplier.service.support.SupplierGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -31,11 +32,12 @@ public class SupSupplierBankAccountServiceImpl
         implements ISupSupplierBankAccountService {
 
     private final SupSupplierMapper supplierMapper;
+    private final SupplierGuard supplierGuard;
 
     @Override
     @Slave
     public List<SupSupplierBankAccount> listBySupplierId(String supplierId) {
-        requireSupplier(supplierId);
+        supplierGuard.require(supplierId);
         return lambdaQuery()
                 .eq(SupSupplierBankAccount::getSupplierId, supplierId)
                 .orderByDesc(SupSupplierBankAccount::getIsDefault)
@@ -48,7 +50,7 @@ public class SupSupplierBankAccountServiceImpl
     @Master(reason = "新增供应商银行账户")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierBankAccount create(String supplierId, SupSupplierBankAccount account) {
-        requireSupplier(supplierId);
+        supplierGuard.require(supplierId);
         validate(account, true);
 
         boolean firstAccount = lambdaQuery()
@@ -205,16 +207,5 @@ public class SupSupplierBankAccountServiceImpl
         if (StringUtils.hasText(account.getBankAccount()) && account.getBankAccount().length() > 64) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "银行账号长度不能超过 64");
         }
-    }
-
-    private SupSupplier requireSupplier(String supplierId) {
-        if (!StringUtils.hasText(supplierId)) {
-            throw new ServiceException(400, HttpStatus.BAD_REQUEST, "供应商ID不能为空");
-        }
-        SupSupplier supplier = supplierMapper.selectById(supplierId);
-        if (supplier == null || Boolean.TRUE.equals(supplier.getDeleted())) {
-            throw new ServiceException(404, HttpStatus.NOT_FOUND, "供应商不存在");
-        }
-        return supplier;
     }
 }

@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * 采购审批超时提醒定时任务
 
  * 执行时间：每日上午10:00 和下午15:00（cron: 0 0 10,15 * * ?）
- *
+
  * 功能：
  * 1. 扫描所有租户的待审批任务
  * 2. 超时标准：
@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
  *    - 企业微信/钉钉提醒（可选）
  * 4. 自动升级：严重超时自动升级到上级审批人
  * 5. 自动审批：如果配置了 auto_approve_enabled，超时后自动通过
- *
+
  * XXL-Job 配置示例：
  * - 执行器：scm-supplier-executor
  * - JobHandler：approvalTimeoutReminderJob
@@ -51,12 +51,12 @@ public class ApprovalTimeoutReminderJob {
 
     /**
      * 执行审批超时提醒
-     *
+
      * 任务参数（可选）：
      * - tenantId: 指定租户ID（UUID格式），不传则扫描所有租户
      * - autoEscalate: 是否自动升级（true/false），默认true
      * - autoApprove: 是否自动审批（true/false），默认false
-     *
+
  * 示例：
  * - 扫描单个租户：传入"123e4567-e89b-12d3-a456-426614174000"
  * - 禁用自动升级：传入"autoEscalate=false"

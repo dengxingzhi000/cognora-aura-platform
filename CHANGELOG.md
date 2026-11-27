@@ -59,6 +59,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Quiet hours use `LocalTime` and serialize as `HH:mm`, matching the database
   `TIME` columns and UI time inputs.
 
+## [2.3.6] - 2026-11-27
+
+### Fixed
+
+- Consolidated supplier existence/deletion checks across contacts, bank
+  accounts, certificates, evaluations and change logs.
+- Corrected supplier score normalization and certificate/evaluation workflow
+  handling, and standardized request-value log sanitization.
+
 ## [2.3.0] - 2026-11-14
 
 Covers everything merged after `v2.2.0` (`c4f9a350`) through `68ba8ef3`

@@ -2,6 +2,7 @@ package com.cognora.scm.supplier.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cognora.platform.common.log.annotation.AuditLog;
+import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.platform.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +29,7 @@ public class SupSettlementController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('supplier:settlement:view')")
     public ApiResponse<SupSettlement> getById(@Parameter(description = "对账单ID") @PathVariable String id) {
-        log.info("[API] 查询对账单详情 id={}", (id + "").replace("\r", "_").replace("\n", "_"));
+        log.info("[API] 查询对账单详情 id={}", LogUtils.sanitizeForLog(id));
         SupSettlement settlement = settlementService.getById(id);
         if (settlement == null || Boolean.TRUE.equals(settlement.getDeleted())) {
             return ApiResponse.fail(404, "对账单不存在");
@@ -75,7 +76,7 @@ public class SupSettlementController {
             @Parameter(description = "供应商ID") @RequestParam(required = false) String supplierId,
             @Parameter(description = "对账单状态") @RequestParam(required = false) Integer status,
             @Parameter(description = "结算周期，例如 2026-09") @RequestParam(required = false) String settlementPeriod) {
-        log.info("[API] 分页查询对账单 page={}, size={}, supplierId={}, status={}", (page + "").replace("\r", "_").replace("\n", "_"), (size + "").replace("\r", "_").replace("\n", "_"), (supplierId + "").replace("\r", "_").replace("\n", "_"), (status + "").replace("\r", "_").replace("\n", "_"));
+        log.info("[API] 分页查询对账单 page={}, size={}, supplierId={}, status={}", page, size, LogUtils.sanitizeForLog(supplierId), LogUtils.sanitizeForLog(status));
         Page<SupSettlement> result = settlementService.pageList(page, size, supplierId, status, settlementPeriod);
         return ApiResponse.success(result);
     }
@@ -84,7 +85,7 @@ public class SupSettlementController {
     @GetMapping("/supplier/{supplierId}")
     @PreAuthorize("hasAuthority('supplier:settlement:list-by-supplier-id')")
     public ApiResponse<List<SupSettlement>> listBySupplierId(@Parameter(description = "供应商ID") @PathVariable String supplierId) {
-        log.info("[API] 查询供应商对账单列表: supplierId={}", (supplierId + "").replace("\r", "_").replace("\n", "_"));
+        log.info("[API] 查询供应商对账单列表: supplierId={}", LogUtils.sanitizeForLog(supplierId));
         return ApiResponse.success(settlementService.listBySupplierId(supplierId));
     }
 
@@ -95,7 +96,7 @@ public class SupSettlementController {
     public ApiResponse<Void> confirm(@Parameter(description = "对账单ID") @PathVariable String id,
                                      @Parameter(description = "审核人ID") @RequestParam String approverId,
                                      @Parameter(description = "审核人姓名") @RequestParam String approverName) {
-        log.info("[API] 确认对账单 id={}, approverId={}", (id + "").replace("\r", "_").replace("\n", "_"), (approverId + "").replace("\r", "_").replace("\n", "_"));
+        log.info("[API] 确认对账单 id={}, approverId={}", LogUtils.sanitizeForLog(id), LogUtils.sanitizeForLog(approverId));
         boolean success = settlementService.confirm(id, approverId, approverName);
         return success ? ApiResponse.success() : ApiResponse.fail(400, "确认失败，对账单状态不正确");
     }
@@ -105,7 +106,7 @@ public class SupSettlementController {
     @PreAuthorize("hasAuthority('supplier:settlement:mark-as-paid')")
     @AuditLog(operation = "标记对账单已付款", businessType = "SUPPLIER", riskLevel = 4)
     public ApiResponse<Void> markAsPaid(@Parameter(description = "对账单ID") @PathVariable String id, @Parameter(description = "更新人") @RequestParam String updateBy) {
-        log.info("[API] 标记对账单已付款: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
+        log.info("[API] 标记对账单已付款: id={}", LogUtils.sanitizeForLog(id));
         boolean success = settlementService.markAsPaid(id, updateBy);
         return success ? ApiResponse.success() : ApiResponse.fail(400, "标记付款失败，对账单状态不正确");
     }

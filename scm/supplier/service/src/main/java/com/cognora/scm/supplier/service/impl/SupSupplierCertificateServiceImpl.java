@@ -1,5 +1,6 @@
 package com.cognora.scm.supplier.service.impl;
 
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.cognora.platform.common.data.rw.annotation.Master;
@@ -11,6 +12,7 @@ import com.cognora.scm.supplier.domain.entity.SupSupplierCertificate;
 import com.cognora.scm.supplier.mapper.SupSupplierCertificateMapper;
 import com.cognora.scm.supplier.mapper.SupSupplierMapper;
 import com.cognora.scm.supplier.service.ISupSupplierCertificateService;
+import com.cognora.scm.supplier.service.support.SupplierGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -38,18 +40,31 @@ public class SupSupplierCertificateServiceImpl
     /** 到期预警窗口（天）。 */
     public static final int EXPIRY_WARNING_DAYS = 30;
 
+    /** 证照状态：待审核。 */
+    private static final int STATUS_PENDING = 0;
+    /** 证照状态：有效。 */
+    private static final int STATUS_VALID = 1;
+    /** 证照状态：临期。 */
+    private static final int STATUS_EXPIRING = 2;
+    /** 证照状态：已过期。 */
+    private static final int STATUS_EXPIRED = 3;
+    /** 证照状态：人工驳回。 */
+    private static final int STATUS_REJECTED = 4;
+
     private final SupSupplierMapper supplierMapper;
+    private final SupplierGuard supplierGuard;
 
     @Override
     @Slave
     public List<SupSupplierCertificate> listBySupplierId(String supplierId) {
-        requireSupplier(supplierId);
+        supplierGuard.require(supplierId);
         List<SupSupplierCertificate> certificates = lambdaQuery()
                 .eq(SupSupplierCertificate::getSupplierId, supplierId)
                 .orderByAsc(SupSupplierCertificate::getValidTo)
                 .orderByDesc(SupSupplierCertificate::getCreateTime)
                 .list();
-        certificates.forEach(this::fillDerivedFields);
+        LocalDate today = LocalDate.now();
+        certificates.forEach(certificate -> fillDerivedFields(certificate, today));
         return certificates;
     }
 
@@ -57,7 +72,7 @@ public class SupSupplierCertificateServiceImpl
     @Master(reason = "新增供应商资质")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierCertificate create(String supplierId, SupSupplierCertificate certificate) {
-        requireSupplier(supplierId);
+        supplierGuard.require(supplierId);
         validate(certificate);
         certificate.setId(UUID.randomUUID().toString());
         certificate.setSupplierId(supplierId);
@@ -65,12 +80,15 @@ public class SupSupplierCertificateServiceImpl
         certificate.setCreateBy(null);
         certificate.setUpdateBy(null);
         if (certificate.getStatus() == null) {
-            certificate.setStatus(resolveStatus(certificate.getValidTo()));
+            certificate.setStatus(resolveStatus(certificate.getValidTo(), LocalDate.now()));
         }
         certificate.setDeleted(false);
-        certificate.setCreateTime(LocalDateTime.now());
-        certificate.setUpdateTime(LocalDateTime.now());
-        save(certificate);
+        LocalDateTime now = LocalDateTime.now();
+        certificate.setCreateTime(now);
+        certificate.setUpdateTime(now);
+        if (!save(certificate)) {
+            throw new ServiceException(500, HttpStatus.INTERNAL_SERVER_ERROR, "资质证照保存失败");
+        }
         log.info("新增供应商资质 supplierId={}, certificateId={}",
                 LogUtils.sanitizeForLog(supplierId), LogUtils.sanitizeForLog(certificate.getId()));
         return certificate;
@@ -94,9 +112,11 @@ public class SupSupplierCertificateServiceImpl
         certificate.setDeleted(null);
         certificate.setUpdateTime(LocalDateTime.now());
         if (certificate.getStatus() == null && certificate.getValidTo() != null) {
-            certificate.setStatus(resolveStatus(certificate.getValidTo()));
+            certificate.setStatus(resolveStatus(certificate.getValidTo(), LocalDate.now()));
         }
-        updateById(certificate);
+        if (!updateById(certificate)) {
+            throw new ServiceException(404, HttpStatus.NOT_FOUND, "资质证照不存在");
+        }
         return getById(id);
     }
 
@@ -108,8 +128,7 @@ public class SupSupplierCertificateServiceImpl
         if (existing == null || Boolean.TRUE.equals(existing.getDeleted())) {
             return false;
         }
-        removeById(id);
-        return true;
+        return removeById(id);
     }
 
     @Override
@@ -120,30 +139,28 @@ public class SupSupplierCertificateServiceImpl
         if (certificate == null || Boolean.TRUE.equals(certificate.getDeleted())) {
             throw new ServiceException(404, HttpStatus.NOT_FOUND, "资质证照不存在");
         }
-        certificate.setStatus(approved ? resolveStatus(certificate.getValidTo()) : 4);
+        certificate.setStatus(approved ? resolveStatus(certificate.getValidTo(), LocalDate.now()) : STATUS_REJECTED);
         certificate.setVerifiedBy(operatorId);
         certificate.setVerifiedAt(LocalDateTime.now());
         if (StringUtils.hasText(remark)) {
             certificate.setRemark(remark);
         }
         certificate.setUpdateTime(LocalDateTime.now());
-        updateById(certificate);
+        if (!updateById(certificate)) {
+            throw new ServiceException(404, HttpStatus.NOT_FOUND, "资质证照不存在");
+        }
     }
 
     @Override
     @Slave
     public Page<SupSupplierCertificate> pageExpiring(int page, int size, int days) {
-        LocalDate today = LocalDate.now();
-        int boundedDays = Math.max(0, Math.min(days, 365));
-        Page<SupSupplierCertificate> result = lambdaQuery()
-                .ge(SupSupplierCertificate::getValidTo, today)
-                .le(SupSupplierCertificate::getValidTo, today.plusDays(boundedDays))
-                .ne(SupSupplierCertificate::getStatus, 4)
+        Page<SupSupplierCertificate> result = expiringQuery(days)
                 .orderByAsc(SupSupplierCertificate::getValidTo)
                 .page(new Page<>(Math.max(page, 1), Math.max(size, 1)));
 
         List<SupSupplierCertificate> records = result.getRecords();
-        records.forEach(this::fillDerivedFields);
+        LocalDate today = LocalDate.now();
+        records.forEach(certificate -> fillDerivedFields(certificate, today));
         Set<String> supplierIds = records.stream()
                 .map(SupSupplierCertificate::getSupplierId)
                 .filter(StringUtils::hasText)
@@ -164,40 +181,42 @@ public class SupSupplierCertificateServiceImpl
     @Override
     @Slave
     public long countExpiring(int days) {
+        return expiringQuery(days).count();
+    }
+
+    private LambdaQueryChainWrapper<SupSupplierCertificate> expiringQuery(int days) {
         LocalDate today = LocalDate.now();
-        int boundedDays = Math.max(0, Math.min(days, 365));
+        int boundedDays = Math.clamp(days, 0, 365);
         return lambdaQuery()
                 .ge(SupSupplierCertificate::getValidTo, today)
                 .le(SupSupplierCertificate::getValidTo, today.plusDays(boundedDays))
-                .ne(SupSupplierCertificate::getStatus, 4)
-                .count();
+                .ne(SupSupplierCertificate::getStatus, STATUS_REJECTED);
     }
 
-    private void fillDerivedFields(SupSupplierCertificate certificate) {
+    private void fillDerivedFields(SupSupplierCertificate certificate, LocalDate today) {
         if (certificate.getValidTo() == null) {
             certificate.setDaysToExpiry(null);
             return;
         }
-        certificate.setDaysToExpiry((int) ChronoUnit.DAYS.between(LocalDate.now(), certificate.getValidTo()));
+        certificate.setDaysToExpiry((int) ChronoUnit.DAYS.between(today, certificate.getValidTo()));
         Integer status = certificate.getStatus();
         // 待审核(0)与人工驳回(4)保持原状态，其余状态按有效期实时刷新
-        if (status != null && status != 0 && status != 4) {
-            certificate.setStatus(resolveStatus(certificate.getValidTo()));
+        if (status != null && status != STATUS_PENDING && status != STATUS_REJECTED) {
+            certificate.setStatus(resolveStatus(certificate.getValidTo(), today));
         }
     }
 
-    private int resolveStatus(LocalDate validTo) {
+    private int resolveStatus(LocalDate validTo, LocalDate today) {
         if (validTo == null) {
-            return 1;
+            return STATUS_VALID;
         }
-        LocalDate today = LocalDate.now();
         if (validTo.isBefore(today)) {
-            return 3;
+            return STATUS_EXPIRED;
         }
         if (!validTo.isAfter(today.plusDays(EXPIRY_WARNING_DAYS))) {
-            return 2;
+            return STATUS_EXPIRING;
         }
-        return 1;
+        return STATUS_VALID;
     }
 
     private void validate(SupSupplierCertificate certificate) {
@@ -211,19 +230,9 @@ public class SupSupplierCertificateServiceImpl
                 && certificate.getValidTo().isBefore(certificate.getValidFrom())) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "证照有效期结束日期不能早于开始日期");
         }
-        if (certificate.getStatus() != null && (certificate.getStatus() < 0 || certificate.getStatus() > 4)) {
+        if (certificate.getStatus() != null
+                && (certificate.getStatus() < STATUS_PENDING || certificate.getStatus() > STATUS_REJECTED)) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "证照状态不合法");
         }
-    }
-
-    private SupSupplier requireSupplier(String supplierId) {
-        if (!StringUtils.hasText(supplierId)) {
-            throw new ServiceException(400, HttpStatus.BAD_REQUEST, "供应商ID不能为空");
-        }
-        SupSupplier supplier = supplierMapper.selectById(supplierId);
-        if (supplier == null || Boolean.TRUE.equals(supplier.getDeleted())) {
-            throw new ServiceException(404, HttpStatus.NOT_FOUND, "供应商不存在");
-        }
-        return supplier;
     }
 }

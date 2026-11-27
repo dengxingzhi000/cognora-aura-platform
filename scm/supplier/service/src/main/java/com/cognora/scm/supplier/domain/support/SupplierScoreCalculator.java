@@ -1,18 +1,17 @@
 package com.cognora.scm.supplier.domain.support;
 
 import com.cognora.scm.supplier.domain.entity.SupSupplierEvaluation;
-import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * 供应商评分口径：质量 30%、交付 30%、服务 20%、价格 20%。
  *
  * <p>只对已填写的维度按权重归一化，避免缺失维度被当作 0 分拉低总分。</p>
  */
-@Slf4j
 public final class SupplierScoreCalculator {
 
     public static final BigDecimal WEIGHT_QUALITY = new BigDecimal("0.30");
@@ -49,30 +48,26 @@ public final class SupplierScoreCalculator {
                                            BigDecimal deliveryScore,
                                            BigDecimal serviceScore,
                                            BigDecimal priceScore) {
-        BigDecimal weightedSum = BigDecimal.ZERO;
-        BigDecimal weightSum = BigDecimal.ZERO;
+        WeightedAccumulator acc = new WeightedAccumulator(BigDecimal.ZERO, BigDecimal.ZERO)
+                .add(qualityScore, WEIGHT_QUALITY)
+                .add(deliveryScore, WEIGHT_DELIVERY)
+                .add(serviceScore, WEIGHT_SERVICE)
+                .add(priceScore, WEIGHT_PRICE);
 
-        if (qualityScore != null) {
-            weightedSum = weightedSum.add(qualityScore.multiply(WEIGHT_QUALITY));
-            weightSum = weightSum.add(WEIGHT_QUALITY);
-        }
-        if (deliveryScore != null) {
-            weightedSum = weightedSum.add(deliveryScore.multiply(WEIGHT_DELIVERY));
-            weightSum = weightSum.add(WEIGHT_DELIVERY);
-        }
-        if (serviceScore != null) {
-            weightedSum = weightedSum.add(serviceScore.multiply(WEIGHT_SERVICE));
-            weightSum = weightSum.add(WEIGHT_SERVICE);
-        }
-        if (priceScore != null) {
-            weightedSum = weightedSum.add(priceScore.multiply(WEIGHT_PRICE));
-            weightSum = weightSum.add(WEIGHT_PRICE);
-        }
-
-        if (weightSum.compareTo(BigDecimal.ZERO) == 0) {
+        if (acc.weightSum().compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.ZERO;
         }
-        return clamp(weightedSum.divide(weightSum, 2, RoundingMode.HALF_UP));
+        return clamp(acc.weightedSum().divide(acc.weightSum(), 2, RoundingMode.HALF_UP));
+    }
+
+    private record WeightedAccumulator(BigDecimal weightedSum, BigDecimal weightSum) {
+
+        private WeightedAccumulator add(BigDecimal score, BigDecimal weight) {
+            if (score == null) {
+                return this;
+            }
+            return new WeightedAccumulator(weightedSum.add(score.multiply(weight)), weightSum.add(weight));
+        }
     }
 
     /**
@@ -113,6 +108,27 @@ public final class SupplierScoreCalculator {
             return null;
         }
         return sum.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP);
+    }
+
+    /** 四个评价维度的均值。 */
+    public record ScorecardDimensions(BigDecimal quality, BigDecimal delivery,
+                                      BigDecimal service, BigDecimal price) {
+    }
+
+    /**
+     * 汇总四个维度的均值，供评价写入与商品绩效查询共用。
+     */
+    public static ScorecardDimensions dimensionAverages(List<SupSupplierEvaluation> evaluations) {
+        return new ScorecardDimensions(
+                average(dimensionScores(evaluations, SupSupplierEvaluation::getQualityScore)),
+                average(dimensionScores(evaluations, SupSupplierEvaluation::getDeliveryScore)),
+                average(dimensionScores(evaluations, SupSupplierEvaluation::getServiceScore)),
+                average(dimensionScores(evaluations, SupSupplierEvaluation::getPriceScore)));
+    }
+
+    private static List<BigDecimal> dimensionScores(List<SupSupplierEvaluation> evaluations,
+                                                    Function<SupSupplierEvaluation, BigDecimal> selector) {
+        return evaluations == null ? List.of() : evaluations.stream().map(selector).toList();
     }
 
     public static BigDecimal clamp(BigDecimal score) {

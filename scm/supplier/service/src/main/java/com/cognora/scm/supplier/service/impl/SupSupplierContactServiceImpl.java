@@ -12,6 +12,7 @@ import com.cognora.scm.supplier.domain.entity.SupSupplierContact;
 import com.cognora.scm.supplier.mapper.SupSupplierContactMapper;
 import com.cognora.scm.supplier.mapper.SupSupplierMapper;
 import com.cognora.scm.supplier.service.ISupSupplierContactService;
+import com.cognora.scm.supplier.service.support.SupplierGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -34,11 +35,12 @@ public class SupSupplierContactServiceImpl
     private static final Set<String> ROLES = Set.of("SALES", "FINANCE", "LOGISTICS", "TECH", "OTHER");
 
     private final SupSupplierMapper supplierMapper;
+    private final SupplierGuard supplierGuard;
 
     @Override
     @Slave
     public List<SupSupplierContact> listBySupplierId(String supplierId) {
-        requireSupplier(supplierId);
+        supplierGuard.require(supplierId);
         return lambdaQuery()
                 .eq(SupSupplierContact::getSupplierId, supplierId)
                 .orderByDesc(SupSupplierContact::getIsPrimary)
@@ -51,7 +53,7 @@ public class SupSupplierContactServiceImpl
     @Master(reason = "新增供应商联系人")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierContact create(String supplierId, SupSupplierContact contact) {
-        requireSupplier(supplierId);
+        supplierGuard.require(supplierId);
         validate(contact, true);
 
         boolean firstContact = lambdaQuery()
@@ -201,16 +203,5 @@ public class SupSupplierContactServiceImpl
         if (StringUtils.hasText(contact.getContactPhone()) && contact.getContactPhone().length() > 32) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "联系人电话长度不能超过 32");
         }
-    }
-
-    private SupSupplier requireSupplier(String supplierId) {
-        if (!StringUtils.hasText(supplierId)) {
-            throw new ServiceException(400, HttpStatus.BAD_REQUEST, "供应商ID不能为空");
-        }
-        SupSupplier supplier = supplierMapper.selectById(supplierId);
-        if (supplier == null || Boolean.TRUE.equals(supplier.getDeleted())) {
-            throw new ServiceException(404, HttpStatus.NOT_FOUND, "供应商不存在");
-        }
-        return supplier;
     }
 }

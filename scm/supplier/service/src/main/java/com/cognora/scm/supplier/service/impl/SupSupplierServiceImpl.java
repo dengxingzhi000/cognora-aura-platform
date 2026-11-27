@@ -30,6 +30,7 @@ import com.cognora.scm.supplier.service.ISupSupplierChangeLogService;
 import com.cognora.scm.supplier.service.ISupSupplierContactService;
 import com.cognora.scm.supplier.service.ISupSupplierEvaluationService;
 import com.cognora.scm.supplier.service.ISupSupplierService;
+import com.cognora.scm.supplier.service.support.SupplierGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -75,6 +76,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     private final ISupSupplierChangeLogService changeLogService;
     private final ISupSupplierEvaluationService evaluationService;
     private final StringRedisTemplate redisTemplate;
+    private final SupplierGuard supplierGuard;
 
     @Override
     @Slave
@@ -209,7 +211,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     @Master(reason = "更新供应商")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplier updateSupplier(String id, SupplierUpsertRequest request) {
-        SupSupplier existing = requireSupplier(id);
+        SupSupplier existing = supplierGuard.require(id);
         validateMasterData(request);
 
         String code = normalizeCode(request.getSupplierCode());
@@ -237,7 +239,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     @Master(reason = "删除供应商")
     @Transactional(rollbackFor = Exception.class)
     public void deleteSupplier(String id, String operatorId, String operatorName) {
-        SupSupplier existing = requireSupplier(id);
+        SupSupplier existing = supplierGuard.require(id);
         if (Integer.valueOf(1).equals(existing.getCooperationStatus())) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST,
                     "合作中的供应商不能删除，请先终止合作");
@@ -251,7 +253,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     @Master(reason = "启用供应商")
     @Transactional(rollbackFor = Exception.class)
     public boolean enableSupplier(String id) {
-        SupSupplier supplier = requireSupplier(id);
+        SupSupplier supplier = supplierGuard.require(id);
         if (!Integer.valueOf(2).equals(supplier.getAuditStatus())) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "仅准入审核通过的供应商可启用");
         }
@@ -274,7 +276,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     @Master(reason = "停用供应商")
     @Transactional(rollbackFor = Exception.class)
     public boolean disableSupplier(String id) {
-        SupSupplier supplier = requireSupplier(id);
+        SupSupplier supplier = supplierGuard.require(id);
         if (Boolean.FALSE.equals(supplier.getEnabled())) {
             return true;
         }
@@ -291,7 +293,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     @Master(reason = "提交供应商准入审核")
     @Transactional(rollbackFor = Exception.class)
     public void submitAudit(String id, String operatorId, String operatorName) {
-        SupSupplier supplier = requireSupplier(id);
+        SupSupplier supplier = supplierGuard.require(id);
         if (!Integer.valueOf(0).equals(supplier.getAuditStatus())
                 && !Integer.valueOf(3).equals(supplier.getAuditStatus())) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "当前准入状态不可提交审核");
@@ -310,7 +312,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     @Master(reason = "供应商准入审核")
     @Transactional(rollbackFor = Exception.class)
     public void audit(String id, SupplierAuditRequest request) {
-        SupSupplier supplier = requireSupplier(id);
+        SupSupplier supplier = supplierGuard.require(id);
         if (!Integer.valueOf(1).equals(supplier.getAuditStatus())) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "仅待审核状态的供应商可执行审核");
         }
@@ -350,7 +352,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     @Master(reason = "供应商列入黑名单")
     @Transactional(rollbackFor = Exception.class)
     public void blacklist(String id, String reason, String operatorId, String operatorName) {
-        SupSupplier supplier = requireSupplier(id);
+        SupSupplier supplier = supplierGuard.require(id);
         if (!StringUtils.hasText(reason)) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "列入黑名单必须填写原因");
         }
@@ -368,7 +370,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     @Master(reason = "供应商移出黑名单")
     @Transactional(rollbackFor = Exception.class)
     public void unblacklist(String id, String operatorId, String operatorName) {
-        SupSupplier supplier = requireSupplier(id);
+        SupSupplier supplier = supplierGuard.require(id);
         if (Boolean.FALSE.equals(supplier.getBlacklisted())) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "供应商不在黑名单中");
         }
@@ -390,7 +392,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
         if (riskLevel == null || riskLevel < 1 || riskLevel > 3) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "风险等级仅支持 1-低,2-中,3-高");
         }
-        SupSupplier supplier = requireSupplier(id);
+        SupSupplier supplier = supplierGuard.require(id);
         Integer before = supplier.getRiskLevel();
         if (riskLevel.equals(before)) {
             return;
@@ -409,7 +411,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
         if (status == null || status < 0 || status > 3) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "合作状态仅支持 0-3");
         }
-        SupSupplier supplier = requireSupplier(id);
+        SupSupplier supplier = supplierGuard.require(id);
         int current = supplier.getCooperationStatus() == null ? 0 : supplier.getCooperationStatus();
         if (current == status) {
             return;
@@ -447,7 +449,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     @Override
     @Slave
     public SupplierProfileVO getProfile(String id) {
-        SupSupplier supplier = requireSupplier(id);
+        SupSupplier supplier = supplierGuard.require(id);
         SupplierProfileVO profile = new SupplierProfileVO();
         profile.setSupplier(supplier);
         profile.setContacts(contactService.listBySupplierId(id));
@@ -486,18 +488,14 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     @Override
     @Slave
     public SupplierPerformanceVO getPerformance(String id) {
-        SupSupplier supplier = requireSupplier(id);
+        SupSupplier supplier = supplierGuard.require(id);
         List<SupSupplierEvaluation> evaluations = evaluationService.listBySupplierId(id);
 
-        List<BigDecimal> quality = evaluations.stream().map(SupSupplierEvaluation::getQualityScore).toList();
-        List<BigDecimal> delivery = evaluations.stream().map(SupSupplierEvaluation::getDeliveryScore).toList();
-        List<BigDecimal> service = evaluations.stream().map(SupSupplierEvaluation::getServiceScore).toList();
-        List<BigDecimal> price = evaluations.stream().map(SupSupplierEvaluation::getPriceScore).toList();
-
-        BigDecimal qualityAvg = SupplierScoreCalculator.average(quality);
-        BigDecimal deliveryAvg = SupplierScoreCalculator.average(delivery);
-        BigDecimal serviceAvg = SupplierScoreCalculator.average(service);
-        BigDecimal priceAvg = SupplierScoreCalculator.average(price);
+        SupplierScoreCalculator.ScorecardDimensions dims = SupplierScoreCalculator.dimensionAverages(evaluations);
+        BigDecimal qualityAvg = dims.quality();
+        BigDecimal deliveryAvg = dims.delivery();
+        BigDecimal serviceAvg = dims.service();
+        BigDecimal priceAvg = dims.price();
         BigDecimal overall = SupplierScoreCalculator.weightedTotal(qualityAvg, deliveryAvg, serviceAvg, priceAvg);
 
         SupplierPerformanceVO performance = new SupplierPerformanceVO();
@@ -524,14 +522,14 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     @Override
     @Slave
     public List<SupSupplierChangeLog> listChangeLogs(String id, int limit) {
-        requireSupplier(id);
+        supplierGuard.require(id);
         return changeLogService.listBySupplierId(id, limit);
     }
 
     @Override
     @Slave
     public List<SupSupplierCategory> getCategories(String id) {
-        requireSupplier(id);
+        supplierGuard.require(id);
         List<String> categoryIds = categoryRelMapper.selectList(
                         Wrappers.<SupSupplierCategoryRel>lambdaQuery()
                                 .eq(SupSupplierCategoryRel::getSupplierId, id))
@@ -564,7 +562,7 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
     @Master(reason = "分配供应商分类")
     @Transactional(rollbackFor = Exception.class)
     public void assignCategories(String id, List<String> categoryIds, String operatorId, String operatorName) {
-        requireSupplier(id);
+        supplierGuard.require(id);
         List<String> normalizedIds = categoryIds == null ? List.of()
                 : new ArrayList<>(new LinkedHashSet<>(categoryIds.stream()
                 .filter(StringUtils::hasText)
@@ -598,17 +596,6 @@ public class SupSupplierServiceImpl extends ServiceImpl<SupSupplierMapper, SupSu
                 .collect(Collectors.joining(", "));
         changeLogService.record(id, "CATEGORY_ASSIGN",
                 "更新供应商分类: " + (names.isEmpty() ? "无" : names), null, operatorId, operatorName);
-    }
-
-    private SupSupplier requireSupplier(String id) {
-        if (!StringUtils.hasText(id)) {
-            throw new ServiceException(400, HttpStatus.BAD_REQUEST, "供应商ID不能为空");
-        }
-        SupSupplier supplier = getById(id);
-        if (supplier == null || Boolean.TRUE.equals(supplier.getDeleted())) {
-            throw new ServiceException(404, HttpStatus.NOT_FOUND, "供应商不存在");
-        }
-        return supplier;
     }
 
     private void validateMasterData(SupplierUpsertRequest request) {

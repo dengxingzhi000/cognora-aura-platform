@@ -6,14 +6,12 @@ import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.scm.supplier.domain.entity.SupSupplierChangeLog;
 import com.cognora.scm.supplier.mapper.SupSupplierChangeLogMapper;
 import com.cognora.scm.supplier.service.ISupSupplierChangeLogService;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-@Slf4j
 @Service
 public class SupSupplierChangeLogServiceImpl
         extends ServiceImpl<SupSupplierChangeLogMapper, SupSupplierChangeLog>

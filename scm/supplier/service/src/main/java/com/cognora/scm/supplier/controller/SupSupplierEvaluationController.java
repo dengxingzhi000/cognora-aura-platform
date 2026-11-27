@@ -30,7 +30,7 @@ public class SupSupplierEvaluationController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('supplier:evaluation:view')")
     public ApiResponse<SupSupplierEvaluation> getById(@Parameter(description = "评价ID") @PathVariable String id) {
-        log.info("[API] 查询评价详情: id={}", (id + "").replace("\r", "_").replace("\n", "_"));
+        log.info("[API] 查询评价详情: id={}", LogUtils.sanitizeForLog(id));
         SupSupplierEvaluation evaluation = evaluationService.getById(id);
         if (evaluation == null) {
             return ApiResponse.fail(404, "评价不存在");
@@ -75,7 +75,7 @@ public class SupSupplierEvaluationController {
             @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "供应商ID") @RequestParam(required = false) String supplierId,
             @Parameter(description = "评价周期，例如 2026-09") @RequestParam(required = false) String evaluationPeriod) {
-        log.info("[API] 分页查询评价: page={}, size={}, supplierId={}", (page + "").replace("\r", "_").replace("\n", "_"), (size + "").replace("\r", "_").replace("\n", "_"), (supplierId + "").replace("\r", "_").replace("\n", "_"));
+        log.info("[API] 分页查询评价: page={}, size={}, supplierId={}", page, size, LogUtils.sanitizeForLog(supplierId));
         Page<SupSupplierEvaluation> result = evaluationService.pageList(page, size, supplierId, evaluationPeriod);
         return ApiResponse.success(result);
     }
@@ -84,7 +84,7 @@ public class SupSupplierEvaluationController {
     @GetMapping("/supplier/{supplierId}")
     @PreAuthorize("hasAuthority('supplier:evaluation:list-by-supplier-id')")
     public ApiResponse<List<SupSupplierEvaluation>> listBySupplierId(@Parameter(description = "供应商ID") @PathVariable String supplierId) {
-        log.info("[API] 查询供应商评价列表 supplierId={}", (supplierId + "").replace("\r", "_").replace("\n", "_"));
+        log.info("[API] 查询供应商评价列表 supplierId={}", LogUtils.sanitizeForLog(supplierId));
         return ApiResponse.success(evaluationService.listBySupplierId(supplierId));
     }
 
@@ -92,7 +92,7 @@ public class SupSupplierEvaluationController {
     @GetMapping("/supplier/{supplierId}/average-score")
     @PreAuthorize("hasAuthority('supplier:evaluation:get-average-score')")
     public ApiResponse<BigDecimal> getAverageScore(@Parameter(description = "供应商ID") @PathVariable String supplierId) {
-        log.info("[API] 计算供应商平均评价 supplierId={}", (supplierId + "").replace("\r", "_").replace("\n", "_"));
+        log.info("[API] 计算供应商平均评价 supplierId={}", LogUtils.sanitizeForLog(supplierId));
         return ApiResponse.success(evaluationService.calculateAverageScore(supplierId));
     }
 

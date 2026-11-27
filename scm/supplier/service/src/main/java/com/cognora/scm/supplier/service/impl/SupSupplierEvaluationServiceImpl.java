@@ -15,6 +15,7 @@ import com.cognora.scm.supplier.domain.support.SupplierScoreCalculator;
 import com.cognora.scm.supplier.mapper.SupSupplierEvaluationMapper;
 import com.cognora.scm.supplier.mapper.SupSupplierMapper;
 import com.cognora.scm.supplier.service.ISupSupplierEvaluationService;
+import com.cognora.scm.supplier.service.support.SupplierGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -37,6 +38,7 @@ public class SupSupplierEvaluationServiceImpl
         implements ISupSupplierEvaluationService {
 
     private final SupSupplierMapper supplierMapper;
+    private final SupplierGuard supplierGuard;
 
     @Override
     @Slave
@@ -92,7 +94,7 @@ public class SupSupplierEvaluationServiceImpl
     @Master(reason = "创建供应商评价")
     @Transactional(rollbackFor = Exception.class)
     public SupSupplierEvaluation createEvaluation(SupSupplierEvaluation evaluation) {
-        requireSupplier(evaluation.getSupplierId());
+        supplierGuard.require(evaluation.getSupplierId());
         if (!StringUtils.hasText(evaluation.getEvaluationPeriod())) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "评价周期不能为空");
         }
@@ -186,15 +188,8 @@ public class SupSupplierEvaluationServiceImpl
         }
         List<SupSupplierEvaluation> evaluations = listBySupplierId(supplierId);
 
-        BigDecimal quality = SupplierScoreCalculator.average(evaluations.stream()
-                .map(SupSupplierEvaluation::getQualityScore).toList());
-        BigDecimal delivery = SupplierScoreCalculator.average(evaluations.stream()
-                .map(SupSupplierEvaluation::getDeliveryScore).toList());
-        BigDecimal service = SupplierScoreCalculator.average(evaluations.stream()
-                .map(SupSupplierEvaluation::getServiceScore).toList());
-        BigDecimal price = SupplierScoreCalculator.average(evaluations.stream()
-                .map(SupSupplierEvaluation::getPriceScore).toList());
-        BigDecimal overall = SupplierScoreCalculator.weightedTotal(quality, delivery, service, price);
+        SupplierScoreCalculator.ScorecardDimensions dims = SupplierScoreCalculator.dimensionAverages(evaluations);
+        BigDecimal overall = SupplierScoreCalculator.weightedTotal(dims.quality(), dims.delivery(), dims.service(), dims.price());
 
         LocalDateTime lastEvaluatedAt = evaluations.stream()
                 .map(SupSupplierEvaluation::getEvaluatedAt)
@@ -204,9 +199,9 @@ public class SupSupplierEvaluationServiceImpl
 
         LambdaUpdateWrapper<SupSupplier> wrapper = Wrappers.lambdaUpdate();
         wrapper.eq(SupSupplier::getId, supplierId);
-        wrapper.set(SupSupplier::getQualityScore, quality);
-        wrapper.set(SupSupplier::getDeliveryScore, delivery);
-        wrapper.set(SupSupplier::getServiceScore, service);
+        wrapper.set(SupSupplier::getQualityScore, dims.quality());
+        wrapper.set(SupSupplier::getDeliveryScore, dims.delivery());
+        wrapper.set(SupSupplier::getServiceScore, dims.service());
         wrapper.set(SupSupplier::getOverallScore, overall);
         wrapper.set(SupSupplier::getSupplierLevel, SupplierScoreCalculator.levelFor(overall));
         wrapper.set(SupSupplier::getLastEvaluationAt, lastEvaluatedAt);
@@ -292,16 +287,5 @@ public class SupSupplierEvaluationServiceImpl
         if (count > 0) {
             throw new ServiceException(400, HttpStatus.BAD_REQUEST, "该供应商此评价周期已存在评价记录");
         }
-    }
-
-    private SupSupplier requireSupplier(String supplierId) {
-        if (!StringUtils.hasText(supplierId)) {
-            throw new ServiceException(400, HttpStatus.BAD_REQUEST, "供应商ID不能为空");
-        }
-        SupSupplier supplier = supplierMapper.selectById(supplierId);
-        if (supplier == null || Boolean.TRUE.equals(supplier.getDeleted())) {
-            throw new ServiceException(404, HttpStatus.NOT_FOUND, "供应商不存在");
-        }
-        return supplier;
     }
 }
