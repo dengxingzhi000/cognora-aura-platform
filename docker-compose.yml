@@ -1080,6 +1080,92 @@ services:
 
 
   # ============================================================
+  # Agent stack (optional: docker compose --profile agent up -d)
+  # Python/Node runtimes stay private; only the Java BFF is reachable.
+  # ============================================================
+  enterprise-agent:
+    <<: *core-service
+    profiles: ["agent"]
+    image: ${ENTERPRISE_AGENT_IMAGE:-cognora/enterprise-agent:latest}
+    build:
+      context: ./enterprise-agent
+    container_name: enterprise-agent
+    environment:
+      <<: *core-service-env
+      AGENT_INTERNAL_SIGNATURE_REQUIRED: "true"
+      AGENT_PG_DSN: postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/db_agent
+      # 生产开启严格持久化与 DeepSeek 门禁；本地默认保持离线兼容。
+      AGENT_STRICT_PERSISTENCE: ${AGENT_STRICT_PERSISTENCE:-false}
+      AGENT_REQUIRE_DEEPSEEK: ${AGENT_REQUIRE_DEEPSEEK:-false}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      RAG_PGVECTOR_ENABLED: ${RAG_PGVECTOR_ENABLED:-false}
+      RAG_PGVECTOR_DSN: postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/db_agent
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
+      SCM_GATEWAY_URL: ${SCM_GATEWAY_URL:-http://platform-gateway:8761}
+      SCM_AUTH_URL: ${SCM_AUTH_URL:-http://platform-auth:8106}
+      SCM_USERNAME: ${SCM_USERNAME:-}
+      SCM_PASSWORD: ${SCM_PASSWORD:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8762/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  browser-agent:
+    <<: *core-service
+    profiles: ["agent"]
+    image: ${BROWSER_AGENT_IMAGE:-cognora/browser-agent:latest}
+    build:
+      context: ./browser-agent-spike
+    container_name: browser-agent
+    environment:
+      <<: *core-service-env
+      AGENT_INTERNAL_SIGNATURE_REQUIRED: "true"
+      BROWSER_API_HOST: 0.0.0.0
+      BROWSER_STORAGE_DRIVER: postgres
+      BROWSER_AGENT_PG_DSN: postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/db_browser_agent
+      BROWSER_ALLOWED_HOSTS: ${BROWSER_ALLOWED_HOSTS:-localhost,127.0.0.1,cognora-aura-web}
+      BROWSER_WEB_URL: ${BROWSER_WEB_URL:-http://cognora-aura-web:3000}
+      BROWSER_HEADLESS: "true"
+      BROWSER_CHROMIUM_NO_SANDBOX: "true"
+    volumes:
+      - browser_agent_artifacts:/app/artifacts
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4320/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  platform-agent:
+    <<: *core-service
+    profiles: ["agent"]
+    build:
+      context: ./platform/agent
+    container_name: platform-agent
+    environment:
+      <<: *core-service-env
+      SPRING_APPLICATION_NAME: platform-agent
+      SERVER_PORT: 8217
+      AGENT_ENTERPRISE_URL: http://enterprise-agent:8762
+      AGENT_BROWSER_URL: http://browser-agent:4320
+    depends_on:
+      - nacos
+      - postgres
+      - redis
+      - kafka
+      - rabbitmq
+      - enterprise-agent
+      - browser-agent
+    ports:
+      - "8217:8217"
+    restart: unless-stopped
+
+  # ============================================================
   # 数据库维护（可选：docker compose --profile maintenance up -d db-maintenance）
   # 分区预建 / 过期分区清理 / 数据保留策略的常驻调度器。
   # 它只调用 scripts/db 下既有的 4 个脚本（脚本语义不变），runner 负责定时与日志。
@@ -1141,6 +1227,9 @@ volumes:
   # 服务注册与配置
   nacos_data:
   nacos_logs:
+
+  # Agent runtime artifacts
+  browser_agent_artifacts:
 
   # 分布式事务与调度
   seata_logs:

@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enterprise-agent
+  namespace: scm-prod
+  labels:
+    app: enterprise-agent
+    tier: agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: enterprise-agent
+  template:
+    metadata:
+      labels:
+        app: enterprise-agent
+    spec:
+      containers:
+        - name: enterprise-agent
+          image: docker.io/scmcloud/enterprise-agent:latest
+          ports:
+            - containerPort: 8762
+          envFrom:
+            - configMapRef:
+                name: scm-config
+            - secretRef:
+                name: scm-secrets
+          env:
+            - name: AGENT_INTERNAL_SIGNATURE_REQUIRED
+              value: "true"
+            - name: AGENT_STRICT_PERSISTENCE
+              value: "true"
+            - name: AGENT_REQUIRE_DEEPSEEK
+              value: "true"
+            - name: AGENT_PG_DSN
+              value: postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/db_agent
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: scm-secrets
+                  key: deepseek-api-key
+                  optional: true
+            - name: RAG_PGVECTOR_ENABLED
+              value: "true"
+            - name: RAG_PGVECTOR_DSN
+              value: postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/db_agent
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://skywalking-oap:4317
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: grpc
+            - name: API_SECRET_INTERNAL_SERVICE
+              valueFrom:
+                secretKeyRef:
+                  name: scm-secrets
+                  key: api-secret-internal-service
+            - name: SCM_GATEWAY_URL
+              value: http://platform-gateway:8761
+            - name: SCM_AUTH_URL
+              value: http://platform-auth:8106
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8762
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8762
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3

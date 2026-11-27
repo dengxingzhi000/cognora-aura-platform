@@ -1,0 +1,249 @@
+{
+  "version": 1,
+  "defaultHost": "192.168.0.121",
+  "defaultUser": "root",
+  "profiles": {
+    "minimal": [
+      "postgres",
+      "redis",
+      "nacos",
+      "rabbitmq",
+      "kafka",
+      "xxljob-mysql",
+      "xxl-job",
+      "elasticsearch",
+      "gateway",
+      "auth",
+      "system",
+      "product",
+      "notify"
+    ],
+    "agent": [
+      "postgres",
+      "redis",
+      "nacos",
+      "rabbitmq",
+      "kafka",
+      "xxljob-mysql",
+      "xxl-job",
+      "elasticsearch",
+      "gateway",
+      "auth",
+      "system",
+      "product",
+      "notify",
+      "enterprise-agent",
+      "platform-agent",
+      "web"
+    ]
+  },
+  "services": {
+    "postgres": {
+      "container": "scm-postgres",
+      "image": "postgres:18",
+      "kind": "infra",
+      "port": 5432,
+      "dependsOn": [],
+      "health": { "type": "docker-health" }
+    },
+    "redis": {
+      "container": "scm-platform-redis-1",
+      "image": "redis:8-alpine",
+      "kind": "infra",
+      "port": 6380,
+      "dependsOn": [],
+      "health": { "type": "docker-health" }
+    },
+    "nacos": {
+      "container": "scm-nacos",
+      "image": "nacos/nacos-server:v3.2.4",
+      "kind": "infra",
+      "port": 18848,
+      "dependsOn": [],
+      "health": { "type": "docker-health" }
+    },
+    "rabbitmq": {
+      "container": "scm-rabbitmq",
+      "image": "rabbitmq:4.4.0-management",
+      "kind": "infra",
+      "port": 5673,
+      "dependsOn": [],
+      "health": { "type": "docker-health" }
+    },
+    "kafka": {
+      "container": "scm-kafka",
+      "image": "confluentinc/cp-kafka:8.4.0",
+      "kind": "infra",
+      "port": 9092,
+      "dependsOn": [],
+      "health": { "type": "docker-health" }
+    },
+    "xxljob-mysql": {
+      "container": "scm-mysql-xxljob",
+      "image": "mysql:9.7.4",
+      "kind": "infra",
+      "port": 3306,
+      "dependsOn": [],
+      "health": { "type": "docker-health" }
+    },
+    "xxl-job": {
+      "container": "scm-xxl-job",
+      "image": "xuxueli/xxl-job-admin:3.5.0",
+      "kind": "infra",
+      "port": 8088,
+      "dependsOn": ["xxljob-mysql"],
+      "health": { "type": "http", "path": "/" }
+    },
+    "elasticsearch": {
+      "container": "scm-elasticsearch",
+      "image": "elasticsearch:9.5.5",
+      "kind": "infra",
+      "port": 9200,
+      "dependsOn": [],
+      "health": { "type": "docker-health" }
+    },
+    "gateway": {
+      "container": "scm-gateway",
+      "image": "ghcr.io/dengxingzhi000/cognora-aura-platform/platform-gateway:v2.2.0",
+      "kind": "java",
+      "port": 8761,
+      "dependsOn": ["nacos", "redis"],
+      "health": { "type": "http", "path": "/actuator/health" },
+      "deploy": {
+        "enabled": true,
+        "network": "scm-platform_scm-network",
+        "ports": ["8761:8761"],
+        "memory": "700m",
+        "envFile": "/root/scm-deploy/.env",
+        "secretEnv": ["JWT_SECRET", "API_SECRET_WEB_APP", "API_SECRET_INTERNAL_SERVICE"],
+        "environment": {
+          "SPRING_APPLICATION_NAME": "platform-gateway",
+          "SERVER_PORT": "8761",
+          "SERVER_MAX_HTTP_REQUEST_HEADER_SIZE": "32KB",
+          "SPRING_AUTOCONFIGURE_EXCLUDE": "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,com.cognora.platform.common.log.config.AuditLogAutoConfiguration,com.cognora.platform.common.access.PermissionAccessAutoConfiguration"
+        }
+      }
+    },
+    "auth": {
+      "container": "scm-auth",
+      "image": "ghcr.io/dengxingzhi000/cognora-aura-platform/platform-auth:v2.2.0",
+      "kind": "java",
+      "port": 8106,
+      "dependsOn": ["gateway", "postgres", "redis", "nacos"],
+      "health": { "type": "http", "path": "/actuator/health" },
+      "deploy": {
+        "enabled": true,
+        "network": "scm-platform_scm-network",
+        "ports": ["8106:8106"],
+        "memory": "700m",
+        "envFile": "/root/scm-deploy/.env",
+        "secretEnv": ["JWT_SECRET", "API_SECRET_INTERNAL_SERVICE"],
+        "environment": {
+          "SPRING_APPLICATION_NAME": "platform-auth",
+          "SERVER_PORT": "8106",
+          "SERVER_SSL_ENABLED": "false",
+          "SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL": "jdbc:postgresql://postgres:5432/db_user?stringtype=unspecified"
+        }
+      }
+    },
+    "system": {
+      "container": "scm-system",
+      "image": "ghcr.io/dengxingzhi000/cognora-aura-platform/platform-system:v2.2.0",
+      "kind": "java",
+      "port": 8081,
+      "dependsOn": ["gateway", "auth", "postgres", "redis", "nacos", "rabbitmq", "kafka"],
+      "health": { "type": "http", "path": "/actuator/health" },
+      "deploy": {
+        "enabled": true,
+        "network": "scm-platform_scm-network",
+        "ports": ["8081:8081"],
+        "memory": "700m",
+        "envFile": "/root/scm-deploy/.env",
+        "secretEnv": ["JWT_SECRET", "API_SECRET_INTERNAL_SERVICE", "DB_PASSWORD", "REDIS_PASSWORD"],
+        "environment": {
+          "SPRING_APPLICATION_NAME": "platform-system",
+          "SERVER_PORT": "8081",
+          "KAFKA_HOST": "kafka",
+          "KAFKA_PORT": "9092",
+          "INTEGRATION_KAFKA_BOOTSTRAP_SERVERS": "kafka:9092",
+          "RW_ENABLED": "false",
+          "SPRING_DATASOURCE_DYNAMIC_PRIMARY": "user",
+          "DUBBO_APPLICATION_REGISTER_MODE": "interface",
+          "SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL": "jdbc:postgresql://postgres:5432/db_user?stringtype=unspecified",
+          "SPRING_DATASOURCE_DYNAMIC_DATASOURCE_USER_URL": "jdbc:postgresql://postgres:5432/db_user?stringtype=unspecified",
+          "SPRING_DATASOURCE_DYNAMIC_DATASOURCE_ORG_URL": "jdbc:postgresql://postgres:5432/db_org?stringtype=unspecified",
+          "SPRING_DATASOURCE_DYNAMIC_DATASOURCE_PERMISSION_URL": "jdbc:postgresql://postgres:5432/db_permission?stringtype=unspecified",
+          "SPRING_DATASOURCE_DYNAMIC_DATASOURCE_APPROVAL_URL": "jdbc:postgresql://postgres:5432/db_approval?stringtype=unspecified",
+          "SPRING_DATASOURCE_DYNAMIC_DATASOURCE_AUDIT_URL": "jdbc:postgresql://postgres:5432/db_audit?stringtype=unspecified",
+          "SPRING_DATASOURCE_DYNAMIC_DATASOURCE_NOTIFY_URL": "jdbc:postgresql://postgres:5432/db_notify?stringtype=unspecified"
+        }
+      }
+    },
+    "product": {
+      "container": "scm-product",
+      "image": "ghcr.io/dengxingzhi000/cognora-aura-platform/platform-product:v2.2.0",
+      "kind": "java",
+      "port": 8201,
+      "dependsOn": ["gateway", "auth", "system", "postgres", "redis", "nacos", "xxl-job", "elasticsearch"],
+      "health": { "type": "http", "path": "/actuator/health" },
+      "deploy": {
+        "enabled": true,
+        "network": "scm-platform_scm-network",
+        "ports": ["8201:8201"],
+        "memory": "700m",
+        "envFile": "/root/scm-deploy/.env",
+        "secretEnv": ["JWT_SECRET", "API_SECRET_INTERNAL_SERVICE", "DB_PASSWORD", "REDIS_PASSWORD"],
+        "environment": {
+          "SPRING_APPLICATION_NAME": "scm-product",
+          "SERVER_PORT": "8201",
+          "ELASTICSEARCH_URIS": "http://elasticsearch:9200",
+          "SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL": "jdbc:postgresql://postgres:5432/db_product?stringtype=unspecified"
+        }
+      }
+    },
+    "notify": {
+      "container": "scm-notify",
+      "image": "ghcr.io/dengxingzhi000/cognora-aura-platform/platform-notify:v2.2.0",
+      "kind": "java",
+      "port": 8211,
+      "dependsOn": ["gateway", "auth", "system", "postgres", "redis", "nacos", "rabbitmq"],
+      "health": { "type": "http", "path": "/actuator/health" },
+      "deploy": {
+        "enabled": true,
+        "network": "scm-platform_scm-network",
+        "ports": ["8211:8211"],
+        "memory": "700m",
+        "envFile": "/root/scm-deploy/.env",
+        "secretEnv": ["JWT_SECRET", "API_SECRET_INTERNAL_SERVICE", "DB_PASSWORD", "REDIS_PASSWORD"],
+        "environment": {
+          "SPRING_APPLICATION_NAME": "platform-notify",
+          "SERVER_PORT": "8211"
+        }
+      }
+    },
+    "enterprise-agent": {
+      "container": "enterprise-agent",
+      "image": "cognora/enterprise-agent:writing-assistant",
+      "kind": "python",
+      "port": 8762,
+      "dependsOn": ["postgres"],
+      "health": { "type": "http", "path": "/ready" }
+    },
+    "platform-agent": {
+      "container": "platform-agent",
+      "image": "ghcr.io/dengxingzhi000/cognora-aura-platform/platform-auth:v2.2.0",
+      "kind": "java",
+      "port": 8217,
+      "dependsOn": ["gateway", "auth", "system", "postgres", "redis", "nacos", "enterprise-agent"],
+      "health": { "type": "http", "path": "/actuator/health" }
+    },
+    "web": {
+      "container": "scm-web",
+      "image": "node:22-alpine",
+      "kind": "node",
+      "port": 3000,
+      "dependsOn": ["gateway", "auth", "system", "product", "notify", "platform-agent"],
+      "health": { "type": "http", "path": "/zh-CN/login" }
+    }
+  }
+}

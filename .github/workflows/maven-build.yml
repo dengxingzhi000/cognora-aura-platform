@@ -159,6 +159,27 @@ jobs:
           END $$;
           SQL
 
+      - name: Normalize and validate data_scope column types
+        if: github.event_name == 'push'
+        env:
+          PGPASSWORD: admin123
+        run: |
+          # data_scope 有两列两套编码：
+          #   sys_role.data_scope → 数值码 SMALLINT（1=ALL…5=SELF），
+          #     对应 SysUserRoleMapper#MIN(r.data_scope) 的 Integer 聚合；
+          #   sys_user.data_scope → 名称 VARCHAR（'ALL'/'DEPT'/…）。
+          # 014 把跑歪的现存库换算回这两套口径（幂等），
+          # ci_validate_data_scope.sql 随后断言两列的类型与取值域。
+          # 迁移脚本按当前连接的库处理实际存在的表，因此两个库各跑一次。
+          psql -h localhost -U admin -d db_permission -v ON_ERROR_STOP=1 \
+            -f scripts/db/migrations/014_data_scope_column_types.sql
+          psql -h localhost -U admin -d db_user -v ON_ERROR_STOP=1 \
+            -f scripts/db/migrations/014_data_scope_column_types.sql
+          psql -h localhost -U admin -d db_permission -v ON_ERROR_STOP=1 \
+            -f scripts/db/ci_validate_data_scope.sql
+          psql -h localhost -U admin -d db_user -v ON_ERROR_STOP=1 \
+            -f scripts/db/ci_validate_data_scope.sql
+
       - name: Build and Run Unit Tests (PR)
         if: github.event_name == 'pull_request'
         run: mvn clean test-compile test -B -V -f com.scm.parent/pom.xml
@@ -426,6 +447,8 @@ jobs:
             path: platform/product
           - service: platform-inventory
             path: platform/inventory
+          - service: platform-agent
+            path: platform/agent
           - service: scm-order
             path: scm/order
           - service: scm-warehouse

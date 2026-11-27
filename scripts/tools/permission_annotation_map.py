@@ -869,10 +869,11 @@ def render_report(mapping: dict, catalog_notes: list[str], catalog_stats: dict[s
     lines.append("# 权限目录缺口报告（D1）")
     lines.append("")
     lines.append(
-        "> 生成：`py -3 scripts/tools/permission_annotation_map.py`  "
+        "> 生成：`py -3 scripts/tools/permission_annotation_map.py`"
     )
+    lines.append(">")
     lines.append(
-        "> 机器可读映射：`docs/superpowers/specs/2026-11-12-permission-mapping.json`  "
+        "> 机器可读映射：`docs/superpowers/specs/2026-11-12-permission-mapping.json`"
     )
     lines.append(
         "> 输入：`platform|scm|ecom|lms` 四域 `*Controller.java` + `scripts/db/seed/*.sql`"

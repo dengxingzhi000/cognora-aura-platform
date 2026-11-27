@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: browser-agent
+  namespace: scm-prod
+  labels:
+    app: browser-agent
+    tier: agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: browser-agent
+  template:
+    metadata:
+      labels:
+        app: browser-agent
+    spec:
+      containers:
+        - name: browser-agent
+          image: docker.io/scmcloud/browser-agent:latest
+          ports:
+            - containerPort: 4320
+          envFrom:
+            - configMapRef:
+                name: scm-config
+            - secretRef:
+                name: scm-secrets
+          env:
+            - name: AGENT_INTERNAL_SIGNATURE_REQUIRED
+              value: "true"
+            - name: BROWSER_API_HOST
+              value: 0.0.0.0
+            - name: BROWSER_STORAGE_DRIVER
+              value: postgres
+            - name: BROWSER_AGENT_PG_DSN
+              value: postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/db_browser_agent
+            - name: BROWSER_ALLOWED_HOSTS
+              value: cognora-aura-web,localhost,127.0.0.1
+            - name: BROWSER_WEB_URL
+              value: http://cognora-aura-web:3000
+            - name: BROWSER_CHROMIUM_NO_SANDBOX
+              value: "true"
+            - name: API_SECRET_INTERNAL_SERVICE
+              valueFrom:
+                secretKeyRef:
+                  name: scm-secrets
+                  key: api-secret-internal-service
+          volumeMounts:
+            - name: artifacts
+              mountPath: /app/artifacts
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4320
+            initialDelaySeconds: 45
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 4320
+            initialDelaySeconds: 20
+            periodSeconds: 5
+      volumes:
+        - name: artifacts
+          persistentVolumeClaim:
+            claimName: browser-agent-artifacts

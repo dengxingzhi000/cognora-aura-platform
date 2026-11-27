@@ -70,11 +70,31 @@ Maven 3.9.16 under `~/.m2/wrapper/dists/...` — machine-specific paths, so
 
 ```bash
 docker-compose up -d                                             # infra
+docker compose --profile agent up -d --build                     # + Agent BFF/runtimes
 set PGPASSWORD=admin123 && cd scripts\db && init-all-databases.bat
 ```
 
 The `.bat` leaves `tenant_id` off six business databases — see
 [Database](#database) below before using it.
+
+### Agent integration
+
+`platform-agent` (8217) is the only public Java entry point for the two agent
+runtimes. The gateway strips `/platform-agent` and the BFF exposes
+`/api/v1/agent/**`; enterprise-agent (8762) and browser-agent (4320) remain
+private services. The BFF resolves tenant/user/role from JWT, applies the
+endpoint permission catalog and audit annotations, then calls runtimes with
+the V3 contract below.
+All three services must share `API_SECRET_INTERNAL_SERVICE` (>=32 chars).
+Runtime calls use HMAC-SHA256-V3 over method, path, sorted query, body hash,
+trusted tenant/user/role, platform-token hash, device id and idempotency key.
+Only enterprise calls receive the user's platform JWT/device headers; SCM tools
+use that delegated identity and never fall back to the shared account.
+`platform-agent` owns the `platform_agent_task` projection in `db_agent`
+(Flyway history `flyway_history_agent`) for unified task/approval history.
+Runtime schemas live in `db_agent` / `db_browser_agent`; permission seed is
+`scripts/db/seed/035_agent_permissions.sql`. The UI route is
+`/{locale}/platform-agent` in the separate web repository.
 
 Start order matters: **infra → Gateway (8761) → Auth (8106) → System (8081) →
 business services.** A service started before Nacos is healthy cannot register;
@@ -135,7 +155,7 @@ Read from each module's `application.yml`.
 | Logistics | 8205 | Member | 8302 |
 | Supplier | 8206 | Promotion | 8303 |
 | Purchase | 8207 | Payment | 8304 |
-| | | Order-Center | 8305 |
+| Agent BFF | 8217 | Order-Center | 8305 |
 | | | Fulfillment | 8306 |
 | | | Search | 8307 |
 | | | Analytics | 8308 |
@@ -164,17 +184,18 @@ services reach the platform Redis over the `scm-network` alias.
   `lms/` (tms).
 - **Service modules** follow an `api/` + `service/` split: `api/` holds the
   Dubbo RPC interfaces and DTOs, `service/` is the deployable Spring Boot app.
-- **Flat modules**: `platform/auth`, `platform/gateway` (one Maven module each).
+- **Flat modules**: `platform/auth`, `platform/gateway`, `platform/agent` (one Maven module each).
 - **`platform/common/`** — `core`, `data`, `data-rw`, `data-rw-stub`, `cache`,
   `web`, `system-contract`, `monitoring`, `integration`, `decision-matrix`,
   `decision-engine`, `security/{core,api}`.
 - **前端** — 已拆分到独立仓库
   [`cognora-aura-web`](https://github.com/dengxingzhi000/cognora-aura-web)，
   不再位于本仓库或父 POM 中。
-- **Not part of this build** — a directory trap for search tools:
+- **Not part of this build** — directory traps for search tools:
   `enterprise-agent/` is a separate nested git repo
   (`cognora-enterprise-agent`, a Python/FastAPI project, untracked by this
-  repo's git index). The stale `.wt-sys-master/` worktree copy of this repo
+  repo's git index). `browser-agent-spike/` is another independent Node/Playwright
+  repo. The stale `.wt-sys-master/` worktree copy of this repo
   was removed; if a duplicate tree reappears there, it is a fresh worktree
   checkout and should be excluded when grepping/globbing.
 
@@ -516,10 +537,11 @@ reads `PG_HOST`/`PG_PORT`/`PG_ADMIN_USER` (default `postgres`) plus
 `PG_ADMIN_PASSWORD`, which has **no default** — the script fails fast without
 it. CI passes `PG_ADMIN_USER=admin` / `PG_ADMIN_PASSWORD=admin123`.
 
-The `.bat` creates 18 databases (including `db_tenant`, `db_promotion` and
-`db_analytics`); the `.sh` creates 17 — it omits `db_tenant`. Neither creates
+The `.bat` creates 20 databases (including `db_tenant`, `db_agent` and
+`db_browser_agent`); the `.sh` creates 19 — it omits `db_tenant`. Neither creates
 `db_document` — that needs a manual `CREATE DATABASE` plus its Flyway
-migrations.
+migrations. The two Agent runtimes create their own tables on startup; their
+schemas remain owned by the independent repositories.
 
 **The `.bat` is behind the `.sh` on tenant_id.** `028_add_tenant_id_columns.sql`
 (adds `tenant_id` to the 34 business tables) is only invoked by the `.sh`,
@@ -572,6 +594,17 @@ notification feed.
   entries (`009`, `013`); the service-prefixed ones are applied by `psql`
   using the command in each file's header, and CI applies `007`+`008`
   inline for the role-scope validations. Treat "did I apply it?" as manual.
+- **`data_scope` 有两列两套编码，不要统一成一套**：`sys_role.data_scope`
+  是数值码（`SMALLINT`，1=ALL…5=SELF，与 `003_db_permission.sql`、
+  `SysUserRoleMapper#MIN(r.data_scope)` 的 `Integer` 映射、种子里的
+  `1/3/4`、前端的 `dataScope: number` 一致），`sys_user.data_scope`
+  是名称（`VARCHAR`，`ALL/DEPT/DEPT_AND_SUB/SELF/CUSTOM`，对应
+  `SysUser#dataScope` 的 `String`）。两者的唯一换算入口是
+  `com.cognora.platform.common.constant.DataScopeConstants#nameOf`。
+  `004_transform_permission_system_multi_tenant.sql` 曾把角色列写成
+  `VARCHAR`，与 `003` 的 `SMALLINT` 冲突（先跑哪个取决于脚本顺序）；
+  已改为数值码，`014_data_scope_column_types.sql` 负责把跑歪的现存库
+  换算回来，CI 用 `ci_validate_data_scope.sql` 断言两列的类型与取值。
 - **Per-service Flyway** at `<domain>/<name>/service/src/main/resources/db/migration/`
   (`V1__*.sql`). Flyway is enabled with `validate-on-migrate: true` and
   `out-of-order: false` — put new per-service schema changes here, not in
@@ -824,7 +857,9 @@ npm run test:e2e     # Playwright
   names are deprecated shims).
 - The POM's `<excludedGroups>` wins over `-DexcludedGroups=`, so re-enabling
   integration tests means editing the parent POM or adding a profile.
-- **CI still does not boot a Spring context.** `build` runs only Mockito units.
+- **CI still does not boot business-service Spring contexts.** `build` runs Mockito
+  units; the one exception is `platform-agent`'s `AgentServiceApplicationTest`, which
+  boots the BFF with H2, discovery and the task center disabled.
   A `@ContextSmokeTest` mechanism (real `@SpringBootApplication` + in-memory H2)
   was written and then **withdrawn**, because the contexts it booted for
   `ecom-payment` and `ecom-order-center` could not start: those services need
@@ -895,10 +930,12 @@ order/warehouse/finance/supplier/purchase, `lms-tms*` for logistics):
   platform approval, audit, auth, file, gateway, inventory, message, notify,
   product, system, tenant — scm finance, order, purchase, supplier, warehouse —
   and lms-tms.
-- Split `<svc>-deployment.yml` + `<svc>-service.yml` for 11: platform auth
-  (plus a `platform-auth-canary` pair and `platform-auth-hpa.yml`), document,
-  gateway, inventory, product, system — scm finance, purchase, supplier,
+- Split `<svc>-deployment.yml` + `<svc>-service.yml` for 14: platform auth
+  (plus a `platform-auth-canary` pair and `platform-auth-hpa.yml`), agent,
+  document, gateway, inventory, product, system — enterprise-agent,
+  browser-agent — scm finance, purchase, supplier,
   warehouse — and lms-tms (which also has the single-file style).
+  `browser-agent-pvc.yml` backs its screenshot/artifact volume.
 - Shared: `_helpers.tpl`, `configmap.yml`, `namespace.yml`, `secrets.yml`,
   `multi-az-topology-spread.yaml`.
 
@@ -961,11 +998,11 @@ deployability.
   `scripts/db/ci_validate_tenant_admin_scope.sql` asserts `ROLE_TENANT_ADMIN`
   holds no `tenant:*` permission and no `menu:tenant%` console shortcut is
   granted to non-platform roles.
-- **Docker images are built for 23 services**: the 15 core/scm ones plus all 8
-  `ecom-*` services (member, promotion, payment, order-center, mall, fulfillment,
-  search, analytics). The ecom 8 were "written but never published" until
-  P2-1 — their Dockerfiles existed but the matrix omitted them, so no ecom image
-  was ever produced. Deploy jobs still roll only auth, gateway and system images
+- **Docker images are built for 16 services** by the branch workflow:
+  platform auth/gateway/system/product/inventory/agent/approval/audit/notify/tenant,
+  scm order/warehouse/supplier/finance/purchase and lms-tms. The independent
+  enterprise-agent and browser-agent repositories own their runtime images.
+  Deploy jobs still roll only auth, gateway and system images
   (dev from `develop`, prod from `master`).
 
 Other workflows: `codeql.yml`, `backup.yml` (daily 02:00 DB backup),

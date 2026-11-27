@@ -1,7 +1,8 @@
 # 权限目录缺口报告（D1）
 
-> 生成：`py -3 scripts/tools/permission_annotation_map.py`  
-> 机器可读映射：`docs/superpowers/specs/2026-11-12-permission-mapping.json`  
+> 生成：`py -3 scripts/tools/permission_annotation_map.py`
+>
+> 机器可读映射：`docs/superpowers/specs/2026-11-12-permission-mapping.json`
 > 输入：`platform|scm|ecom|lms` 四域 `*Controller.java` + `scripts/db/seed/*.sql`
 
 ## 口径
@@ -16,22 +17,22 @@
 
 | 指标 | 数量 |
 | --- | ---: |
-| 服务（有 controller 的模块） | 24 |
-| 端点总数 | 821 |
+| 服务（有 controller 的模块） | 25 |
+| 端点总数 | 861 |
 | 运行时候选码 > 1 的端点 | 146 |
-| seed 目录行 / 唯一 (url, method) 对 | 663 / 662 |
-| 已映射到权限码 | 670 |
-| 豁免端点 | 100 |
+| seed 目录行 / 唯一 (url, method) 对 | 701 / 700 |
+| 已映射到权限码 | 708 |
+| 豁免端点 | 101 |
 | 其中既命中目录又被豁免 | 24 |
-| **目录缺口** | **75** |
+| **目录缺口** | **76** |
 
-`已映射 + 豁免 - 既映射又豁免 + 缺口 = 670 + 100 - 24 + 75 = 821`。「既命中目录又被豁免」的端点（如 `/api/v1/payments/{id}`）运行时先命中豁免，目录行不参与放行。
+`已映射 + 豁免 - 既映射又豁免 + 缺口 = 708 + 101 - 24 + 76 = 861`。「既命中目录又被豁免」的端点（如 `/api/v1/payments/{id}`）运行时先命中豁免，目录行不参与放行。
 
 豁免端点按规则分布：
 
 | 豁免规则 | 数量 |
 | --- | ---: |
-| `exemptPaths` | 86 |
+| `exemptPaths` | 87 |
 | `internalSignaturePaths` | 7 |
 | `signatureOrPermissionPaths` | 5 |
 | `whitelist` | 2 |
@@ -49,15 +50,16 @@
 | `ecom/promotion/service` | 12 | 2 | 12 | 0 |
 | `ecom/search/service` | 8 | 5 | 8 | 0 |
 | `lms/tms/service` | 56 | 36 | 0 | 20 |
+| `platform/agent` | 38 | 38 | 0 | 0 |
 | `platform/approval/service` | 10 | 10 | 0 | 0 |
 | `platform/audit/service` | 10 | 9 | 1 | 0 |
 | `platform/auth` | 23 | 0 | 14 | 9 |
 | `platform/document/service` | 21 | 21 | 0 | 0 |
-| `platform/file/service` | 13 | 13 | 0 | 0 |
+| `platform/file/service` | 14 | 13 | 1 | 0 |
 | `platform/inventory/service` | 57 | 35 | 6 | 17 |
 | `platform/notify/service` | 27 | 13 | 19 | 0 |
 | `platform/product/service` | 40 | 40 | 0 | 0 |
-| `platform/system/service` | 85 | 52 | 5 | 29 |
+| `platform/system/service` | 86 | 52 | 5 | 30 |
 | `platform/tenant/service` | 52 | 52 | 0 | 0 |
 | `scm/finance/service` | 68 | 68 | 0 | 0 |
 | `scm/order/service` | 24 | 24 | 4 | 0 |
@@ -128,7 +130,7 @@
 | POST | `/api/v1/inventory/valuation/query` | `query` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InventoryValuationController.java` |
 | POST | `/api/v1/inventory/valuation/stats` | `stats` | `platform/inventory/service/src/main/java/com/cognora/platform/inventory/controller/InventoryValuationController.java` |
 
-### `platform/system/service`（29 个）
+### `platform/system/service`（30 个）
 
 | HTTP | 路径 | Java 方法 | 源文件 |
 | --- | --- | --- | --- |
@@ -161,6 +163,7 @@
 | PUT | `/api/system/status/transitions` | `updateTransition` | `platform/system/service/src/main/java/com/cognora/platform/system/controller/SysStatusDictController.java` |
 | GET | `/api/system/status/transitions/{bizType}` | `listTransitions` | `platform/system/service/src/main/java/com/cognora/platform/system/controller/SysStatusDictController.java` |
 | DELETE | `/api/system/status/transitions/{id}` | `deleteTransition` | `platform/system/service/src/main/java/com/cognora/platform/system/controller/SysStatusDictController.java` |
+| POST | `/api/system/users/me/avatar` | `updateOwnAvatar` | `platform/system/service/src/main/java/com/cognora/platform/system/controller/SysUserController.java` |
 
 ## 目录数据备注
 

@@ -55,6 +55,7 @@ db_permission:032_user_import_export_permissions.sql
 # 智能补货（inventory:replenishment:*）：逐端点登记，未登记的端点会被
 # ApiAccessControlFilter 默认拒绝，整套补货功能 403 打不通。
 db_permission:033_replenishment_permissions.sql
+db_permission:035_agent_permissions.sql
 db_org:003_org_dept.sql
 db_user:004_admin_user.sql
 db_product:010_product.sql

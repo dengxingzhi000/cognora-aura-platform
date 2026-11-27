@@ -75,6 +75,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed obsolete order performance and Seata integration-test sources that
   were outside the repository's supported test lifecycle.
 
+## [2.4.0] - 2026-11-27
+
+### Added
+
+- **Agent BFF** (`platform-agent`, port 8217) with tenant/user-aware runtime
+  clients, signed internal calls, endpoint permissions, audit annotations and a
+  Flyway-backed task/approval projection.
+- **Agent deployment and operations** — Compose profile, Kubernetes manifests,
+  database bootstrap and permission seed, gateway routes, Grafana dashboards,
+  drift/feedback alerts and an operations CLI with service health/deploy tools.
+- **CI coverage** for the Agent image and the data-scope schema contract.
+
+### Changed
+
+- The gateway exposes `/platform-agent/**` as the only public Java entry point
+  for the private enterprise and browser agent runtimes.
+
 ## [2.3.0] - 2026-11-14
 
 Covers everything merged after `v2.2.0` (`c4f9a350`) through `68ba8ef3`

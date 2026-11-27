@@ -2121,6 +2121,504 @@
         }
       ]
     },
+    "platform/agent": {
+      "endpoints": [
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentTaskController.java",
+          "class": "AgentTaskController",
+          "javaMethod": "approvals",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/approvals",
+          "code": "agent:approvals:list",
+          "codes": [
+            "agent:approvals:list"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "decide",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/approvals/{approvalId}/decision",
+          "code": "agent:approval:enterprise-decide",
+          "codes": [
+            "agent:approval:enterprise-decide"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "assistanceDashboardData",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/assistance/dashboard/data",
+          "code": "agent:assistance:dashboard:view",
+          "codes": [
+            "agent:assistance:dashboard:view"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "assistanceModelStatus",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/assistance/model/status",
+          "code": "agent:assistance:model:view",
+          "codes": [
+            "agent:assistance:model:view"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "predictAssistance",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/assistance/predict",
+          "code": "agent:assistance:predict",
+          "codes": [
+            "agent:assistance:predict"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "feedbackAssistance",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/assistance/predictions/{predictionId}/feedback",
+          "code": "agent:assistance:feedback",
+          "codes": [
+            "agent:assistance:feedback"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "browserTasks",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/browser/tasks",
+          "code": "agent:browser:tasks:list",
+          "codes": [
+            "agent:browser:tasks:list"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "createBrowserTask",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/browser/tasks",
+          "code": "agent:browser:tasks:create",
+          "codes": [
+            "agent:browser:tasks:create"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "browserTask",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/browser/tasks/{taskId}",
+          "code": "agent:browser:tasks:get",
+          "codes": [
+            "agent:browser:tasks:get"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "approveBrowserTask",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/browser/tasks/{taskId}/approve",
+          "code": "agent:browser:approve",
+          "codes": [
+            "agent:browser:approve"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/BrowserArtifactController.java",
+          "class": "BrowserArtifactController",
+          "javaMethod": "artifacts",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/browser/tasks/{taskId}/artifacts",
+          "code": "agent:browser:artifacts:list",
+          "codes": [
+            "agent:browser:artifacts:list"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/BrowserArtifactController.java",
+          "class": "BrowserArtifactController",
+          "javaMethod": "artifactContent",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/browser/tasks/{taskId}/artifacts/{artifactId}/content",
+          "code": "agent:browser:artifacts:view",
+          "codes": [
+            "agent:browser:artifacts:view"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "cancelBrowserTask",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/browser/tasks/{taskId}/cancel",
+          "code": "agent:browser:cancel",
+          "codes": [
+            "agent:browser:cancel"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "rejectBrowserTask",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/browser/tasks/{taskId}/reject",
+          "code": "agent:browser:reject",
+          "codes": [
+            "agent:browser:reject"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "browserSteps",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/browser/tasks/{taskId}/steps",
+          "code": "agent:browser:tasks:steps",
+          "codes": [
+            "agent:browser:tasks:steps"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "capabilities",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/capabilities",
+          "code": "agent:capabilities:view",
+          "codes": [
+            "agent:capabilities:view"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "chat",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/chat",
+          "code": "agent:chat:run",
+          "codes": [
+            "agent:chat:run"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "chatAsync",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/chat/async",
+          "code": "agent:chat:async",
+          "codes": [
+            "agent:chat:async"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "chatHistory",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/chat/sessions/{sessionId}",
+          "code": "agent:chat:history",
+          "codes": [
+            "agent:chat:history"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "taskStatus",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/chat/tasks/{taskId}",
+          "code": "agent:chat:task:get",
+          "codes": [
+            "agent:chat:task:get"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "resume",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/chat/{taskId}/resume",
+          "code": "agent:approval:enterprise-resume",
+          "codes": [
+            "agent:approval:enterprise-resume"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "knowledgeDocuments",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/knowledge/documents",
+          "code": "agent:knowledge:view",
+          "codes": [
+            "agent:knowledge:view"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "ingestKnowledge",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/knowledge/documents",
+          "code": "agent:knowledge:manage",
+          "codes": [
+            "agent:knowledge:manage"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "deleteKnowledge",
+          "httpMethod": "DELETE",
+          "path": "/api/v1/agent/knowledge/documents/{documentId}/{version}",
+          "code": "agent:knowledge:delete",
+          "codes": [
+            "agent:knowledge:delete"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "searchKnowledge",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/knowledge/search",
+          "code": "agent:knowledge:search",
+          "codes": [
+            "agent:knowledge:search"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/OpsController.java",
+          "class": "OpsController",
+          "javaMethod": "action",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/ops/actions",
+          "code": "ops:deploy",
+          "codes": [
+            "ops:deploy"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/OpsController.java",
+          "class": "OpsController",
+          "javaMethod": "catalog",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/ops/catalog",
+          "code": "ops:catalog:view",
+          "codes": [
+            "ops:catalog:view"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/OpsController.java",
+          "class": "OpsController",
+          "javaMethod": "status",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/ops/status",
+          "code": "ops:view",
+          "codes": [
+            "ops:view"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentTaskController.java",
+          "class": "AgentTaskController",
+          "javaMethod": "tasks",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/tasks",
+          "code": "agent:tasks:list",
+          "codes": [
+            "agent:tasks:list"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentTaskController.java",
+          "class": "AgentTaskController",
+          "javaMethod": "task",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/tasks/{taskId}",
+          "code": "agent:tasks:get",
+          "codes": [
+            "agent:tasks:get"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentTaskController.java",
+          "class": "AgentTaskController",
+          "javaMethod": "cancel",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/tasks/{taskId}/cancel",
+          "code": "agent:tasks:cancel",
+          "codes": [
+            "agent:tasks:cancel"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentTaskController.java",
+          "class": "AgentTaskController",
+          "javaMethod": "decide",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/tasks/{taskId}/decision",
+          "code": "agent:tasks:decide",
+          "codes": [
+            "agent:tasks:decide"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentTaskController.java",
+          "class": "AgentTaskController",
+          "javaMethod": "resume",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/tasks/{taskId}/resume",
+          "code": "agent:tasks:resume",
+          "codes": [
+            "agent:tasks:resume"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "executeExpense",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/workflow/expense/execute",
+          "code": "agent:workflows:expense:execute",
+          "codes": [
+            "agent:workflows:expense:execute"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "resumeExpense",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/workflow/expense/{threadId}/resume",
+          "code": "agent:workflows:expense:resume",
+          "codes": [
+            "agent:workflows:expense:resume"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/EnterpriseToolsController.java",
+          "class": "EnterpriseToolsController",
+          "javaMethod": "workflows",
+          "httpMethod": "GET",
+          "path": "/api/v1/agent/workflows",
+          "code": "agent:workflows:view",
+          "codes": [
+            "agent:workflows:view"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/AgentController.java",
+          "class": "AgentController",
+          "javaMethod": "runWorkflow",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/workflows/{name}/runs",
+          "code": "agent:workflows:run",
+          "codes": [
+            "agent:workflows:run"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        },
+        {
+          "file": "platform/agent/src/main/java/com/cognora/platform/agent/controller/WritingAssistantController.java",
+          "class": "WritingAssistantController",
+          "javaMethod": "generate",
+          "httpMethod": "POST",
+          "path": "/api/v1/agent/writing-assistant",
+          "code": "agent:writing:use",
+          "codes": [
+            "agent:writing:use"
+          ],
+          "exempt": false,
+          "exemptReason": null
+        }
+      ]
+    },
     "platform/approval/service": {
       "endpoints": [
         {
@@ -2933,6 +3431,17 @@
     },
     "platform/file/service": {
       "endpoints": [
+        {
+          "file": "platform/file/service/src/main/java/com/cognora/platform/file/controller/PublicFileController.java",
+          "class": "PublicFileController",
+          "javaMethod": "avatar",
+          "httpMethod": "GET",
+          "path": "/api/public/files/{id}/avatar",
+          "code": null,
+          "codes": [],
+          "exempt": true,
+          "exemptReason": "exemptPaths"
+        },
         {
           "file": "platform/file/service/src/main/java/com/cognora/platform/file/controller/FileController.java",
           "class": "FileController",
@@ -5338,6 +5847,17 @@
           ],
           "exempt": true,
           "exemptReason": "exemptPaths"
+        },
+        {
+          "file": "platform/system/service/src/main/java/com/cognora/platform/system/controller/SysUserController.java",
+          "class": "SysUserController",
+          "javaMethod": "updateOwnAvatar",
+          "httpMethod": "POST",
+          "path": "/api/system/users/me/avatar",
+          "code": null,
+          "codes": [],
+          "exempt": false,
+          "exemptReason": null
         },
         {
           "file": "platform/system/service/src/main/java/com/cognora/platform/system/controller/SysUserController.java",

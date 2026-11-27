@@ -28,6 +28,12 @@ spring:
                 - Path=/platform-system/**
               filters:
                 - StripPrefix=1
+            - id: platform-agent
+              uri: http://localhost:8217
+              predicates:
+                - Path=/platform-agent/**
+              filters:
+                - StripPrefix=1
 
 security:
   oauth2:
@@ -47,6 +53,7 @@ security:
       - /scm-*/**
 
       - /platform-auth/**
+      - /platform-agent/**
       - /public/**
       - /actuator/**
     # Local dev app secrets, replace with config-center values in production

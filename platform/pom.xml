@@ -43,5 +43,6 @@
         <module>approval</module>
         <module>product</module>
         <module>inventory</module>
+        <module>agent</module>
     </modules>
 </project>
