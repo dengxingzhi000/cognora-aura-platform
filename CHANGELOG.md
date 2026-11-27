@@ -50,6 +50,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Instant upload no longer reuses a file across business types, and profile
   timezone updates can explicitly clear the stored value.
 
+## [2.3.5] - 2026-11-27
+
+### Fixed
+
+- Notification preferences now validate types, channels and quiet-hour pairs,
+  upsert duplicate submissions, and preserve or clear fields intentionally.
+- Quiet hours use `LocalTime` and serialize as `HH:mm`, matching the database
+  `TIME` columns and UI time inputs.
+
 ## [2.3.0] - 2026-11-14
 
 Covers everything merged after `v2.2.0` (`c4f9a350`) through `68ba8ef3`

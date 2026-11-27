@@ -101,7 +101,7 @@ CREATE INDEX idx_pref_type ON sys_user_notification_preference(notification_type
 
 COMMENT ON TABLE sys_user_notification_preference IS '用户通知偏好表';
 COMMENT ON COLUMN sys_user_notification_preference.user_id IS '用户ID(跨库关联db_user.sys_user)';
-COMMENT ON COLUMN sys_user_notification_preference.notification_type IS '通知类型:APPROVAL,SECURITY,SYSTEM,MARKETING';
+COMMENT ON COLUMN sys_user_notification_preference.notification_type IS '通知类型:SYSTEM,ORDER,INVENTORY,APPROVAL,SECURITY,MARKETING';
 COMMENT ON COLUMN sys_user_notification_preference.quiet_hours_start IS '免打扰开始时间';
 COMMENT ON COLUMN sys_user_notification_preference.quiet_hours_end IS '免打扰结束时间';
 

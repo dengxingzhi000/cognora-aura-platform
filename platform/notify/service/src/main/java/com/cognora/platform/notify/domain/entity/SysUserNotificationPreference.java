@@ -2,7 +2,9 @@ package com.cognora.platform.notify.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableField;
 import java.io.Serializable;
@@ -41,11 +43,14 @@ public class SysUserNotificationPreference implements Serializable {
     @TableField("enabled")
     private Boolean enabled;
 
+    /** PostgreSQL `TIME` column; serialised as HH:mm so the UI can bind it to a time input. */
+    @JsonFormat(pattern = "HH:mm")
     @TableField("quiet_hours_start")
-    private LocalDateTime quietHoursStart;
+    private LocalTime quietHoursStart;
 
+    @JsonFormat(pattern = "HH:mm")
     @TableField("quiet_hours_end")
-    private LocalDateTime quietHoursEnd;
+    private LocalTime quietHoursEnd;
 
     @TableField("create_time")
     private LocalDateTime createTime;
