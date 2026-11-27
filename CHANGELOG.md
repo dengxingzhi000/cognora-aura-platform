@@ -68,6 +68,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected supplier score normalization and certificate/evaluation workflow
   handling, and standardized request-value log sanitization.
 
+## [2.3.7] - 2026-11-27
+
+### Changed
+
+- Removed obsolete order performance and Seata integration-test sources that
+  were outside the repository's supported test lifecycle.
+
 ## [2.3.0] - 2026-11-14
 
 Covers everything merged after `v2.2.0` (`c4f9a350`) through `68ba8ef3`
