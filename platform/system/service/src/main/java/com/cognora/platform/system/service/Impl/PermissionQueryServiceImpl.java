@@ -1,5 +1,6 @@
 package com.cognora.platform.system.service.Impl;
 
+import com.cognora.platform.common.constant.DataScopeConstants;
 import com.cognora.platform.common.entity.SysDataPermissionRule;
 import com.cognora.platform.common.security.PermissionQueryService;
 import com.cognora.platform.system.domain.entity.SysDept;
@@ -65,22 +66,11 @@ public class PermissionQueryServiceImpl implements PermissionQueryService {
     @Cacheable(value = "userDataScope", key = "#userId")
     public String getUserDataScope(UUID userId) {
         if (userId == null) {
-            return "SELF";
+            return DataScopeConstants.SCOPE_SELF_NAME;
         }
 
         Integer dataScopeValue = userRoleMapper.getUserDataScope(userId);
-        if (dataScopeValue == null) {
-            return "SELF";
-        }
-
-        return switch (dataScopeValue) {
-            case 1 -> "ALL";
-            case 2 -> "CUSTOM";
-            case 3 -> "DEPT";
-            case 4 -> "DEPT_AND_SUB";
-            case 5 -> "SELF";
-            default -> "SELF";
-        };
+        return DataScopeConstants.nameOf(dataScopeValue);
     }
 
     @Override
@@ -113,11 +103,11 @@ public class PermissionQueryServiceImpl implements PermissionQueryService {
         }
 
         return switch (dataScope) {
-            case "DEPT" -> {
+            case DataScopeConstants.SCOPE_DEPT_NAME -> {
                 UUID userDeptId = getUserDeptId(userId);
                 yield userDeptId != null ? List.of(userDeptId) : Collections.emptyList();
             }
-            case "DEPT_AND_SUB" -> {
+            case DataScopeConstants.SCOPE_DEPT_AND_SUB_NAME -> {
                 UUID userDeptId = getUserDeptId(userId);
                 if (userDeptId == null) {
                     yield Collections.emptyList();
@@ -125,7 +115,7 @@ public class PermissionQueryServiceImpl implements PermissionQueryService {
                 List<UUID> deptIds = deptMapper.selectDeptAndChildren(userDeptId);
                 yield deptIds != null ? deptIds : List.of(userDeptId);
             }
-            case "CUSTOM" -> {
+            case DataScopeConstants.SCOPE_CUSTOM_NAME -> {
                 UUID userDeptId = getUserDeptId(userId);
                 log.warn("CUSTOM data scope not implemented yet for userId: {}, tenantId: {}", userId, tenantId);
                 yield userDeptId != null ? List.of(userDeptId) : Collections.emptyList();

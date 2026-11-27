@@ -2,6 +2,7 @@ package com.cognora.platform.common.security;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.cognora.platform.common.constant.DataScopeConstants;
 import com.cognora.platform.common.entity.SysDataPermissionRule;
 import com.cognora.platform.common.exception.BusinessException;
 import com.cognora.platform.common.response.ResultCode;
@@ -128,26 +129,26 @@ public class PermissionChecker {
      */
     public boolean canAccessDepartmentData(UUID userId, UUID userDeptId, UUID targetDeptId,
                                                    String dataScope, String deptPath, String targetDeptPath) {
-        if ("ALL".equals(dataScope)) {
+        if (DataScopeConstants.SCOPE_ALL_NAME.equals(dataScope)) {
             return true;
         }
 
-        if ("SELF".equals(dataScope)) {
+        if (DataScopeConstants.SCOPE_SELF_NAME.equals(dataScope)) {
             return false; // 需要在业务层判断 create_by
         }
 
-        if ("DEPT".equals(dataScope)) {
+        if (DataScopeConstants.SCOPE_DEPT_NAME.equals(dataScope)) {
             return userDeptId != null && userDeptId.equals(targetDeptId);
         }
 
-        if ("DEPT_AND_SUB".equals(dataScope)) {
+        if (DataScopeConstants.SCOPE_DEPT_AND_SUB_NAME.equals(dataScope)) {
             if (userDeptId == null || deptPath == null || targetDeptPath == null) {
                 return false;
             }
             return targetDeptPath.startsWith(deptPath);
         }
 
-        if ("CUSTOM".equals(dataScope)) {
+        if (DataScopeConstants.SCOPE_CUSTOM_NAME.equals(dataScope)) {
             return checkCustomDataPermission(userId, targetDeptId);
         }
 
@@ -168,15 +169,17 @@ public class PermissionChecker {
     }
 
     private boolean canOperateResourceInternal(UUID userId, UUID resourceOwnerId, UUID resourceDeptId, String dataScope) {
-        if ("ALL".equals(dataScope)) {
+        if (DataScopeConstants.SCOPE_ALL_NAME.equals(dataScope)) {
             return true;
         }
 
-        if ("SELF".equals(dataScope)) {
+        if (DataScopeConstants.SCOPE_SELF_NAME.equals(dataScope)) {
             return userId.equals(resourceOwnerId);
         }
 
-        if ("DEPT".equals(dataScope) || "DEPT_AND_SUB".equals(dataScope) || "CUSTOM".equals(dataScope)) {
+        if (DataScopeConstants.SCOPE_DEPT_NAME.equals(dataScope)
+                || DataScopeConstants.SCOPE_DEPT_AND_SUB_NAME.equals(dataScope)
+                || DataScopeConstants.SCOPE_CUSTOM_NAME.equals(dataScope)) {
             UUID userDeptId = permissionQueryService.getUserDeptId(userId);
             String deptPath = null;
             String targetDeptPath = null;

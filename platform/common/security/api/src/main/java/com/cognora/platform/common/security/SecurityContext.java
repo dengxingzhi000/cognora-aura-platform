@@ -40,7 +40,7 @@ public interface SecurityContext {
     /**
      * Get current user's data scope level.
      *
-     * <p>Data scope levels:
+     * <p>Data scope levels (see {@code DataScopeConstants} in {@code platform-common-core}):
      * <ul>
      *   <li>1 - ALL: No filtering, access all data</li>
      *   <li>2 - CUSTOM: Custom rules from database</li>

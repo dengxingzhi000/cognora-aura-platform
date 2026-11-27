@@ -1,5 +1,6 @@
 package com.cognora.platform.common.security.context;
 
+import com.cognora.platform.common.constant.DataScopeConstants;
 import com.cognora.platform.common.security.SecurityContext;
 import com.cognora.platform.common.web.domain.SecurityUser;
 import com.cognora.platform.common.web.util.SecurityUtils;
@@ -55,7 +56,7 @@ public class SpringSecurityContext implements SecurityContext {
 
         // Default to SELF (level 5) for maximum security
         // If data scope level is unknown, restrict to user's own data only
-        return 5;
+        return DataScopeConstants.SCOPE_DEFAULT;
     }
 
     @Override

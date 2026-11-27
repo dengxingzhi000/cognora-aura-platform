@@ -42,6 +42,12 @@ CREATE TABLE IF NOT EXISTS sys_user (
     last_login_time TIMESTAMP,
     last_login_ip VARCHAR(45),
     last_password_change_time TIMESTAMP,
+    -- 数据权限范围（名称）：ALL=全部, DEPT=本部门, DEPT_AND_SUB=本部门及下级,
+    -- SELF=仅本人, CUSTOM=自定义。角色级用的是数值码（sys_role.data_scope SMALLINT），
+    -- 两者的唯一换算入口见 DataScopeConstants#nameOf。
+    -- 已有环境由 scripts/db/migrations/014_data_scope_column_types.sql 补齐。
+    data_scope VARCHAR(20) DEFAULT 'SELF'
+        CONSTRAINT chk_user_data_scope CHECK (data_scope IN ('ALL', 'DEPT', 'DEPT_AND_SUB', 'SELF', 'CUSTOM')),
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
     remark TEXT
 );

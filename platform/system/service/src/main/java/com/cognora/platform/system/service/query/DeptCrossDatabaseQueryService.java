@@ -1,5 +1,6 @@
 package com.cognora.platform.system.service.query;
 
+import com.cognora.platform.common.constant.DataScopeConstants;
 import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.dto.dept.DeptDTO;
 import com.cognora.platform.system.domain.entity.SysDept;
@@ -146,7 +147,7 @@ public class DeptCrossDatabaseQueryService {
         }
 
         // 鏁版嵁鏉冮檺锟?鍏ㄩ儴鏁版嵁
-        if (dataScope == 1) {
+        if (dataScope == DataScopeConstants.SCOPE_ALL) {
             return true;
         }
 
@@ -157,12 +158,12 @@ public class DeptCrossDatabaseQueryService {
         }
 
         // 鏁版嵁鏉冮檺锟?鏈儴锟?
-        if (dataScope == 3) {
+        if (dataScope == DataScopeConstants.SCOPE_DEPT) {
             return userDeptId.equals(deptId);
         }
 
         // 鏁版嵁鏉冮檺锟?鏈儴闂ㄥ強瀛愰儴锟?
-        if (dataScope == 4) {
+        if (dataScope == DataScopeConstants.SCOPE_DEPT_AND_CHILD) {
             List<UUID> accessibleDepts = deptMapper.selectDeptAndChildren(userDeptId);
             return accessibleDepts.contains(deptId);
         }

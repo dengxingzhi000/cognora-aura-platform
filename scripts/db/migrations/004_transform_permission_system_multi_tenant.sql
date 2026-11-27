@@ -30,6 +30,8 @@ ALTER TABLE IF EXISTS sys_user
 COMMENT ON COLUMN sys_user.department_id IS '所属部门ID（租户内部组织架构）';
 
 -- 1.4 添加数据权限范围字段
+-- 用户级 data_scope 用**名称**，与 SysUser#dataScope（String）一致；
+-- 角色级用的是数值码，两者的换算入口是 DataScopeConstants#nameOf。
 ALTER TABLE IF EXISTS sys_user
     ADD COLUMN IF NOT EXISTS data_scope VARCHAR(20) DEFAULT 'SELF' CHECK (data_scope IN ('ALL', 'DEPT', 'DEPT_AND_SUB', 'SELF', 'CUSTOM'));
 
@@ -79,14 +81,21 @@ ALTER TABLE IF EXISTS sys_role
 COMMENT ON COLUMN sys_role.role_category IS '角色分类：BUSINESS=业务角色, FUNCTIONAL=职能角色, CUSTOM=自定义角色';
 
 -- 2.4 添加数据权限范围字段（角色级别的数据权限）
+-- 角色级 data_scope 用**数值码**，与 003_db_permission.sql 的建表定义
+-- （SMALLINT + CHECK (1,2,3,4,5)）以及 SysUserRoleMapper#MIN(r.data_scope)
+-- 的 Integer 映射一致；名称编码（ALL/DEPT/...）只用于 sys_user.data_scope。
+-- 历史版本这里写的是 VARCHAR(20)，与 003 冲突：先跑本脚本的库会得到文本列，
+-- 导致种子里的数字 1/3/4 被 CHECK 拒绝、MIN() 取到文本。已由
+-- 014_data_scope_column_types.sql 收敛为数值码。
 ALTER TABLE IF EXISTS sys_role
-    ADD COLUMN IF NOT EXISTS data_scope VARCHAR(20) DEFAULT 'SELF' CHECK (data_scope IN ('ALL', 'DEPT', 'DEPT_AND_SUB', 'SELF', 'CUSTOM'));
+    ADD COLUMN IF NOT EXISTS data_scope SMALLINT NOT NULL DEFAULT 5
+        CONSTRAINT chk_data_scope CHECK (data_scope IN (1, 2, 3, 4, 5));
 
 -- 2.5 添加自定义数据权限部门列表（JSONB数组）
 ALTER TABLE IF EXISTS sys_role
     ADD COLUMN IF NOT EXISTS custom_dept_ids JSONB DEFAULT '[]';
 
-COMMENT ON COLUMN sys_role.custom_dept_ids IS '自定义数据权限部门ID列表（当 data_scope=CUSTOM 时使用）';
+COMMENT ON COLUMN sys_role.custom_dept_ids IS '自定义数据权限部门ID列表（当 data_scope=2(CUSTOM) 时使用）';
 
 -- 2.6 重建索引（添加 tenant_id）
 DROP INDEX IF EXISTS idx_role_code;

@@ -1,5 +1,6 @@
 package com.cognora.platform.system.service.query;
 
+import com.cognora.platform.common.constant.DataScopeConstants;
 import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.system.domain.entity.SysUser;
 import com.cognora.platform.system.mapper.SysUserMapper;
@@ -199,10 +200,10 @@ public class UserCrossDatabaseQueryService {
     @Cacheable(value = "userDataScope", key = "'scope:' + #userId")
     public Integer getUserDataScope(UUID userId) {
         if (userId == null) {
-            return 5; // 榛樿浠呮湰锟?
+            return DataScopeConstants.SCOPE_DEFAULT; // 榛樿浠呮湰锟?
         }
         Integer dataScope = userRoleMapper.getUserDataScope(userId);
-        return dataScope != null ? dataScope : 5;
+        return dataScope != null ? dataScope : DataScopeConstants.SCOPE_DEFAULT;
     }
 
     /**

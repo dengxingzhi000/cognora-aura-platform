@@ -1,5 +1,6 @@
 package com.cognora.platform.common.mybatisPlus.aspect;
 
+import com.cognora.platform.common.constant.DataScopeConstants;
 import com.cognora.platform.common.mybatisPlus.annotation.DataScope;
 import com.cognora.platform.common.mybatisPlus.context.DataScopeContextHolder;
 import com.cognora.platform.common.mybatisPlus.context.DataScopeFilter;
@@ -80,26 +81,29 @@ public class DataScopeAspect {
         String deptAlias = validateSqlIdentifier(annotation.deptAlias(), "dept_id");
         String userAlias = validateSqlIdentifier(annotation.userAlias(), "create_by");
 
-        return switch (dataScope) {
-            case 1 -> // 全部数据权限
+        // 范围缺失时按最严格的「仅本人」处理，而不是让 switch 拆箱抛 NPE。
+        int scope = dataScope == null ? DataScopeConstants.SCOPE_DEFAULT : dataScope;
+
+        return switch (scope) {
+            case DataScopeConstants.SCOPE_ALL -> // 全部数据权限
                     new DataScopeFilter("1=1", java.util.Collections.emptyMap());
 
-            case 2 -> // 自定义数据权限（从数据库查询配置）
+            case DataScopeConstants.SCOPE_CUSTOM -> // 自定义数据权限（从数据库查询配置）
                     buildCustomDataScope(userId, deptAlias, userAlias);
 
-            case 3 -> // 本部门数据权限（PostgreSQL UUID）
+            case DataScopeConstants.SCOPE_DEPT -> // 本部门数据权限（PostgreSQL UUID）
                     deptId != null
                             ? new DataScopeFilter(
                                     deptAlias + " = #{__ds_deptId}::uuid",
                                     java.util.Map.of("__ds_deptId", deptId.toString()))
                             : new DataScopeFilter("1=0", java.util.Collections.emptyMap());
 
-            case 4 -> // 本部门及以下数据权限
+            case DataScopeConstants.SCOPE_DEPT_AND_CHILD -> // 本部门及以下数据权限
                     deptId != null
                             ? buildDeptAndChildrenScope(deptId, deptAlias)
                             : new DataScopeFilter("1=0", java.util.Collections.emptyMap());
 
-            case 5 -> // 仅本人数据权限（PostgreSQL UUID）
+            case DataScopeConstants.SCOPE_SELF -> // 仅本人数据权限（PostgreSQL UUID）
                     new DataScopeFilter(
                             userAlias + " = #{__ds_userId}::uuid",
                             java.util.Map.of("__ds_userId", userId.toString()));

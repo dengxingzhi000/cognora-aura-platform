@@ -2,6 +2,7 @@ package com.cognora.platform.system.service.query;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cognora.platform.common.constant.DataScopeConstants;
 import com.cognora.platform.common.data.rw.annotation.Slave;
 import com.cognora.platform.common.dto.permission.PermissionDTO;
 import com.cognora.platform.common.dto.user.UserDTO;
@@ -93,10 +94,10 @@ public class SysUserQueryServiceImpl implements ISysUserQueryService {
             wrapper.in(SysUser::getId, roleUserIds);
         }
 
-        if (!"ALL".equals(dataScope)) {
+        if (!DataScopeConstants.SCOPE_ALL_NAME.equals(dataScope)) {
             List<UUID> accessibleDeptIds =
                     permissionChecker.getAccessibleDepartmentIds(operatorId, tenantId);
-            if ("SELF".equals(dataScope)) {
+            if (DataScopeConstants.SCOPE_SELF_NAME.equals(dataScope)) {
                 wrapper.eq(SysUser::getCreateBy, operatorId);
             } else if (!accessibleDeptIds.isEmpty()) {
                 wrapper.in(SysUser::getDeptId, accessibleDeptIds);
@@ -224,6 +225,8 @@ public class SysUserQueryServiceImpl implements ISysUserQueryService {
                 .phone(user.getPhone())
                 .deptId(user.getDeptId())
                 .userLevel(user.getUserLevel())
+                .timezone(user.getTimezone())
+                .twoFactorEnabled(user.getTwoFactorEnabled())
                 .build();
 
         Set<String> roles = userQueryService.findRoleCodesByUserId(userId);

@@ -29,6 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Login, refresh and WebAuthn token upgrades record client metadata without
   making session display data a reason to reject authentication.
 
+## [2.3.3] - 2026-11-27
+
+### Fixed
+
+- Unified data-scope constants and conversion; missing or unknown scopes now
+  default to the most restrictive `SELF` policy.
+- Corrected the `sys_role` / `sys_user` `data_scope` type mismatch and added an
+  idempotent migration plus CI validation for both column contracts.
+
 ## [2.3.0] - 2026-11-14
 
 Covers everything merged after `v2.2.0` (`c4f9a350`) through `68ba8ef3`
