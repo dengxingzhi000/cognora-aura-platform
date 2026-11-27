@@ -75,6 +75,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed obsolete order performance and Seata integration-test sources that
   were outside the repository's supported test lifecycle.
 
+## [2.4.1] - 2026-11-27
+
+### Added
+
+- Payment notifier tests cover tenant forwarding, payment evidence, missing
+  tenant context, disabled/blank requests and order-center failures.
+
+### Changed
+
+- Raised the payment coverage baseline to the newly measured 0.688 line / 0.605
+  branch ratios.
+
 ## [2.4.0] - 2026-11-27
 
 ### Added
