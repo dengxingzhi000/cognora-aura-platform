@@ -10,8 +10,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+
+import java.time.Duration;
 import org.springframework.data.redis.core.script.RedisScript;
 
 import java.util.List;
@@ -38,6 +42,15 @@ class JwtUtilsAudienceTest {
     @Mock
     private StringRedisTemplate stringRedisTemplate;
 
+    @Mock
+    private HashOperations<String, Object, Object> stringHashOperations;
+
+    @Mock
+    private ValueOperations<String, Object> valueOperations;
+
+    @Mock
+    private ValueOperations<String, String> stringValueOperations;
+
     @InjectMocks
     private JwtUtils jwtUtils;
 
@@ -54,6 +67,17 @@ class JwtUtilsAudienceTest {
         lenient().when(jwtProperties.getExpiration()).thenReturn(3_600_000L);
         lenient().when(jwtProperties.getRefreshExpiration()).thenReturn(604_800_000L);
         lenient().when(jwtProperties.getIssuer()).thenReturn("audience-test");
+        lenient().when(stringRedisTemplate.opsForHash()).thenReturn(stringHashOperations);
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        lenient().when(stringRedisTemplate.opsForValue()).thenReturn(stringValueOperations);
+        lenient().when(stringValueOperations.setIfAbsent(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(Duration.class))).thenReturn(true);
+        lenient().when(valueOperations.setIfAbsent(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(Duration.class))).thenReturn(true);
         lenient().when(stringRedisTemplate.execute(
                         org.mockito.ArgumentMatchers.<RedisScript<Long>>any(),
                         org.mockito.ArgumentMatchers.anyList(),
@@ -98,6 +122,9 @@ class JwtUtilsAudienceTest {
     void legacyRefreshTokenIsRejected() {
         String legacyRefreshToken = jwtUtils.generateRefreshToken(
                 userId, "legacy", "device-4", tenantId, "default");
+        lenient().when(stringHashOperations.get(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.eq("device-4"))).thenReturn(legacyRefreshToken);
 
         assertThatThrownBy(() -> jwtUtils.refreshToken(
                 legacyRefreshToken, Set.of("ROLE_USER"), Set.of(), "device-4", "10.0.0.3"))

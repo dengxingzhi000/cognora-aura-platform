@@ -1,5 +1,6 @@
 package com.cognora.platform.common.security.util;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.util.UUIDv7Util;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.experimental.UtilityClass;
@@ -15,7 +16,6 @@ import java.util.regex.Pattern;
  */
 @UtilityClass
 public class TraceIdUtil {
-    private static final String HEADER_X_REQUEST_ID = "X-Request-ID";
     private static final String HEADER_TRACEPARENT = "traceparent";
 
     /**
@@ -32,7 +32,7 @@ public class TraceIdUtil {
      * @return sanitized trace ID, never null
      */
     public String resolveAndSanitizeTraceId(HttpServletRequest request) {
-        String traceId = request.getHeader(HEADER_X_REQUEST_ID);
+        String traceId = request.getHeader(HttpHeaderConstants.REQUEST_ID);
         if (sanitizeTraceId(traceId) != null) {
             return traceId;
         }

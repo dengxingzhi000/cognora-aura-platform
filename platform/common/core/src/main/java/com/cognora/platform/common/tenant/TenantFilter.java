@@ -1,5 +1,6 @@
 package com.cognora.platform.common.tenant;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,8 +21,6 @@ import java.util.UUID;
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class TenantFilter extends OncePerRequestFilter {
 
-    private static final String HEADER_TENANT_ID = "X-Tenant-Id";
-    private static final String HEADER_TENANT_ID_ALT = "Tenant-Id";
     private static final String PARAM_TENANT_ID = "tenantId";
 
     private final TenantProperties properties;
@@ -62,9 +61,9 @@ public class TenantFilter extends OncePerRequestFilter {
     }
 
     private UUID extractTenantId(HttpServletRequest request) {
-        String value = request.getHeader(HEADER_TENANT_ID);
+        String value = request.getHeader(HttpHeaderConstants.TENANT_ID);
         if (value == null || value.isBlank()) {
-            value = request.getHeader(HEADER_TENANT_ID_ALT);
+            value = request.getHeader(HttpHeaderConstants.TENANT_ID_ALT);
         }
         if (value == null || value.isBlank()) {
             value = request.getParameter(PARAM_TENANT_ID);

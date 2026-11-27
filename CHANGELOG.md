@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-11-27
+
+### Fixed
+
+- Unified internal HMAC canonicalization and HTTP header constants across the
+  gateway, audit, payment and inventory callers.
+- Hardened JWT rotation, refresh-token locking and session storage, with
+  security-boundary tests for token validation and revocation.
+- Sanitized request logging and trace IDs to prevent control-character log
+  injection and keep structured logs stable.
+
 ## [2.3.0] - 2026-11-14
 
 Covers everything merged after `v2.2.0` (`c4f9a350`) through `68ba8ef3`

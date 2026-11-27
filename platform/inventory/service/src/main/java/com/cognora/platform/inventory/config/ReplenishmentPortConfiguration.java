@@ -1,5 +1,6 @@
 package com.cognora.platform.inventory.config;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.rest.interceptor.RestClientRequestSignatureInterceptor;
 import com.cognora.platform.inventory.service.command.SkuMaterialMappingResolver;
 import com.cognora.platform.inventory.service.replenishment.HttpPurchaseInTransitClient;
@@ -84,7 +85,7 @@ public class ReplenishmentPortConfiguration {
           java.util.UUID tenantId =
               com.cognora.platform.common.tenant.TenantContextHolder.getTenantId();
           if (tenantId != null) {
-            request.getHeaders().set("X-Tenant-Id", tenantId.toString());
+            request.getHeaders().set(HttpHeaderConstants.TENANT_ID, tenantId.toString());
           }
           return execution.execute(request, body);
         })
@@ -136,7 +137,7 @@ public class ReplenishmentPortConfiguration {
           java.util.UUID tenantId =
               com.cognora.platform.common.tenant.TenantContextHolder.getTenantId();
           if (tenantId != null) {
-            request.getHeaders().set("X-Tenant-Id", tenantId.toString());
+            request.getHeaders().set(HttpHeaderConstants.TENANT_ID, tenantId.toString());
           }
           return execution.execute(request, body);
         })

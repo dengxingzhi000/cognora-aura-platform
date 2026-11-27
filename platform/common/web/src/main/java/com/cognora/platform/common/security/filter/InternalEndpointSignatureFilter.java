@@ -1,5 +1,6 @@
 package com.cognora.platform.common.security.filter;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.rest.signature.InternalSignatureVerifier;
 import com.cognora.platform.common.security.PermissionService;
 import com.cognora.platform.common.security.config.ApiAccessControlProperties;
@@ -118,8 +119,8 @@ public class InternalEndpointSignatureFilter extends OncePerRequestFilter {
             throws IOException {
         securityMetrics.increment(METRIC_REJECTED);
         log.error("Rejected internal request: appId={}, remote={}, uri={}, traceId={}",
-                sanitize(request.getHeader("X-App-Id")), sanitize(request.getRemoteAddr()),
-                sanitize(request.getRequestURI()), sanitize(request.getHeader("X-Request-ID")));
+                sanitize(request.getHeader(HttpHeaderConstants.SIGNATURE_APP_ID)), sanitize(request.getRemoteAddr()),
+                sanitize(request.getRequestURI()), sanitize(request.getHeader(HttpHeaderConstants.REQUEST_ID)));
         SecurityErrorResponseWriter.write(request, response, HttpServletResponse.SC_FORBIDDEN,
                 "ACCESS_DENIED", message);
     }

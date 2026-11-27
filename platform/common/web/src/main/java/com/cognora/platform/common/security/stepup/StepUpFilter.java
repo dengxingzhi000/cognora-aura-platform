@@ -1,5 +1,6 @@
 package com.cognora.platform.common.security.stepup;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.alibaba.csp.sentinel.Entry;
 import com.alibaba.csp.sentinel.SphU;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
@@ -142,7 +143,7 @@ public class StepUpFilter extends OncePerRequestFilter {
             UUID userIdLog = user != null ? user.getUserId() : null;
 
             log.info("Step-up required: traceId={} userId={} method={} uri={} -> {}",
-                    (request.getHeader("X-Request-ID") + "").replace("\r", "_").replace("\n", "_"), (userIdLog + "").replace("\r", "_").replace("\n", "_"), (request.getMethod() + "").replace("\r", "_").replace("\n", "_"), (request.getRequestURI() + "").replace("\r", "_").replace("\n", "_"), (require + "").replace("\r", "_").replace("\n", "_"));
+                    (request.getHeader(HttpHeaderConstants.REQUEST_ID) + "").replace("\r", "_").replace("\n", "_"), (userIdLog + "").replace("\r", "_").replace("\n", "_"), (request.getMethod() + "").replace("\r", "_").replace("\n", "_"), (request.getRequestURI() + "").replace("\r", "_").replace("\n", "_"), (require + "").replace("\r", "_").replace("\n", "_"));
             return;
         }
 

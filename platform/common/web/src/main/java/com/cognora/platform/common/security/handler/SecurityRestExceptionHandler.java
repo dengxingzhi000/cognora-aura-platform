@@ -1,5 +1,6 @@
 package com.cognora.platform.common.security.handler;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.security.util.TraceIdUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -89,7 +90,7 @@ public class SecurityRestExceptionHandler {
 
         return ResponseEntity.status(status)
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("X-Request-ID", traceId)
+                .header(HttpHeaderConstants.REQUEST_ID, traceId)
                 .body(body);
     }
 

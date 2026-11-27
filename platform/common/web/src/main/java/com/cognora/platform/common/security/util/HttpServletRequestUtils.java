@@ -1,5 +1,6 @@
 package com.cognora.platform.common.security.util;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.security.properties.JwtProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,6 @@ public class HttpServletRequestUtils {
     private final JwtProperties jwtProperties;
 
     // 璁惧ID鐩稿叧甯搁噺
-    private static final String DEVICE_ID_HEADER = "X-Device-ID";
     private static final int MAX_DEVICE_ID_LENGTH = 128;
     private static final String DEVICE_ID_PATTERN = "[^a-zA-Z0-9-_]";
     private static final String DEFAULT_USER_AGENT = "unknown";
@@ -89,7 +89,7 @@ public class HttpServletRequestUtils {
             return (String) cached;
         }
 
-        String deviceId = request.getHeader(DEVICE_ID_HEADER);
+        String deviceId = request.getHeader(HttpHeaderConstants.DEVICE_ID);
 
         if (StringUtils.hasText(deviceId)) {
             // 娓呯悊闈炴硶瀛楃锛堝彧淇濈暀瀛楁瘝銆佹暟瀛椼€佹í绾裤€佷笅鍒掔嚎锟?

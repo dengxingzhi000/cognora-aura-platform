@@ -1,6 +1,7 @@
 package com.cognora.platform.common.rest.config;
 
 import com.cognora.platform.common.rest.client.SysAuthServiceClient;
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.rest.client.SysAuditServiceClient;
 import com.cognora.platform.common.rest.client.SysPermissionServiceClient;
 import com.cognora.platform.common.rest.client.SysUserServiceClient;
@@ -78,14 +79,14 @@ public class RestClientHttpExchangeConfig {
                 // happen before/after authentication but still need the header.
                 UUID tenantId = TenantContextHolder.getTenantId();
                 if (tenantId != null) {
-                    request.getHeaders().set("X-Tenant-Id", tenantId.toString());
+                    request.getHeaders().set(HttpHeaderConstants.TENANT_ID, tenantId.toString());
                 }
                 String token = AuthTokenContext.getToken();
                 if (token != null && request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION) == null) {
                     request.getHeaders().setBearerAuth(token);
                     String deviceId = AuthTokenContext.getDeviceId();
                     if (deviceId != null) {
-                        request.getHeaders().set("X-Device-ID", deviceId);
+                        request.getHeaders().set(HttpHeaderConstants.DEVICE_ID, deviceId);
                     }
                 }
                 return execution.execute(request, body);

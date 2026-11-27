@@ -1,7 +1,7 @@
 package com.cognora.platform.common.rest.interceptor;
 
-import cn.hutool.crypto.SecureUtil;
-import cn.hutool.crypto.digest.HmacAlgorithm;
+import com.cognora.platform.common.constant.HttpHeaderConstants;
+import com.cognora.platform.common.rest.signature.InternalSignatureCanonicalizer;
 import com.cognora.platform.common.rest.signature.InternalSignatureSecretResolver;
 import com.cognora.platform.common.util.UUIDv7Util;
 import lombok.extern.slf4j.Slf4j;
@@ -13,10 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * RestClient 璇锋眰绛惧悕鎷︽埅锟?
@@ -80,7 +78,7 @@ public class RestClientRequestSignatureInterceptor implements ClientHttpRequestI
         String timestamp = String.valueOf(System.currentTimeMillis());
         // 调用方可以为一次业务写入预定 nonce（审计写入用它做幂等键）；重试必须复用同一个值，
         // 否则被重试的那条请求在接收端看起来就是另一条新记录。只有缺省时才生成新的。
-        String nonce = request.getHeaders().getFirst("X-Nonce");
+        String nonce = request.getHeaders().getFirst(HttpHeaderConstants.SIGNATURE_NONCE);
         if (!StringUtils.hasText(nonce)) {
             nonce = UUIDv7Util.generate().toString().replace("-", "");
         }
@@ -89,10 +87,10 @@ public class RestClientRequestSignatureInterceptor implements ClientHttpRequestI
         String signature = calculateSignature(request, timestamp, nonce);
 
         // 娣诲姞绛惧悕 Header
-        request.getHeaders().set("X-Timestamp", timestamp);
-        request.getHeaders().set("X-Nonce", nonce);
-        request.getHeaders().set("X-Signature", signature);
-        request.getHeaders().set("X-App-Id", appId);
+        request.getHeaders().set(HttpHeaderConstants.SIGNATURE_TIMESTAMP, timestamp);
+        request.getHeaders().set(HttpHeaderConstants.SIGNATURE_NONCE, nonce);
+        request.getHeaders().set(HttpHeaderConstants.SIGNATURE, signature);
+        request.getHeaders().set(HttpHeaderConstants.SIGNATURE_APP_ID, appId);
 
         if (log.isDebugEnabled()) {
             log.debug("RestClient request signed: {} {}, signature: {}",
@@ -140,15 +138,14 @@ public class RestClientRequestSignatureInterceptor implements ClientHttpRequestI
         String sortedParams = sortAndConcatParams(params);
 
         // 鏋勫缓绛惧悕鍐呭
-        String signContent = timestamp + nonce + appId + uri + sortedParams;
+        String signContent = InternalSignatureCanonicalizer.signingContent(timestamp, nonce, appId, uri, sortedParams);
 
         if (log.isTraceEnabled()) {
             log.trace("Signature content: {}", signContent);
         }
 
         // 璁$畻 HMAC-SHA256 绛惧悕
-        return SecureUtil.hmac(HmacAlgorithm.HmacSHA256, secretKey.getBytes(StandardCharsets.UTF_8))
-            .digestHex(signContent);
+        return InternalSignatureCanonicalizer.hmacHex(secretKey, signContent);
     }
 
     /**
@@ -160,13 +157,6 @@ public class RestClientRequestSignatureInterceptor implements ClientHttpRequestI
      * @return 鎺掑簭鍚庣殑鍙傛暟瀛楃锟?
      */
     private String sortAndConcatParams(Map<String, String> params) {
-        if (params == null || params.isEmpty()) {
-            return "";
-        }
-
-        return params.entrySet().stream()
-            .sorted(Map.Entry.comparingByKey())
-            .map(e -> e.getKey() + "=" + e.getValue())
-            .collect(Collectors.joining("&"));
+        return InternalSignatureCanonicalizer.canonicalParams(params);
     }
 }

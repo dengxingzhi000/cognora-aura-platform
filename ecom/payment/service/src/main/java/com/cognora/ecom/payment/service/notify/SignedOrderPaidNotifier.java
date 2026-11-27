@@ -1,5 +1,6 @@
 package com.cognora.ecom.payment.service.notify;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.security.util.AuthTokenContext;
 import com.cognora.platform.common.tenant.TenantContextHolder;
 import lombok.extern.slf4j.Slf4j;
@@ -70,7 +71,8 @@ public class SignedOrderPaidNotifier implements OrderPaidNotifier {
                     // by tenant_id, so a callback without it would not find the order. The shared
                     // builder forwards it from the context, but the AFTER_COMMIT listener runs on
                     // another thread only when async - keep the explicit binding for clarity.
-                    .headers(headers -> tenantHeader().ifPresent(t -> headers.set("X-Tenant-Id", t)))
+                    .headers(headers -> tenantHeader()
+                            .ifPresent(t -> headers.set(HttpHeaderConstants.TENANT_ID, t)))
                     .body(body)
                     .retrieve()
                     .toBodilessEntity();

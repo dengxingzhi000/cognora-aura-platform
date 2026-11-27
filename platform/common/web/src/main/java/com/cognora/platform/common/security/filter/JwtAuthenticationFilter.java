@@ -1,5 +1,6 @@
 package com.cognora.platform.common.security.filter;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.security.PermissionService;
 import com.cognora.platform.common.security.config.ApiAccessControlProperties;
 import com.cognora.platform.common.security.metrics.SecurityMetrics;
@@ -136,7 +137,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
 
                     log.debug("User authenticated: traceId={}, userId={}, username={}",
-                            (request.getHeader("X-Request-ID") + "").replace("\r", "_")
+                            (request.getHeader(HttpHeaderConstants.REQUEST_ID) + "").replace("\r", "_")
                                     .replace("\n", "_"), (userId + "").replace("\r", "_")
                                     .replace("\n", "_"), (username + "").replace("\r", "_")
                                     .replace("\n", "_"));
@@ -150,7 +151,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         } catch (Exception e) {
             securityMetrics.increment("security.jwt.errors");
-            log.error("Cannot set user authentication traceId={}", (request.getHeader("X-Request-ID") + "").replace("\r", "_").replace("\n", "_"), e);
+            log.error("Cannot set user authentication traceId={}", (request.getHeader(HttpHeaderConstants.REQUEST_ID) + "").replace("\r", "_").replace("\n", "_"), e);
             SecurityErrorResponseWriter.write(request, response, HttpServletResponse.SC_UNAUTHORIZED, "AUTH_ERROR",
                     "Authentication error");
             return;
@@ -256,7 +257,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         securityMetrics.increment("security.permissions.unavailable");
         log.error("Cannot resolve permissions for traceId={}, uri={}: {}. Answering 503 instead of "
                         + "continuing with role authorities only.",
-                (request.getHeader("X-Request-ID") + "").replace("\r", "_").replace("\n", "_"),
+                (request.getHeader(HttpHeaderConstants.REQUEST_ID) + "").replace("\r", "_").replace("\n", "_"),
                 (request.getRequestURI() + "").replace("\r", "_").replace("\n", "_"),
                 (reason + "").replace("\r", "_").replace("\n", "_"));
         SecurityErrorResponseWriter.write(request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
@@ -268,9 +269,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * 与 TenantFilter 相同的租户来源顺序：X-Tenant-Id → Tenant-Id → tenantId 查询参数。
      */
     private static String resolveTenantId(HttpServletRequest request) {
-        String tenantId = request.getHeader("X-Tenant-Id");
+        String tenantId = request.getHeader(HttpHeaderConstants.TENANT_ID);
         if (!StringUtils.hasText(tenantId)) {
-            tenantId = request.getHeader("Tenant-Id");
+            tenantId = request.getHeader(HttpHeaderConstants.TENANT_ID_ALT);
         }
         if (!StringUtils.hasText(tenantId)) {
             tenantId = request.getParameter("tenantId");

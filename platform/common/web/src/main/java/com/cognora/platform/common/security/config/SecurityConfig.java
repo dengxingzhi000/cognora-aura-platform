@@ -1,6 +1,7 @@
 package com.cognora.platform.common.security.config;
 
 import com.cognora.platform.common.security.filter.JwtAuthenticationFilter;
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.security.audience.TokenAudienceFilter;
 import com.cognora.platform.common.security.filter.SqlInjectionFilter;
 import com.cognora.platform.common.security.handler.JwtAccessDeniedHandler;
@@ -196,11 +197,11 @@ public class SecurityConfig {
                 "http://localhost:*"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Tenant-Id", "X-Request-ID", "X-Timestamp", "X-Nonce", "X-Signature", "X-App-Id", "X-Sign-Version"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", HttpHeaderConstants.TENANT_ID, HttpHeaderConstants.REQUEST_ID, HttpHeaderConstants.TIMEZONE, HttpHeaderConstants.SIGNATURE_TIMESTAMP, HttpHeaderConstants.SIGNATURE_NONCE, HttpHeaderConstants.SIGNATURE, HttpHeaderConstants.SIGNATURE_APP_ID, HttpHeaderConstants.SIGNATURE_VERSION));
         configuration.setExposedHeaders(Arrays.asList(
                 "Authorization",
                 "X-Total-Count",
-                "X-Request-ID",
+                HttpHeaderConstants.REQUEST_ID,
                 "X-StepUp-Required"
         ));
         configuration.setAllowCredentials(true);

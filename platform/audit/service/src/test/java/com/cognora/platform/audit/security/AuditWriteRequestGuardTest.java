@@ -4,6 +4,7 @@ import cn.hutool.crypto.SecureUtil;
 import cn.hutool.crypto.digest.HmacAlgorithm;
 import com.cognora.platform.common.rest.interceptor.RestClientRequestSignatureInterceptor;
 import com.cognora.platform.common.rest.signature.InternalSignatureSecretResolver;
+import com.cognora.platform.common.rest.signature.InternalSignatureVerifier;
 import com.cognora.platform.common.security.metrics.SecurityMetrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +42,8 @@ class AuditWriteRequestGuardTest {
         environment.setProperty("API_SECRET_INTERNAL_SERVICE", SECRET);
         secretResolver = new InternalSignatureSecretResolver(environment);
         meterRegistry = new SimpleMeterRegistry();
-        guard = new AuditWriteRequestGuard(secretResolver, new SecurityMetrics(meterRegistry));
+        guard = new AuditWriteRequestGuard(new InternalSignatureVerifier(secretResolver),
+                new SecurityMetrics(meterRegistry));
     }
 
     @Test

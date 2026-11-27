@@ -1,5 +1,6 @@
 package com.cognora.platform.common.rest.client;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.log.dto.AuditLogRecord;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -18,5 +19,5 @@ import org.springframework.web.service.annotation.PostExchange;
 public interface SysAuditServiceClient {
 
     @PostExchange
-    void create(@RequestBody AuditLogRecord record, @RequestHeader("X-Nonce") String nonce);
+    void create(@RequestBody AuditLogRecord record, @RequestHeader(HttpHeaderConstants.SIGNATURE_NONCE) String nonce);
 }

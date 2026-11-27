@@ -1,5 +1,6 @@
 package com.cognora.platform.gateway.properties;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -22,9 +23,9 @@ public class IdentityPropagationProperties {
      */
     private String identityTokenHeader = "X-Identity-Token";
 
-    private String userIdHeader = "X-User-Id";
+    private String userIdHeader = HttpHeaderConstants.USER_ID;
     private String usernameHeader = "X-User-Name";
-    private String deviceIdHeader = "X-Device-Id";
+    private String deviceIdHeader = HttpHeaderConstants.DEVICE_ID;
     private String rolesHeader = "X-User-Roles";
 
     /**

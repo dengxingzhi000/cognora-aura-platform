@@ -1,5 +1,6 @@
 package com.cognora.platform.common.security.filter;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -14,7 +15,7 @@ import java.util.UUID;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RequestIdFilter implements Filter {
 
-    public static final String REQUEST_ID_HEADER = "X-Request-ID";
+    public static final String REQUEST_ID_HEADER = HttpHeaderConstants.REQUEST_ID;
     public static final String TRACE_ID_HEADER = "X-Trace-ID";
 
     @Override

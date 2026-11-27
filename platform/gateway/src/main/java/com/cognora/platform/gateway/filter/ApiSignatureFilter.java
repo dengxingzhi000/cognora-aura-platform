@@ -1,5 +1,6 @@
 package com.cognora.platform.gateway.filter;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.gateway.properties.ApiSignatureProperties;
 import com.cognora.platform.gateway.util.CachedBodyRequestDecorator;
 import com.cognora.platform.gateway.util.SignatureAlgorithm;
@@ -98,11 +99,11 @@ public class ApiSignatureFilter implements GlobalFilter, Ordered {
         String path = request.getURI().getPath();
 
         // 1. extract & validate required headers
-        String timestamp = request.getHeaders().getFirst("X-Timestamp");
-        String nonce = request.getHeaders().getFirst("X-Nonce");
-        String signature = request.getHeaders().getFirst("X-Signature");
-        String appId = request.getHeaders().getFirst("X-App-Id");
-        String version = request.getHeaders().getFirst("X-Sign-Version");
+        String timestamp = request.getHeaders().getFirst(HttpHeaderConstants.SIGNATURE_TIMESTAMP);
+        String nonce = request.getHeaders().getFirst(HttpHeaderConstants.SIGNATURE_NONCE);
+        String signature = request.getHeaders().getFirst(HttpHeaderConstants.SIGNATURE);
+        String appId = request.getHeaders().getFirst(HttpHeaderConstants.SIGNATURE_APP_ID);
+        String version = request.getHeaders().getFirst(HttpHeaderConstants.SIGNATURE_VERSION);
 
         if (isBlank(timestamp) || isBlank(nonce) || isBlank(signature) || isBlank(appId)) {
             return unauthorized(exchange, "MISSING_PARAMETERS", "Missing signature parameters");

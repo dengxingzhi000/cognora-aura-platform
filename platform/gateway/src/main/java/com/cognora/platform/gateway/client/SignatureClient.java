@@ -1,5 +1,6 @@
 package com.cognora.platform.gateway.client;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import cn.hutool.crypto.SecureUtil;
 import cn.hutool.crypto.digest.HmacAlgorithm;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -66,11 +67,11 @@ public final class SignatureClient {
                 .digestHex(canonicalPayload);
 
         return Map.of(
-                "X-Timestamp", timestamp,
-                "X-Nonce", nonce,
-                "X-Signature", signature,
-                "X-App-Id", appId,
-                "X-Sign-Version", version
+                HttpHeaderConstants.SIGNATURE_TIMESTAMP, timestamp,
+                HttpHeaderConstants.SIGNATURE_NONCE, nonce,
+                HttpHeaderConstants.SIGNATURE, signature,
+                HttpHeaderConstants.SIGNATURE_APP_ID, appId,
+                HttpHeaderConstants.SIGNATURE_VERSION, version
         );
     }
 

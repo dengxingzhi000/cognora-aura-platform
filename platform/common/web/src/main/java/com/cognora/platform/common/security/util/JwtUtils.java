@@ -41,8 +41,14 @@ public class JwtUtils {
 
     private static final String TOKEN_BLACKLIST_PREFIX = "jwt:blacklist:";
     private static final String USER_TOKENS_HASH = "jwt:user:tokens:";  // Hash key per user
+    private static final String REFRESH_TOKENS_HASH = "jwt:user:refresh:";
     private static final String TOKEN_FINGERPRINT_PREFIX = "jwt:fingerprint:";
     private static final String REFRESH_LOCK_PREFIX = "jwt:refresh:lock:";
+    /** 登录会话的客户端展示信息：hash(userId → deviceId → "userAgent\u001Ftimezone")。 */
+    private static final String SESSION_CLIENT_PREFIX = "jwt:session:client:";
+    private static final char CLIENT_FIELD_SEPARATOR = '\u001F';
+    private static final int MAX_USER_AGENT_LENGTH = 512;
+    private static final int MAX_TIMEZONE_LENGTH = 64;
 
     /** Token 绑定的租户 ID，签发后不可跨租户使用。 */
     public static final String CLAIM_TENANT_ID = "tenantId";
@@ -73,6 +79,14 @@ public class JwtUtils {
     // Lua script for atomic blacklist addition
     private static final RedisScript<Long> ADD_TO_BLACKLIST_SCRIPT =
             RedisLuaScriptLoader.load("lua/jwt/add_to_blacklist.lua", Long.class);
+
+    private static final RedisScript<Long> STORE_REFRESH_TOKEN_SCRIPT =
+            RedisLuaScriptLoader.load("lua/jwt/store_refresh_token.lua", Long.class);
+
+    private static final RedisScript<Long> RELEASE_LOCK_SCRIPT =
+            RedisLuaScriptLoader.load("lua/jwt/release_lock.lua", Long.class);
+    private static final ThreadLocal<Set<String>> HELD_TOKEN_LOCKS =
+            ThreadLocal.withInitial(HashSet::new);
 
     @PostConstruct
     public void init() {
@@ -166,7 +180,9 @@ public class JwtUtils {
             claims.put(CLAIM_AUDIENCE, audience);
         }
 
-        return createToken(claims, userId.toString(), jwtProperties.getRefreshExpiration());
+        String token = createToken(claims, userId.toString(), jwtProperties.getRefreshExpiration());
+        storeRefreshTokenMetadata(userId, deviceId, token, jwtProperties.getRefreshExpiration());
+        return token;
     }
 
     /**
@@ -203,7 +219,16 @@ public class JwtUtils {
         }
 
         // 6. 鎸囩汗楠岃瘉
-        return validateFingerprint(claims);
+        try {
+            UUID userId = UUID.fromString(claims.getSubject());
+            String deviceId = (String) claims.get("deviceId");
+            Object current = stringRedisTemplate.<String, String>opsForHash()
+                    .get(USER_TOKENS_HASH + userId, deviceId);
+            return token.equals(current) && validateFingerprint(claims);
+        } catch (Exception e) {
+            log.warn("Access token ledger unavailable; rejecting token", e);
+            return false;
+        }
     }
 
     /**
@@ -220,13 +245,53 @@ public class JwtUtils {
 
         String tokenType = (String) claims.get("tokenType");
         Date expiration = claims.getExpiration();
+        String jti = getJti(claims);
+        String deviceId = (String) claims.get("deviceId");
 
-        return !"refresh".equals(tokenType) || expiration == null || !expiration.after(new Date());
+        if (!"refresh".equals(tokenType) || expiration == null || !expiration.after(new Date())
+                || jti == null || deviceId == null || isTokenBlacklisted(jti)) {
+            return true;
+        }
+        try {
+            Object current = stringRedisTemplate.<String, String>opsForHash()
+                    .get(REFRESH_TOKENS_HASH + claims.getSubject(), deviceId);
+            return !token.equals(current);
+        } catch (Exception e) {
+            log.warn("Refresh token ledger unavailable; rejecting token", e);
+            return true;
+        }
     }
 
     /**
      * 鍒锋柊Token - 娣诲姞骞跺彂鎺у埗
      */
+    private void withTokenLock(UUID userId, Runnable action) {
+        String lockKey = REFRESH_LOCK_PREFIX + userId;
+        Set<String> held = HELD_TOKEN_LOCKS.get();
+        if (held.contains(lockKey)) {
+            action.run();
+            return;
+        }
+        String owner = UUIDv7Util.generateString();
+        Boolean acquired = stringRedisTemplate.opsForValue()
+                .setIfAbsent(lockKey, owner, Duration.ofSeconds(30));
+        if (!Boolean.TRUE.equals(acquired)) {
+            throw new UnauthorizedException("Token session operation in progress");
+        }
+        held.add(lockKey);
+        try {
+            action.run();
+        } finally {
+            held.remove(lockKey);
+            if (held.isEmpty()) HELD_TOKEN_LOCKS.remove();
+            try {
+                stringRedisTemplate.execute(RELEASE_LOCK_SCRIPT, List.of(lockKey), owner);
+            } catch (Exception e) {
+                log.warn("Failed to release token lock for user={}; it will expire", userId);
+            }
+        }
+    }
+
     public String refreshToken(String refreshToken, Set<String> roles, Set<String> permissions, String deviceId,
                                String ipAddress) {
         if (isRefreshTokenInvalid(refreshToken)) {
@@ -245,27 +310,20 @@ public class JwtUtils {
             // 兼容窗口已关闭：旧 refresh token 没有受众声明，统一 401，强制重新登录
             throw new UnauthorizedException("invalid_token_audience_missing");
         }
-        String lockKey = REFRESH_LOCK_PREFIX + userId;
-
-        try {
-            // 鍒嗗竷寮忛攣锛岄槻姝㈠苟鍙戝埛锟?
-            Boolean acquired = redisTemplate.opsForValue().setIfAbsent(lockKey, "1", Duration.ofSeconds(5));
-
-            if (Boolean.FALSE.equals(acquired)) {
-                throw new UnauthorizedException("Token refresh in progress");
+        String[] rotated = new String[1];
+        withTokenLock(userId, () -> {
+            if (isRefreshTokenInvalid(refreshToken)) {
+                throw new UnauthorizedException("Invalid refresh token");
             }
-
+            if (!Objects.equals(getDeviceIdFromToken(refreshToken), deviceId)) {
+                throw new UnauthorizedException("Refresh token device mismatch");
+            }
             String username = getUsernameFromToken(refreshToken);
-
-            // 鎾ら攢鏃х殑璁块棶浠ょ墝
-            revokeUserAccessTokens(userId, deviceId);
-
-            // 鐢熸垚鏂扮殑璁块棶浠ょ墝
-            return generateAccessToken(userId, username, roles, permissions, deviceId, ipAddress, null,
+            revokeUserAccessTokens(userId, deviceId, false);
+            rotated[0] = generateAccessToken(userId, username, roles, permissions, deviceId, ipAddress, null,
                     tenantId, tenantCode, audience);
-        } finally {
-            redisTemplate.delete(lockKey);
-        }
+        });
+        return rotated[0];
     }
 
     /**
@@ -274,29 +332,30 @@ public class JwtUtils {
      */
     public void revokeToken(String token, String reason) {
         Claims claims = parseTokenOrThrow(token);
+        UUID userId = UUID.fromString(claims.getSubject());
+        withTokenLock(userId, () -> revokeTokenClaims(claims, reason, true));
+    }
 
+    private void revokeTokenClaims(Claims claims, String reason, boolean revokeRefresh) {
         String jti = getJti(claims);
         Date expiration = claims.getExpiration();
         UUID userId = UUID.fromString(claims.getSubject());
         String deviceId = (String) claims.get("deviceId");
-
         long ttl = expiration.getTime() - System.currentTimeMillis();
-        if (ttl > 0) {
-            try {
-                // 鍔犲叆榛戝悕锟?
-                addToBlacklist(jti, userId, reason, ttl);
-
-                // 鍒犻櫎 Token缂撳瓨
+        if (ttl <= 0) return;
+        try {
+            addToBlacklist(jti, userId, reason, ttl);
+            if ("refresh".equals(claims.get("tokenType"))) {
+                deleteRefreshTokenMetadata(userId, deviceId);
+            } else {
+                if (revokeRefresh) revokeRefreshTokenForDevice(userId, deviceId, reason);
                 deleteTokenCache(userId, deviceId);
-
-                // 鍒犻櫎鎸囩汗
-                deleteFingerprint(jti);
-
-                log.info("Token revoked: userId={}, reason={}", userId, reason);
-            } catch (Exception e) {
-                log.error("Failed to revoke token: userId={}, error={}", userId, e.getMessage());
-                throw new UnauthorizedException("Token revocation failed: " + e.getMessage());
             }
+            deleteFingerprint(jti);
+            log.info("Token revoked: userId={}, reason={}", userId, reason);
+        } catch (Exception e) {
+            log.error("Failed to revoke token: userId={}, error={}", userId, e.getMessage());
+            throw new UnauthorizedException("Token revocation failed: " + e.getMessage());
         }
     }
 
@@ -306,36 +365,40 @@ public class JwtUtils {
      * Each user has a hash: jwt:user:tokens:{userId} -> { deviceId: token }
      */
     public void revokeAllUserTokens(UUID userId) {
-        String hashKey = USER_TOKENS_HASH + userId;
-
-        // Get all device tokens for this user (O(N) where N = devices per user, typically < 10)
-        // 令牌哈希由 Lua 脚本经 StringRedisTemplate 以原始字符串写入，必须用同一个模板读取，
-        // 否则 JSON 序列化器会把 JWT 文本当成 JSON 解析而失败。
-        Map<String, String> deviceSessions = stringRedisTemplate.<String, String>opsForHash().entries(hashKey);
-
-        if (deviceSessions != null && !deviceSessions.isEmpty()) {
-            log.info("Revoking {} token(s) for user {}", deviceSessions.size(), userId);
-
-            for (Map.Entry<String, String> entry : deviceSessions.entrySet()) {
-                String deviceId = entry.getKey();
-                String token = entry.getValue();
-
-                if (token != null) {
+        withTokenLock(userId, () -> {
+            String hashKey = USER_TOKENS_HASH + userId;
+            String refreshHashKey = REFRESH_TOKENS_HASH + userId;
+            Map<String, String> deviceSessions = stringRedisTemplate.<String, String>opsForHash().entries(hashKey);
+            Map<String, String> refreshSessions = stringRedisTemplate.<String, String>opsForHash().entries(refreshHashKey);
+            int[] failed = {0};
+            if (deviceSessions != null) {
+                for (Map.Entry<String, String> entry : deviceSessions.entrySet()) {
                     try {
-                        revokeToken(token, "Admin forced logout");
-                        log.debug("Revoked session for user {} device {}", userId, maskIdentifier(deviceId));
+                        revokeToken(entry.getValue(), "Admin forced logout");
                     } catch (Exception e) {
+                        failed[0]++;
                         log.error("Failed to revoke session for user {} device {}: {}",
-                                 userId, maskIdentifier(deviceId), e.getMessage());
+                                userId, maskIdentifier(entry.getKey()), e.getMessage());
                     }
                 }
             }
-
-            // Clean up the hash
+            if (refreshSessions != null) {
+                for (Map.Entry<String, String> entry : refreshSessions.entrySet()) {
+                    try {
+                        revokeToken(entry.getValue(), "Admin forced logout");
+                    } catch (Exception e) {
+                        failed[0]++;
+                        log.error("Failed to revoke refresh session for user {} device {}: {}",
+                                userId, maskIdentifier(entry.getKey()), e.getMessage());
+                    }
+                }
+            }
+            if (failed[0] > 0) {
+                throw new UnauthorizedException("Failed to revoke " + failed[0] + " session(s)");
+            }
             redisTemplate.delete(hashKey);
-        } else {
-            log.debug("No active tokens found for user {}", userId);
-        }
+            redisTemplate.delete(refreshHashKey);
+        });
     }
 
     /**
@@ -352,6 +415,9 @@ public class JwtUtils {
         if (deviceTokens == null || deviceTokens.isEmpty()) {
             return Collections.emptyList();
         }
+
+        Map<Object, Object> clientFields = stringRedisTemplate.opsForHash()
+                .entries(SESSION_CLIENT_PREFIX + userId);
 
         long now = System.currentTimeMillis();
         List<TokenSession> sessions = new ArrayList<>(deviceTokens.size());
@@ -380,8 +446,20 @@ public class JwtUtils {
             }
             long issuedAt = parseEpochMillis(fingerprint.get("issueTime"), claims.getIssuedAt());
             String ipAddress = fingerprint.get("ipAddress");
+            String clientInfo = clientFields == null ? null : (String) clientFields.get(deviceId);
+            String userAgent = null;
+            String timezone = null;
+            if (clientInfo != null) {
+                int separator = clientInfo.indexOf(CLIENT_FIELD_SEPARATOR);
+                if (separator >= 0) {
+                    userAgent = emptyToNull(clientInfo.substring(0, separator));
+                    timezone = emptyToNull(clientInfo.substring(separator + 1));
+                } else {
+                    userAgent = emptyToNull(clientInfo);
+                }
+            }
             sessions.add(new TokenSession(deviceId, ipAddress,
-                    Instant.ofEpochMilli(issuedAt), Instant.ofEpochMilli(expiresAt)));
+                    Instant.ofEpochMilli(issuedAt), Instant.ofEpochMilli(expiresAt), userAgent, timezone));
         }
 
         sessions.sort((left, right) -> right.getIssuedAt().compareTo(left.getIssuedAt()));
@@ -392,16 +470,18 @@ public class JwtUtils {
      * 撤销某个用户指定设备的访问令牌。返回是否实际撤销（设备不存在返回 false）。
      */
     public boolean revokeDeviceToken(UUID userId, String deviceId, String reason) {
-        if (userId == null || deviceId == null || deviceId.isBlank()) {
-            return false;
-        }
-        Object token = stringRedisTemplate.<String, String>opsForHash()
-                .get(USER_TOKENS_HASH + userId, deviceId);
-        if (token == null) {
-            return false;
-        }
-        revokeToken(token.toString(), reason);
-        return true;
+        if (userId == null || deviceId == null || deviceId.isBlank()) return false;
+        boolean[] revoked = {false};
+        withTokenLock(userId, () -> {
+            Object token = stringRedisTemplate.<String, String>opsForHash()
+                    .get(USER_TOKENS_HASH + userId, deviceId);
+            Object refreshToken = stringRedisTemplate.<String, String>opsForHash()
+                    .get(REFRESH_TOKENS_HASH + userId, deviceId);
+            if (token == null && refreshToken == null) return;
+            revokeToken((token != null ? token : refreshToken).toString(), reason);
+            revoked[0] = true;
+        });
+        return revoked[0];
     }
 
     /**
@@ -414,37 +494,33 @@ public class JwtUtils {
      * @return 实际撤销的会话数量
      */
     public int revokeOtherDeviceTokens(UUID userId, String currentDeviceId, String reason) {
-        Map<String, String> deviceTokens = stringRedisTemplate.<String, String>opsForHash()
-                .entries(USER_TOKENS_HASH + userId);
-        if (deviceTokens == null || deviceTokens.isEmpty()) {
-            return 0;
-        }
-
-        int revoked = 0;
-        int failed = 0;
-        for (Map.Entry<String, String> entry : deviceTokens.entrySet()) {
-            String deviceId = entry.getKey();
-            String token = entry.getValue();
-            if (currentDeviceId != null && currentDeviceId.equals(deviceId)) {
-                continue;
+        int[] result = {0};
+        withTokenLock(userId, () -> {
+            Map<String, String> deviceTokens = stringRedisTemplate.<String, String>opsForHash()
+                    .entries(USER_TOKENS_HASH + userId);
+            Map<String, String> refreshTokens = stringRedisTemplate.<String, String>opsForHash()
+                    .entries(REFRESH_TOKENS_HASH + userId);
+            Set<String> deviceIds = new HashSet<>();
+            if (deviceTokens != null) deviceIds.addAll(deviceTokens.keySet());
+            if (refreshTokens != null) deviceIds.addAll(refreshTokens.keySet());
+            int failed = 0;
+            for (String deviceId : deviceIds) {
+                if (currentDeviceId != null && currentDeviceId.equals(deviceId)) continue;
+                try {
+                    if (revokeDeviceToken(userId, deviceId, reason)) result[0]++;
+                } catch (Exception e) {
+                    failed++;
+                    log.error("Failed to revoke other session for user {} device {}: {}",
+                            userId, maskIdentifier(deviceId), e.getMessage());
+                }
             }
-            if (token == null) {
-                continue;
+            if (failed > 0) {
+                throw new UnauthorizedException("Failed to revoke " + failed + " other session(s)");
             }
-            try {
-                revokeToken(token, reason);
-                revoked++;
-            } catch (Exception e) {
-                failed++;
-                log.error("Failed to revoke other session for user {} device {}: {}",
-                        userId, maskIdentifier(deviceId), e.getMessage());
-            }
-        }
-        if (failed > 0) {
-            throw new UnauthorizedException("Failed to revoke " + failed + " other session(s)");
-        }
-        return revoked;
+        });
+        return result[0];
     }
+
 
     private long parseEpochMillis(String value, Date fallback) {
         try {
@@ -458,12 +534,63 @@ public class JwtUtils {
      * 会话快照，供 {@code GET /api/auth/sessions} 使用。
      */
     @Data
-    @AllArgsConstructor
     public static class TokenSession {
         private String deviceId;
         private String ipAddress;
         private Instant issuedAt;
         private Instant expiresAt;
+        private String userAgent;
+        private String timezone;
+
+        public TokenSession(String deviceId, String ipAddress, Instant issuedAt, Instant expiresAt) {
+            this(deviceId, ipAddress, issuedAt, expiresAt, null, null);
+        }
+
+        public TokenSession(String deviceId, String ipAddress, Instant issuedAt, Instant expiresAt,
+                            String userAgent, String timezone) {
+            this.deviceId = deviceId;
+            this.ipAddress = ipAddress;
+            this.issuedAt = issuedAt;
+            this.expiresAt = expiresAt;
+            this.userAgent = userAgent;
+            this.timezone = timezone;
+        }
+    }
+
+    /**
+     * 记录会话的客户端信息（User-Agent / 时区），供会话列表展示设备与地区。
+     * 失败只记日志：设备展示信息不能阻断登录。
+     */
+    public void recordSessionClient(UUID userId, String deviceId, String userAgent, String timezone) {
+        if (userId == null || deviceId == null || deviceId.isBlank()) {
+            return;
+        }
+        String key = SESSION_CLIENT_PREFIX + userId;
+        String value = sanitizeClientField(userAgent, MAX_USER_AGENT_LENGTH)
+                + CLIENT_FIELD_SEPARATOR
+                + sanitizeClientField(timezone, MAX_TIMEZONE_LENGTH);
+        try {
+            stringRedisTemplate.opsForHash().put(key, deviceId, value);
+            stringRedisTemplate.expire(key, Duration.ofMillis(jwtProperties.getExpiration()));
+        } catch (Exception e) {
+            log.warn("Failed to record session client info for user={} device={}: {}",
+                    userId, maskIdentifier(deviceId), e.getMessage());
+        }
+    }
+
+    private static String sanitizeClientField(String value, int maxLength) {
+        if (value == null) {
+            return "";
+        }
+        String cleaned = value
+                .replace("\r", " ")
+                .replace("\n", " ")
+                .replace(String.valueOf(CLIENT_FIELD_SEPARATOR), " ");
+        return cleaned.length() > maxLength ? cleaned.substring(0, maxLength) : cleaned;
+    }
+
+    private static String emptyToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     /**
@@ -784,6 +911,41 @@ public class JwtUtils {
         );
     }
 
+    private void storeRefreshTokenMetadata(UUID userId, String deviceId, String token, long ttl) {
+        stringRedisTemplate.execute(
+                STORE_REFRESH_TOKEN_SCRIPT,
+                List.of(REFRESH_TOKENS_HASH + userId),
+                deviceId, token, String.valueOf(ttl / 1000)
+        );
+    }
+
+    private void deleteRefreshTokenMetadata(UUID userId, String deviceId) {
+        String key = REFRESH_TOKENS_HASH + userId;
+        if (deviceId == null || deviceId.isBlank()) {
+            redisTemplate.delete(key);
+        } else {
+            stringRedisTemplate.opsForHash().delete(key, deviceId);
+        }
+    }
+
+    private void revokeRefreshTokenForDevice(UUID userId, String deviceId, String reason) {
+        if (deviceId == null || deviceId.isBlank()) {
+            Map<String, String> tokens = stringRedisTemplate.<String, String>opsForHash()
+                    .entries(REFRESH_TOKENS_HASH + userId);
+            if (tokens != null) {
+                for (String token : tokens.values()) {
+                    revokeToken(token, reason);
+                }
+            }
+            return;
+        }
+        Object token = stringRedisTemplate.<String, String>opsForHash()
+                .get(REFRESH_TOKENS_HASH + userId, deviceId);
+        if (token != null) {
+            revokeToken(token.toString(), reason);
+        }
+    }
+
     private void addToBlacklist(String jti, UUID userId, String reason, long ttl) {
         String blacklistKey = TOKEN_BLACKLIST_PREFIX + jti;
         long ttlSeconds = ttl / 1000;
@@ -823,10 +985,15 @@ public class JwtUtils {
      * Uses Hash lookup (HGET) instead of key lookup.
      */
     private void revokeUserAccessTokens(UUID userId, String deviceId) {
+        revokeUserAccessTokens(userId, deviceId, true);
+    }
+
+    private void revokeUserAccessTokens(UUID userId, String deviceId, boolean revokeRefresh) {
         String userTokensHash = USER_TOKENS_HASH + userId;
         String oldToken = stringRedisTemplate.<String, String>opsForHash().get(userTokensHash, deviceId);
         if (oldToken != null) {
-            revokeToken(oldToken, "Token refreshed");
+            Claims claims = parseTokenOrThrow(oldToken);
+            revokeTokenClaims(claims, "Token refreshed", revokeRefresh);
             log.debug("Revoked old token for user {} device {}", (userId + "").replace("\r", "_").replace("\n", "_"), (deviceId + "").replace("\r", "_").replace("\n", "_"));
         }
     }
@@ -877,32 +1044,22 @@ public class JwtUtils {
             // 兼容窗口已关闭：旧 refresh token 没有受众声明，统一 401，强制重新登录
             throw new UnauthorizedException("invalid_token_audience_missing");
         }
-        String lockKey = REFRESH_LOCK_PREFIX + userId;
-
-        try {
-            // 鍒嗗竷寮忛攣锛岄槻姝㈠苟鍙戝埛锟?
-            Boolean acquired = redisTemplate.opsForValue()
-                    .setIfAbsent(lockKey, "1", Duration.ofSeconds(5));
-
-            if (Boolean.FALSE.equals(acquired)) {
-                throw new UnauthorizedException("Token refresh in progress");
+        TokenPair[] rotated = new TokenPair[1];
+        withTokenLock(userId, () -> {
+            if (isRefreshTokenInvalid(oldRefreshToken)) {
+                throw new UnauthorizedException("Invalid refresh token");
             }
-
-            // 鎾ら攢鏃х殑鍒锋柊浠ょ墝
+            if (!Objects.equals(getDeviceIdFromToken(oldRefreshToken), deviceId)) {
+                throw new UnauthorizedException("Refresh token device mismatch");
+            }
             revokeToken(oldRefreshToken, "Refresh token rotated");
-
-            // 鎾ら攢鏃х殑璁块棶浠ょ墝
             revokeUserAccessTokens(userId, deviceId);
-
-            // 鐢熸垚鏂扮殑璁块棶浠ょ墝鍜屽埛鏂颁护锟?
             String newAccessToken = generateAccessToken(userId, username, roles, permissions, deviceId, ipAddress,
                     null, tenantId, tenantCode, audience);
             String newRefreshToken = generateRefreshToken(userId, username, deviceId, tenantId, tenantCode, audience);
-
-            return new TokenPair(newAccessToken, newRefreshToken);
-        } finally {
-            redisTemplate.delete(lockKey);
-        }
+            rotated[0] = new TokenPair(newAccessToken, newRefreshToken);
+        });
+        return rotated[0];
     }
 
     /**

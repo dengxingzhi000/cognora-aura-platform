@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
@@ -40,6 +41,12 @@ class JwtUtilsTest {
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Mock
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Mock
+    private HashOperations<String, Object, Object> stringHashOperations;
 
     @Mock
     private HashOperations<String, Object, Object> hashOperations;
@@ -80,7 +87,9 @@ class JwtUtilsTest {
 
         // Mock Redis operations
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        lenient().when(stringRedisTemplate.opsForHash()).thenReturn(stringHashOperations);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        lenient().when(valueOperations.setIfAbsent(anyString(), any(), any(Duration.class))).thenReturn(true);
 
         // Initialize JwtUtils (simulates @PostConstruct)
         jwtUtils.init();

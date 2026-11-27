@@ -1,5 +1,6 @@
 package com.cognora.platform.common.exception;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.response.ResultCode;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,8 +38,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    private static final String REQUEST_ID_HEADER = "X-Request-ID";
-
     @ExceptionHandler(ServiceException.class)
     public ResponseEntity<ApiResponse<Void>> handleServiceException(ServiceException e, HttpServletRequest request) {
         String traceId = resolveTraceId(request);
@@ -50,7 +49,7 @@ public class GlobalExceptionHandler {
             log.error("Service exception {} at {}, traceId={}", (status.value() + "").replace("\r", "_").replace("\n", "_"), (request.getRequestURI() + "").replace("\r", "_").replace("\n", "_"), (traceId + "").replace("\r", "_").replace("\n", "_"), e);
         }
         return ResponseEntity.status(status)
-                .header(REQUEST_ID_HEADER, traceId)
+                .header(HttpHeaderConstants.REQUEST_ID, traceId)
                 .body(ApiResponse.fail(e.getCode(), "Service error: " + e.getMessage() + " (traceId=" + traceId + ")"));
     }
 
@@ -109,7 +108,7 @@ public class GlobalExceptionHandler {
             log.error("Business exception {} at {}, traceId={}", (status.value() + "").replace("\r", "_").replace("\n", "_"), (request.getRequestURI() + "").replace("\r", "_").replace("\n", "_"), (traceId + "").replace("\r", "_").replace("\n", "_"), e);
         }
         return ResponseEntity.status(status)
-                .header(REQUEST_ID_HEADER, traceId)
+                .header(HttpHeaderConstants.REQUEST_ID, traceId)
                 .body(ApiResponse.fail(e.getCode(), "Business error: " + e.getMessage()));
     }
 
@@ -161,7 +160,7 @@ public class GlobalExceptionHandler {
             log.warn("Client error {} at {}, traceId={}: {}", (status.value() + "").replace("\r", "_").replace("\n", "_"), (request.getRequestURI() + "").replace("\r", "_").replace("\n", "_"), (traceId + "").replace("\r", "_").replace("\n", "_"),
                     (e.getMessage() + "").replace("\r", "_").replace("\n", "_"));
             return ResponseEntity.status(status)
-                    .header(REQUEST_ID_HEADER, traceId)
+                    .header(HttpHeaderConstants.REQUEST_ID, traceId)
                     .body(ApiResponse.fail(status.value(), clientMessage(e, status)));
         }
 
@@ -169,7 +168,7 @@ public class GlobalExceptionHandler {
         // "Handler dispatch failed: <class>: <message>", which would otherwise reach the client verbatim.
         log.error("Unhandled exception at {}, traceId={}", (request.getRequestURI() + "").replace("\r", "_").replace("\n", "_"), (traceId + "").replace("\r", "_").replace("\n", "_"), e);
         return ResponseEntity.status(status)
-                .header(REQUEST_ID_HEADER, traceId)
+                .header(HttpHeaderConstants.REQUEST_ID, traceId)
                 .body(ApiResponse.fail(status.value(), "Internal server error (traceId=" + traceId + ")"));
     }
 
@@ -207,7 +206,7 @@ public class GlobalExceptionHandler {
     }
 
     private String resolveTraceId(HttpServletRequest request) {
-        String id = request.getHeader("X-Request-ID");
+        String id = request.getHeader(HttpHeaderConstants.REQUEST_ID);
         if (StringUtils.hasText(id)) {
             return id;
         }

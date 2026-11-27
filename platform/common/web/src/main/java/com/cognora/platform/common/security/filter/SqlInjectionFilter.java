@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import cn.hutool.core.util.StrUtil;
 
 /**
@@ -165,7 +166,7 @@ public class SqlInjectionFilter implements Filter {
                 if (SQL_INJECTION_PATTERN.matcher(truncateForScan(paramValue)).find()) {
                     log.warn("SQL injection detected! mode={}, traceId={}, param={}, preview={}, ip={}, uri={}",
                             ((monitorOnly ? "ALERT" : "BLOCK") + "").replace("\r", "_").replace("\n", "_"),
-                            (request.getHeader("X-Request-ID") + "").replace("\r", "_").replace("\n", "_"), (paramName + "").replace("\r", "_").replace("\n", "_"), (preview + "").replace("\r", "_").replace("\n", "_"),
+                            (request.getHeader(HttpHeaderConstants.REQUEST_ID) + "").replace("\r", "_").replace("\n", "_"), (paramName + "").replace("\r", "_").replace("\n", "_"), (preview + "").replace("\r", "_").replace("\n", "_"),
                             (IpUtils.getClientIp(request) + "").replace("\r", "_").replace("\n", "_"), (uri + "").replace("\r", "_").replace("\n", "_"));
                     DetectionState state = handleDetection(request, response,
                             "SQL_INJECTION", "妫€娴嬪埌鐤戜技 SQL 娉ㄥ叆", monitorOnly, true);
@@ -177,7 +178,7 @@ public class SqlInjectionFilter implements Filter {
                         && XSS_PATTERN.matcher(truncateForScan(paramValue)).find()) {
                     log.warn("XSS attack detected! mode={}, traceId={}, param={}, preview={}, ip={}, uri={}",
                             ((monitorOnly ? "ALERT" : "BLOCK") + "").replace("\r", "_").replace("\n", "_"),
-                            (request.getHeader("X-Request-ID") + "").replace("\r", "_").replace("\n", "_"), (paramName + "").replace("\r", "_").replace("\n", "_"), (preview + "").replace("\r", "_").replace("\n", "_"),
+                            (request.getHeader(HttpHeaderConstants.REQUEST_ID) + "").replace("\r", "_").replace("\n", "_"), (paramName + "").replace("\r", "_").replace("\n", "_"), (preview + "").replace("\r", "_").replace("\n", "_"),
                             (IpUtils.getClientIp(request) + "").replace("\r", "_").replace("\n", "_"), (uri + "").replace("\r", "_").replace("\n", "_"));
                     DetectionState state = handleDetection(request, response,
                             "XSS_ATTACK", "妫€娴嬪埌鐤戜技 XSS 鏀诲嚮", monitorOnly, false);
@@ -235,7 +236,7 @@ public class SqlInjectionFilter implements Filter {
             String preview = generatePreview(value);
             log.warn("SQL injection detected in JSON! mode={}, traceId={}, field={}, preview={}, ip={}, uri={}",
                     ((monitorOnly ? "ALERT" : "BLOCK") + "").replace("\r", "_").replace("\n", "_"),
-                    (req.getHeader("X-Request-ID") + "").replace("\r", "_").replace("\n", "_"), (field + "").replace("\r", "_").replace("\n", "_"), (preview + "").replace("\r", "_").replace("\n", "_"), (IpUtils.getClientIp(req) + "").replace("\r", "_").replace("\n", "_"), (uri + "").replace("\r", "_").replace("\n", "_"));
+                    (req.getHeader(HttpHeaderConstants.REQUEST_ID) + "").replace("\r", "_").replace("\n", "_"), (field + "").replace("\r", "_").replace("\n", "_"), (preview + "").replace("\r", "_").replace("\n", "_"), (IpUtils.getClientIp(req) + "").replace("\r", "_").replace("\n", "_"), (uri + "").replace("\r", "_").replace("\n", "_"));
             return handleDetection(req, resp, "SQL_INJECTION", "妫€娴嬪埌鐤戜技 SQL 娉ㄥ叆", monitorOnly, true);
         }
 
@@ -244,7 +245,7 @@ public class SqlInjectionFilter implements Filter {
             String preview = generatePreview(value);
             log.warn("XSS attack detected in JSON! mode={}, traceId={}, field={}, preview={}, ip={}, uri={}",
                     ((monitorOnly ? "ALERT" : "BLOCK") + "").replace("\r", "_").replace("\n", "_"),
-                    (req.getHeader("X-Request-ID") + "").replace("\r", "_").replace("\n", "_"), (field + "").replace("\r", "_").replace("\n", "_"), (preview + "").replace("\r", "_").replace("\n", "_"), (IpUtils.getClientIp(req) + "").replace("\r", "_").replace("\n", "_"), (uri + "").replace("\r", "_").replace("\n", "_"));
+                    (req.getHeader(HttpHeaderConstants.REQUEST_ID) + "").replace("\r", "_").replace("\n", "_"), (field + "").replace("\r", "_").replace("\n", "_"), (preview + "").replace("\r", "_").replace("\n", "_"), (IpUtils.getClientIp(req) + "").replace("\r", "_").replace("\n", "_"), (uri + "").replace("\r", "_").replace("\n", "_"));
             return handleDetection(req, resp, "XSS_ATTACK", "妫€娴嬪埌鐤戜技 XSS 鏀诲嚮", monitorOnly, false);
         }
 

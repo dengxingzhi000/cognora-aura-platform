@@ -2,8 +2,12 @@ package com.cognora.platform.common.log.util;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LogUtilsTest {
@@ -53,5 +57,37 @@ class LogUtilsTest {
 
         assertEquals(259, result.length());
         assertTrue(result.endsWith("..."));
+    }
+
+    @Test
+    void sanitizeForLogKeepsTheTextWhenNothingHasToBeReplaced() {
+        String input = "供应商 SUP-2026-0001 id=42";
+
+        // No control character means the original instance is returned, not a copy.
+        assertSame(input, LogUtils.sanitizeForLog(input));
+    }
+
+    @Test
+    void structuredJsonKeepsAStableFieldOrder() {
+        Map<String, Object> fields = new LinkedHashMap<>();
+        fields.put("action", "inventory.adjust");
+        fields.put("result", "success");
+
+        String json = LogUtils.structuredJson("business", fields, 42L);
+
+        assertEquals("{\"type\":\"business\",\"action\":\"inventory.adjust\","
+                + "\"result\":\"success\",\"timestamp\":42}", json);
+    }
+
+    @Test
+    void structuredJsonKeepsTheBusinessFieldOrderForApiLogs() {
+        Map<String, Object> fields = new LinkedHashMap<>();
+        fields.put("method", "GET");
+        fields.put("uri", "/api/v1/x");
+
+        String json = LogUtils.structuredJson("api", fields, 7L);
+
+        assertTrue(json.startsWith("{\"type\":\"api\",\"method\":\"GET\",\"uri\":\"/api/v1/x\","));
+        assertTrue(json.endsWith("\"timestamp\":7}"));
     }
 }

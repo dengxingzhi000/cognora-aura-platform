@@ -1,5 +1,6 @@
 package com.cognora.platform.common.security.util;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,7 +28,7 @@ public class SecurityErrorResponseWriter {
 
         response.setStatus(status);
         response.setContentType(JSON_CONTENT_TYPE);
-        response.setHeader("X-Request-ID", traceId);
+        response.setHeader(HttpHeaderConstants.REQUEST_ID, traceId);
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("code", status);

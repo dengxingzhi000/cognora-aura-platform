@@ -1,5 +1,6 @@
 package com.cognora.platform.common.log.interceptor;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.log.util.LogUtils;
 import com.cognora.platform.common.util.UUIDv7Util;
 import com.cognora.platform.common.web.util.SecurityUtils;
@@ -29,7 +30,7 @@ public class LogInterceptor implements HandlerInterceptor {
         // 璁剧疆 RequestId
         String requestId = UUIDv7Util.generateString().replace("-", "");
         LogUtils.setRequestId(requestId);
-        response.setHeader("X-Request-Id", requestId);
+        response.setHeader(HttpHeaderConstants.REQUEST_ID, requestId);
 
         // 璁剧疆鐢ㄦ埛涓婁笅锟?
         Long userId = null;

@@ -1,6 +1,7 @@
 package com.cognora.platform.common.security.filter;
 
 import com.cognora.platform.common.security.PermissionService;
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.log.enums.SecurityEventType;
 import com.cognora.platform.common.log.service.ISysAuditLogService;
 import com.cognora.platform.common.security.config.ApiAccessControlProperties;
@@ -159,7 +160,7 @@ public class ApiAccessControlFilter extends OncePerRequestFilter {
                 );
             }
 
-            String traceId = request.getHeader("X-Request-ID");
+            String traceId = request.getHeader(HttpHeaderConstants.REQUEST_ID);
             log.warn("Unauthorized API access: traceId={}, userId={}, user={}, uri={}, method={}, required={}",
                     (traceId + "").replace("\r", "_").replace("\n", "_"), (userId + "").replace("\r", "_").replace("\n", "_"), (username + "").replace("\r", "_").replace("\n", "_"), (requestUri + "").replace("\r", "_").replace("\n", "_"), (method + "").replace("\r", "_").replace("\n", "_"), (requiredPermissions + "").replace("\r", "_").replace("\n", "_"));
 
@@ -184,7 +185,7 @@ public class ApiAccessControlFilter extends OncePerRequestFilter {
     private void handleUnregisteredEndpoint(HttpServletRequest request, HttpServletResponse response,
                                             UUID userId, String requestUri, String method,
                                             FilterChain filterChain) throws ServletException, IOException {
-        String traceId = sanitize(request.getHeader("X-Request-ID"));
+        String traceId = sanitize(request.getHeader(HttpHeaderConstants.REQUEST_ID));
         if (properties.getUnregisteredEndpointPolicy()
                 == ApiAccessControlProperties.UnregisteredEndpointPolicy.REPORT_ONLY) {
             securityMetrics.increment("security.access.unregistered_endpoint_report");
@@ -271,7 +272,7 @@ public class ApiAccessControlFilter extends OncePerRequestFilter {
             throws IOException {
         securityMetrics.increment("security.access.permission_service_unavailable");
         log.error("Permission service unavailable: traceId={}, uri={}, method={}, reason={}",
-                sanitize(request.getHeader("X-Request-ID")), sanitize(requestUri), sanitize(method),
+                sanitize(request.getHeader(HttpHeaderConstants.REQUEST_ID)), sanitize(requestUri), sanitize(method),
                 sanitize(ex.getMessage()));
         SecurityErrorResponseWriter.write(request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "PERMISSION_SERVICE_UNAVAILABLE",

@@ -1,5 +1,6 @@
 package com.cognora.platform.audit.controller;
 
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +29,7 @@ public class SysAuditLogController {
     @PostMapping
     public SysAuditLog create(@RequestBody SysAuditLog entity,
                               @Parameter(description = "签名头 X-Nonce，作为写入幂等键")
-                              @RequestHeader(value = "X-Nonce", required = false) String nonce) {
+                              @RequestHeader(value = HttpHeaderConstants.SIGNATURE_NONCE, required = false) String nonce) {
         if (StringUtils.hasText(nonce)) {
             entity.setRequestNonce(nonce);
         }

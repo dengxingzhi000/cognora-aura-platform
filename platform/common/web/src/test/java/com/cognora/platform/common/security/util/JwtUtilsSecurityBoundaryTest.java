@@ -1,5 +1,6 @@
 package com.cognora.platform.common.security.util;
 
+import com.cognora.platform.common.exception.UnauthorizedException;
 import com.cognora.platform.common.security.properties.JwtProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -10,8 +11,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+
+import java.time.Duration;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
@@ -23,6 +28,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,6 +55,10 @@ class JwtUtilsSecurityBoundaryTest {
     @Mock private JwtProperties jwtProperties;
     @Mock private RedisTemplate<String, Object> redisTemplate;
     @Mock private StringRedisTemplate stringRedisTemplate;
+    @Mock private HashOperations<String, Object, Object> stringHashOperations;
+    @Mock private HashOperations<String, Object, Object> objectHashOperations;
+    @Mock private ValueOperations<String, Object> valueOperations;
+    @Mock private ValueOperations<String, String> stringValueOperations;
 
     private JwtUtils jwtUtils;
 
@@ -61,6 +71,12 @@ class JwtUtilsSecurityBoundaryTest {
         when(jwtProperties.getIssuer()).thenReturn("jwt-boundary-test");
         when(jwtProperties.getExpiration()).thenReturn(3_600_000L);
         when(jwtProperties.getRefreshExpiration()).thenReturn(604_800_000L);
+        when(stringRedisTemplate.opsForHash()).thenReturn(stringHashOperations);
+        when(redisTemplate.opsForHash()).thenReturn(objectHashOperations);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.setIfAbsent(anyString(), any(), any(Duration.class))).thenReturn(true);
+        when(stringRedisTemplate.opsForValue()).thenReturn(stringValueOperations);
+        when(stringValueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(true);
         jwtUtils = new JwtUtils(jwtProperties, redisTemplate, stringRedisTemplate);
         jwtUtils.init();
     }
@@ -72,11 +88,13 @@ class JwtUtilsSecurityBoundaryTest {
      * {@code jwt:blacklist:*} 与 {@code jwt:fingerprint:*}，于是"应该被设备/IP 拒绝"的
      * 用例其实是被黑名单挡下的——断言通过了，但测的根本不是那件事。</p>
      */
-    private void ledgerSaysTokenIsLive() {
+    private void ledgerSaysTokenIsLive(String token) {
         when(redisTemplate.hasKey(argThat(k -> k != null && k.startsWith(FINGERPRINT_PREFIX))))
                 .thenReturn(true);
         when(redisTemplate.hasKey(argThat(k -> k != null && k.startsWith(BLACKLIST_PREFIX))))
                 .thenReturn(false);
+        when(stringHashOperations.get(argThat(k -> k != null && k.startsWith("jwt:user:tokens:")), any()))
+                .thenReturn(token);
     }
 
     /** 让指纹缺失——即"这个 token 已被撤销/未登记"。 */
@@ -162,7 +180,7 @@ class JwtUtilsSecurityBoundaryTest {
                     "device-1", "1.2.3.4", null, UUID.randomUUID(), "t1");
             String tampered = token.substring(0, token.length() - 3) + "AAA";
 
-            ledgerSaysTokenIsLive();
+            ledgerSaysTokenIsLive(token);
             assertThat(jwtUtils.validateToken(tampered, "1.2.3.4", "device-1")).isFalse();
         }
 
@@ -178,7 +196,7 @@ class JwtUtilsSecurityBoundaryTest {
                     UUID.randomUUID(), "mallory", Set.of("ROLE_ADMIN"), Set.of(),
                     "device-1", "1.2.3.4", null, UUID.randomUUID(), "t1");
 
-            ledgerSaysTokenIsLive();
+            ledgerSaysTokenIsLive(foreign);
             assertThat(jwtUtils.validateToken(foreign, "1.2.3.4", "device-1")).isFalse();
         }
 
@@ -200,7 +218,7 @@ class JwtUtilsSecurityBoundaryTest {
                     UUID.randomUUID(), "alice", Set.of("ROLE_USER"), Set.of(),
                     "device-1", "1.2.3.4", null, UUID.randomUUID(), "t1");
 
-            ledgerSaysTokenIsLive();
+            ledgerSaysTokenIsLive(token);
             assertThat(jwtUtils.validateToken(token, "1.2.3.4", "device-OTHER")).isFalse();
         }
 
@@ -212,7 +230,7 @@ class JwtUtilsSecurityBoundaryTest {
                     "device-1", "1.2.3.4", null, UUID.randomUUID(), "t1");
 
             when(jwtProperties.isStrictIpCheck()).thenReturn(true);
-            ledgerSaysTokenIsLive();
+            ledgerSaysTokenIsLive(token);
             assertThat(jwtUtils.validateToken(token, "9.9.9.9", "device-1")).isFalse();
         }
 
@@ -224,14 +242,23 @@ class JwtUtilsSecurityBoundaryTest {
                     "device-1", "1.2.3.4", null, UUID.randomUUID(), "t1");
 
             when(jwtProperties.isStrictIpCheck()).thenReturn(false);
-            ledgerSaysTokenIsLive();
+            ledgerSaysTokenIsLive(token);
             assertThat(jwtUtils.validateToken(token, "9.9.9.9", "device-1")).isTrue();
+        }
+
+        @Test
+        @DisplayName("访问令牌账本不匹配时拒绝")
+        void accessTokenMustMatchCurrentDeviceLedger() {
+            String token = jwtUtils.generateAccessToken(
+                    UUID.randomUUID(), "alice", Set.of("ROLE_USER"), Set.of(),
+                    "device-1", "1.2.3.4", null, UUID.randomUUID(), "t1");
+            ledgerSaysTokenIsLive("another-token");
+            assertThat(jwtUtils.validateToken(token, "1.2.3.4", "device-1")).isFalse();
         }
 
         @Test
         @DisplayName("刷新令牌不能当访问令牌用")
         void refreshTokenCannotBeUsedAsAccessToken() {
-            ledgerSaysTokenIsLive();
             String refresh = jwtUtils.generateRefreshToken(
                     UUID.randomUUID(), "alice", "device-1",
                     UUID.randomUUID(), "t1", null);
@@ -247,7 +274,6 @@ class JwtUtilsSecurityBoundaryTest {
         @Test
         @DisplayName("旧 token 无 tenantId 声明 → CLAIM_MISSING（调用方必须 401）")
         void legacyTokenWithoutTenantClaimIsReported() {
-            ledgerSaysTokenIsLive();
             // 构造一个不带 tenantId 的 token：正常生成路径总会写入，故这里直接用空串模拟解析失败
             assertThat(jwtUtils.validateTenantBinding("not-a-jwt", "t-1"))
                     .isEqualTo(JwtUtils.TenantBinding.CLAIM_MISSING);
@@ -310,7 +336,54 @@ class JwtUtilsSecurityBoundaryTest {
             String refresh = jwtUtils.generateRefreshToken(
                     UUID.randomUUID(), "alice", "device-1",
                     UUID.randomUUID(), "t1", null);
+            when(stringHashOperations.get(anyString(), eq("device-1"))).thenReturn(refresh);
             assertThat(jwtUtils.isRefreshTokenInvalid(refresh)).isFalse();
+        }
+
+        @Test
+        @DisplayName("被拉黑的刷新令牌立即失效")
+        void blacklistedRefreshTokenIsRejected() {
+            String refresh = jwtUtils.generateRefreshToken(
+                    UUID.randomUUID(), "alice", "device-1",
+                    UUID.randomUUID(), "t1", null);
+            when(stringHashOperations.get(anyString(), eq("device-1"))).thenReturn(refresh);
+            when(redisTemplate.hasKey(argThat(k -> k != null && k.startsWith(BLACKLIST_PREFIX))))
+                    .thenReturn(true);
+            assertThat(jwtUtils.isRefreshTokenInvalid(refresh)).isTrue();
+        }
+
+        @Test
+        @DisplayName("刷新令牌不能轮换到其他设备")
+        void refreshTokenCannotBeReboundToAnotherDevice() {
+            String refresh = jwtUtils.generateRefreshToken(
+                    UUID.randomUUID(), "alice", "device-1",
+                    UUID.randomUUID(), "t1", "cognora-admin");
+            when(stringHashOperations.get(anyString(), eq("device-1"))).thenReturn(refresh);
+            assertThatThrownBy(() -> jwtUtils.refreshTokenWithRotation(
+                    refresh, Set.of("ROLE_USER"), Set.of(), "device-2", "1.2.3.4"))
+                    .isInstanceOf(UnauthorizedException.class)
+                    .hasMessageContaining("device mismatch");
+        }
+
+        @Test
+        @DisplayName("撤销设备会话时同时撤销其刷新令牌")
+        void deviceRevocationAlsoRevokesRefreshToken() {
+            UUID userId = UUID.randomUUID();
+            UUID tenantId = UUID.randomUUID();
+            String deviceId = "device-1";
+            String access = jwtUtils.generateAccessToken(
+                    userId, "alice", Set.of("ROLE_USER"), Set.of(),
+                    deviceId, "1.2.3.4", null, tenantId, "t1");
+            String refresh = jwtUtils.generateRefreshToken(
+                    userId, "alice", deviceId, tenantId, "t1", null);
+            when(stringHashOperations.get(argThat(k -> k != null && k.startsWith("jwt:user:refresh:")), eq(deviceId)))
+                    .thenReturn(refresh);
+            when(stringHashOperations.get(argThat(k -> k != null && k.startsWith("jwt:user:tokens:")), eq(deviceId)))
+                    .thenReturn(access);
+
+            assertThat(jwtUtils.revokeDeviceToken(userId, deviceId, "session revoked")).isTrue();
+            verify(stringHashOperations).delete("jwt:user:refresh:" + userId, deviceId);
+            verify(objectHashOperations).delete("jwt:user:tokens:" + userId, deviceId);
         }
     }
 
