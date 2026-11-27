@@ -45,6 +45,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -211,6 +212,22 @@ public class SysUserController {
     )
     public ApiResponse<UserDTO> updateOwnProfile(@Validated @RequestBody UpdateProfileRequest request) {
         return ApiResponse.success(userCommandService.updateOwnProfile(request));
+    }
+
+    /**
+     * 上传当前登录用户自己的头像
+     */
+    @Operation(summary = "上传头像", description = "当前登录用户上传头像图片，返回更新后的个人资料。")
+    @PostMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    @AuditLog(operation = "上传头像", businessType = "USER")
+    public ApiResponse<UserDTO> updateOwnAvatar(@RequestParam("file") MultipartFile file) {
+        try {
+            return ApiResponse.success(userCommandService.updateOwnAvatar(
+                    file.getBytes(), file.getOriginalFilename(), file.getContentType()));
+        } catch (IOException e) {
+            return ApiResponse.fail(400, "头像读取失败，请重试");
+        }
     }
 
     /**

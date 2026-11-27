@@ -38,6 +38,9 @@ public class UserInfo implements Serializable {
     private UUID deptId;
     private String deptName;
     private Integer userLevel;
+    /** IANA 时区（如 Asia/Shanghai），个人资料页用于展示/维护“地区”。 */
+    private String timezone;
+    private Boolean twoFactorEnabled;
     private Set<String> roles;
     private Set<String> permissions;
     private Set<PermissionDTO> menuTree; // 鑿滃崟锟?

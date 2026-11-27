@@ -38,6 +38,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected the `sys_role` / `sys_user` `data_scope` type mismatch and added an
   idempotent migration plus CI validation for both column contracts.
 
+## [2.3.4] - 2026-11-27
+
+### Added
+
+- Self-service avatar upload with server-side size, media-type, extension and
+  image-signature validation, plus a narrowly scoped anonymous avatar reader.
+
+### Fixed
+
+- Instant upload no longer reuses a file across business types, and profile
+  timezone updates can explicitly clear the stored value.
+
 ## [2.3.0] - 2026-11-14
 
 Covers everything merged after `v2.2.0` (`c4f9a350`) through `68ba8ef3`

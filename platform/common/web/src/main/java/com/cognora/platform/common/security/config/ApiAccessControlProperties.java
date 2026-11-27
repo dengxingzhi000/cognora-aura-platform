@@ -37,6 +37,7 @@ public class ApiAccessControlProperties {
             "/api/auth/sessions/**",
             // 个人资料与密码自助端点：userId 只从令牌取，字段白名单由 DTO 约束。
             "/api/system/users/me",
+            "/api/system/users/me/avatar",
             "/api/system/users/change-password",
             // 2FA 自助端点：目标用户只从访问令牌解析。
             "/api/auth/2fa/**",

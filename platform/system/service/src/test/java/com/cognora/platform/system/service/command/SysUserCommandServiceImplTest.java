@@ -5,7 +5,10 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.cognora.platform.common.dto.user.UpdateProfileRequest;
 import com.cognora.platform.common.dto.user.UpdateUserRequest;
 import com.cognora.platform.common.dto.user.UserDTO;
+import com.cognora.platform.common.exception.BusinessException;
 import com.cognora.platform.common.rest.client.SysAuthServiceClient;
+import com.cognora.platform.file.api.FileManageApi;
+import com.cognora.platform.file.api.dto.FileMetadataDTO;
 import com.cognora.platform.common.security.PermissionChecker;
 import com.cognora.platform.common.status.StatusValidator;
 import com.cognora.platform.common.tenant.TenantContextHolder;
@@ -32,6 +35,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.HashMap;
 import java.util.List;
@@ -39,6 +43,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -46,6 +51,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -73,6 +79,7 @@ class SysUserCommandServiceImplTest {
     @Mock private CacheManager cacheManager;
     @Mock private PasswordPolicyService passwordPolicyService;
     @Mock private UserReadAccessGuard userReadAccessGuard;
+    @Mock private FileManageApi fileManageApi;
 
     private final Map<String, Cache> caches = new HashMap<>();
     private SysUserCommandServiceImpl service;
@@ -93,6 +100,8 @@ class SysUserCommandServiceImplTest {
                 userRoleCommandService, passwordEncoder, dataSyncEventPublisher, permissionChecker,
                 statusValidator, commandTemplate, authServiceClient, evictor, passwordPolicyService,
                 userReadAccessGuard);
+        // @DubboReference 字段由 Dubbo 在运行时注入；纯 Mockito 单测直接反射替换。
+        ReflectionTestUtils.setField(service, "fileManageApi", fileManageApi);
     }
 
     @AfterEach
@@ -339,6 +348,53 @@ class SysUserCommandServiceImplTest {
         assertEquals("hash", user.getPassword());
         verify(userMapper).updateById(user);
         verify(sysUserQueryService).getUserById(userId);
+    }
+
+    @Test
+    void updateOwnAvatarStoresFileAndPersistsPublicPath() {
+        UUID userId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        TenantContextHolder.setTenantId(tenantId);
+        authenticate(userId, "tester");
+
+        SysUser user = new SysUser()
+                .setId(userId)
+                .setTenantId(tenantId)
+                .setUsername("tester");
+        when(userMapper.selectById(userId)).thenReturn(user);
+
+        FileMetadataDTO file = new FileMetadataDTO();
+        file.setId("file-1");
+        when(fileManageApi.upload(any(byte[].class), eq("avatar.png"), eq("image/png"),
+                eq(tenantId.toString()), eq("AVATAR"), eq(userId.toString()))).thenReturn(file);
+        when(userMapper.updateById(user)).thenReturn(1);
+        when(sysUserQueryService.getUserById(userId)).thenReturn(new UserDTO());
+
+        service.updateOwnAvatar(pngBytes(), "cat.png", "image/png");
+
+        // 客户端拿到的不是预签名地址（30 分钟过期），而是可匿名读取的稳定路径。
+        assertEquals("/scm-file/api/public/files/file-1/avatar?tenantId=" + tenantId,
+                user.getAvatar());
+        verify(userMapper).updateById(user);
+        verify(sysUserQueryService).getUserById(userId);
+    }
+
+    @Test
+    void updateOwnAvatarRejectsNonImageUploads() {
+        assertThrows(BusinessException.class,
+                () -> service.updateOwnAvatar("not an image".getBytes(), "note.txt", "text/plain"));
+        verifyNoInteractions(fileManageApi);
+    }
+
+    @Test
+    void updateOwnAvatarRejectsFilesWhoseBytesDoNotMatchTheExtension() {
+        assertThrows(BusinessException.class,
+                () -> service.updateOwnAvatar("not a png".getBytes(), "fake.png", "image/png"));
+        verifyNoInteractions(fileManageApi);
+    }
+
+    private static byte[] pngBytes() {
+        return new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3};
     }
 
     private void assertAuthorizationEvictions(UUID tenantId, UUID userId, String username) {

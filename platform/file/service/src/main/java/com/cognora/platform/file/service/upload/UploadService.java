@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.UUID;
 
 @Slf4j
@@ -52,7 +53,10 @@ public class UploadService {
             String md5 = computeMd5(tempFile);
             Path finalTempFile = tempFile;
 
+            // 秒传只在同一业务类型内复用：同一份字节若已作为 CONTRACT 存在，不能直接当作
+            // AVATAR 返回，否则业务方拿到的文件类型与请求不符（公开头像接口会因此 404）。
             return instantUploadService.checkExist(md5, tenantId)
+                    .filter(existing -> Objects.equals(existing.getBizType(), bizType))
                     .orElseGet(() -> doUpload(finalTempFile, fileName, contentType, md5, bizType, bizId, tenantId));
 
         } catch (StorageException | FileValidationException e) {
@@ -136,6 +140,7 @@ public class UploadService {
             String md5 = computeMd5(tempFile);
             final Path finalTempFile = tempFile;
             return instantUploadService.checkExist(md5, tenantId)
+                    .filter(existing -> Objects.equals(existing.getBizType(), bizType))
                     .orElseGet(() -> doUpload(finalTempFile, fileName, contentType, md5, bizType, bizId, tenantId));
         } catch (StorageException | FileValidationException e) {
             throw e;

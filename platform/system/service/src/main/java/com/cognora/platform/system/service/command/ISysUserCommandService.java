@@ -33,6 +33,16 @@ public interface ISysUserCommandService {
      */
     UserDTO updateOwnProfile(UpdateProfileRequest request);
 
+    /**
+     * 当前登录用户上传头像。
+     *
+     * <p>图片存入 platform-file（bizType=AVATAR），{@code sys_user.avatar} 只保存可匿名读取的
+     * 公开地址；目标用户与租户只从登录态解析，文件类型与大小在服务端校验。</p>
+     *
+     * @return 与 {@code GET /api/system/users/{id}} 同结构的用户信息
+     */
+    UserDTO updateOwnAvatar(byte[] content, String originalName, String contentType);
+
     void deleteUser(UUID id);
 
     ResetPasswordResponse resetPassword(UUID id);

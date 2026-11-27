@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: platform-system
+  # 头像上传走 multipart；业务侧限制 2 MB，这里留出余量给请求开销。
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
   config:
     import:
       - optional:nacos:${spring.application.name}.yaml?server-addr=${spring.cloud.nacos.server-addr}

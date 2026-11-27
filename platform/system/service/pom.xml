@@ -66,6 +66,12 @@
             <artifactId>platform-common-decision-engine</artifactId>
             <version>2.2.0</version>
         </dependency>
+        <!-- 文件服务 Dubbo API：头像经 platform-file 落库，sys_user.avatar 只保存公开地址 -->
+        <dependency>
+            <groupId>com.cognora</groupId>
+            <artifactId>platform-file-api</artifactId>
+            <version>2.2.0</version>
+        </dependency>
         <!-- common end -->
 
         <!-- database start -->

@@ -62,6 +62,25 @@ class UploadServiceTest {
     }
 
     @Test
+    void shouldNotReuseAnExistingFileFromAnotherBusinessType() {
+        FileMetadata existing = new FileMetadata();
+        existing.setId("existing");
+        existing.setBizType("CONTRACT");
+        when(instantUploadService.checkExist(anyString(), anyString())).thenReturn(Optional.of(existing));
+        when(virusScanner.enabled()).thenReturn(false);
+        when(storageFactory.getDefaultEngine()).thenReturn(storageEngine);
+        FileMetadata stored = new FileMetadata();
+        stored.setStorageKey("key/avatar.png");
+        when(storageEngine.upload(any(InputStream.class), anyLong(), any(), any(), any())).thenReturn(stored);
+
+        MultipartFile file = new MockMultipartFile("file", "avatar.png", "image/png", "data".getBytes());
+        FileMetadata result = uploadService.upload(file, "avatar.png", "image/png", "AVATAR", "u-1", "tenant-1");
+
+        assertEquals("AVATAR", result.getBizType());
+        verify(storageEngine).upload(any(InputStream.class), anyLong(), any(), any(), any());
+    }
+
+    @Test
     void shouldThrowWhenVirusScanFails() {
         when(instantUploadService.checkExist(anyString(), anyString())).thenReturn(Optional.empty());
         when(virusScanner.enabled()).thenReturn(true);

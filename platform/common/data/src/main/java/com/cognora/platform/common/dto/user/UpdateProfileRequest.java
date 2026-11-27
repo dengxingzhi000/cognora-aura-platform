@@ -36,7 +36,7 @@ public class UpdateProfileRequest implements Serializable {
     private String email;
 
     @Pattern(
-            regexp = "^[A-Za-z][A-Za-z0-9_+/-]{0,63}$",
+            regexp = "^$|^[A-Za-z][A-Za-z0-9_+/-]{0,63}$",
             message = "时区格式不正确，例如 Asia/Shanghai"
     )
     private String timezone;

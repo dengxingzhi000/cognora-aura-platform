@@ -16,6 +16,8 @@ import com.cognora.platform.common.status.StatusValidator;
 import com.cognora.platform.common.tenant.TenantValidationUtil;
 import com.cognora.platform.common.util.UUIDv7Util;
 import com.cognora.platform.common.web.util.SecurityUtils;
+import com.cognora.platform.file.api.FileManageApi;
+import com.cognora.platform.file.api.dto.FileMetadataDTO;
 import com.cognora.platform.system.cache.UserAuthorizationCacheEvictor;
 import com.cognora.platform.system.domain.entity.SysUser;
 import com.cognora.platform.system.domain.enums.UserStatus;
@@ -28,6 +30,7 @@ import com.cognora.platform.system.service.support.PasswordPolicyService;
 import com.cognora.platform.system.service.support.UserReadAccessGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -39,6 +42,8 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -58,6 +63,14 @@ public class SysUserCommandServiceImpl implements ISysUserCommandService {
     private static final String PASSWORD_CHARS =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%";
 
+    private static final long AVATAR_MAX_BYTES = 2L * 1024 * 1024;
+    private static final Set<String> AVATAR_CONTENT_TYPES =
+            Set.of("image/png", "image/jpeg", "image/webp", "image/gif");
+    private static final Set<String> AVATAR_EXTENSIONS = Set.of("png", "jpg", "jpeg", "webp", "gif");
+    private static final String AVATAR_BIZ_TYPE = "AVATAR";
+    private static final String AVATAR_PUBLIC_PATH =
+            "/scm-file/api/public/files/%s/avatar?tenantId=%s";
+
     private final SysUserMapper userMapper;
     private final ISysUserQueryService sysUserQueryService;
     private final UserCrossDatabaseQueryService userQueryService;
@@ -72,6 +85,10 @@ public class SysUserCommandServiceImpl implements ISysUserCommandService {
     private final UserAuthorizationCacheEvictor cacheEvictor;
     private final PasswordPolicyService passwordPolicyService;
     private final UserReadAccessGuard userReadAccessGuard;
+
+    /** 头像文件写入 platform-file；文件服务不可用时上传报错，不影响其他资料字段。 */
+    @DubboReference(check = false)
+    private FileManageApi fileManageApi;
 
     @Value("${app.security.admin-user-id:019a0aee-3b74-7bfc-b34f-48b5428d4875}")
     private String adminUserId;
@@ -285,7 +302,8 @@ public class SysUserCommandServiceImpl implements ISysUserCommandService {
             changed = true;
         }
         if (request.getTimezone() != null) {
-            user.setTimezone(request.getTimezone());
+            // 空串是显式清空；落库为 NULL，避免把 "" 当成一个合法时区。
+            user.setTimezone(request.getTimezone().isBlank() ? null : request.getTimezone());
             changed = true;
         }
 
@@ -298,6 +316,98 @@ public class SysUserCommandServiceImpl implements ISysUserCommandService {
 
         // 与 GET /api/system/users/{id} 返回同一个 UserDTO 结构（含部门与角色）。
         return sysUserQueryService.getUserById(userId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UserDTO updateOwnAvatar(byte[] content, String originalName, String contentType) {
+        validateAvatar(content, originalName, contentType);
+
+        UUID userId = SecurityUtils.getCurrentUserUuid()
+                .orElseThrow(() -> new BusinessException(
+                        ResultCode.UNAUTHORIZED.getCode(), ResultCode.UNAUTHORIZED.getMessage()));
+
+        SysUser user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND.getCode(),
+                    ResultCode.USER_NOT_FOUND.getMessage());
+        }
+        TenantValidationUtil.validateDataOwnership(user.getTenantId());
+
+        String tenantId = TenantValidationUtil.getRequiredTenantId().toString();
+        String extension = avatarExtension(originalName);
+        FileMetadataDTO file;
+        try {
+            file = fileManageApi.upload(content, "avatar." + extension,
+                    contentType.trim().toLowerCase(Locale.ROOT),
+                    tenantId, AVATAR_BIZ_TYPE, userId.toString());
+        } catch (RuntimeException e) {
+            log.error("头像上传失败: userId={}", userId, e);
+            throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE.getCode(),
+                    "头像服务暂不可用，请稍后重试");
+        }
+        if (file == null || file.getId() == null) {
+            throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE.getCode(),
+                    "头像服务暂不可用，请稍后重试");
+        }
+
+        user.setAvatar(String.format(AVATAR_PUBLIC_PATH, file.getId(), tenantId));
+        userMapper.updateById(user);
+        cacheEvictor.evictUserProfile(user.getId(), user.getUsername());
+        dataSyncEventPublisher.publishUserUpdated(user);
+        log.info("头像更新成功: userId={}", userId);
+
+        return sysUserQueryService.getUserById(userId);
+    }
+
+    private void validateAvatar(byte[] content, String originalName, String contentType) {
+        if (content == null || content.length == 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "请选择头像图片");
+        }
+        if (content.length > AVATAR_MAX_BYTES) {
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "头像图片不能超过 2 MB");
+        }
+        String normalizedType = contentType == null ? "" : contentType.trim().toLowerCase(Locale.ROOT);
+        if (!AVATAR_CONTENT_TYPES.contains(normalizedType)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(),
+                    "头像仅支持 PNG、JPG、WebP 或 GIF");
+        }
+        String extension = avatarExtension(originalName);
+        if (!AVATAR_EXTENSIONS.contains(extension)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "头像文件扩展名不合法");
+        }
+        if (!looksLikeImage(content, extension)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST.getCode(), "头像文件内容与格式不匹配");
+        }
+    }
+
+    private String avatarExtension(String originalName) {
+        if (originalName == null) {
+            return "";
+        }
+        int dot = originalName.lastIndexOf('.');
+        if (dot < 0 || dot == originalName.length() - 1) {
+            return "";
+        }
+        return originalName.substring(dot + 1).toLowerCase(Locale.ROOT);
+    }
+
+    private boolean looksLikeImage(byte[] content, String extension) {
+        return switch (extension) {
+            case "png" -> content.length >= 8
+                    && (content[0] & 0xFF) == 0x89 && content[1] == 'P' && content[2] == 'N' && content[3] == 'G'
+                    && (content[4] & 0xFF) == 0x0D && (content[5] & 0xFF) == 0x0A
+                    && (content[6] & 0xFF) == 0x1A && (content[7] & 0xFF) == 0x0A;
+            case "jpg", "jpeg" -> content.length >= 3
+                    && (content[0] & 0xFF) == 0xFF && (content[1] & 0xFF) == 0xD8
+                    && (content[2] & 0xFF) == 0xFF;
+            case "gif" -> content.length >= 6
+                    && content[0] == 'G' && content[1] == 'I' && content[2] == 'F' && content[3] == '8';
+            case "webp" -> content.length >= 12
+                    && content[0] == 'R' && content[1] == 'I' && content[2] == 'F' && content[3] == 'F'
+                    && content[8] == 'W' && content[9] == 'E' && content[10] == 'B' && content[11] == 'P';
+            default -> false;
+        };
     }
 
     @Override
