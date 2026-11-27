@@ -50,7 +50,7 @@
 
     <!-- Database & Persistence -->
     <postgresql.version>42.7.14</postgresql.version>
-    <mybatis-plus.version>3.5.17</mybatis-plus.version>
+    <mybatis-plus.version>3.5.18.1</mybatis-plus.version>
 
     <!-- Distributed Transaction & Job Scheduling -->
     <seata.version>2.0.0</seata.version>
