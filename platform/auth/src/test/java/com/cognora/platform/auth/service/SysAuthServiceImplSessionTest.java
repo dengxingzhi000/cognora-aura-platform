@@ -1,6 +1,7 @@
 package com.cognora.platform.auth.service;
 
 import com.cognora.platform.auth.service.Impl.SysAuthServiceImpl;
+import com.cognora.platform.auth.service.support.SessionLocationResolver;
 import com.cognora.platform.common.exception.UnauthorizedException;
 import com.cognora.platform.common.log.service.ISysAuditLogService;
 import com.cognora.platform.common.metrics.BusinessMetrics;
@@ -26,6 +27,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -65,11 +67,17 @@ class SysAuthServiceImplSessionTest {
         UUID userId = UUID.randomUUID();
         when(jwtUtils.getUserIdFromToken(TOKEN)).thenReturn(userId);
         when(jwtUtils.getDeviceIdFromToken(TOKEN)).thenReturn("device-current");
+        String chromeWindows = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                + "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+        String safariIphone = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+                + "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
         when(jwtUtils.listActiveSessions(userId)).thenReturn(List.of(
                 new JwtUtils.TokenSession("device-current", "10.0.0.1",
-                        Instant.parse("2026-11-06T08:00:00Z"), Instant.parse("2026-11-06T09:00:00Z")),
-                new JwtUtils.TokenSession("device-other", "10.0.0.2",
-                        Instant.parse("2026-11-06T07:00:00Z"), Instant.parse("2026-11-06T08:00:00Z"))));
+                        Instant.parse("2026-11-06T08:00:00Z"), Instant.parse("2026-11-06T09:00:00Z"),
+                        chromeWindows, "Asia/Shanghai"),
+                new JwtUtils.TokenSession("device-other", "203.0.113.10",
+                        Instant.parse("2026-11-06T07:00:00Z"), Instant.parse("2026-11-06T08:00:00Z"),
+                        safariIphone, "Asia/Shanghai")));
 
         var sessions = service.listSessions(TOKEN);
 
@@ -78,7 +86,16 @@ class SysAuthServiceImplSessionTest {
         assertEquals("10.0.0.1", sessions.get(0).getIp());
         assertTrue(sessions.get(0).isCurrent());
         assertEquals(Instant.parse("2026-11-06T08:00:00Z"), sessions.get(0).getLastActiveAt());
+        assertEquals("Chrome · Windows", sessions.get(0).getDeviceName());
+        assertEquals("web", sessions.get(0).getDeviceType());
+        assertEquals("本地网络", sessions.get(0).getLocation());
+        assertEquals(chromeWindows, sessions.get(0).getUserAgent());
         assertFalse(sessions.get(1).isCurrent());
+        assertEquals("Safari · iOS", sessions.get(1).getDeviceName());
+        assertEquals("mobile", sessions.get(1).getDeviceType());
+        assertEquals(SessionLocationResolver.resolve("203.0.113.10", "Asia/Shanghai"),
+                sessions.get(1).getLocation());
+        assertNotNull(sessions.get(1).getUserAgent());
         verify(jwtUtils).listActiveSessions(userId);
     }
 

@@ -4,6 +4,7 @@ import com.cognora.platform.auth.domain.dto.WebauthnAuthenticationRequest;
 import com.cognora.platform.auth.service.IWebauthnCredentialService;
 import com.cognora.platform.auth.webauthn.WebAuthnConfig;
 import com.cognora.platform.auth.webauthn.WebAuthnRequestContext;
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.dto.auth.TokenUpgradeResponse;
 import com.cognora.platform.common.dto.auth.WebAuthnChallengeResponse;
 import com.cognora.platform.common.exception.BusinessException;
@@ -75,11 +76,13 @@ public class WebAuthnAuthenticationController {
             HttpServletRequest httpRequest) {
 
         WebAuthnRequestContext ctx = WebAuthnRequestContext.of(user, httpRequest, httpServletRequestUtils);
+        String timezone = httpRequest.getHeader(HttpHeaderConstants.TIMEZONE);
         log.info("User {} authenticating with WebAuthn from {}", (ctx.userId() + "").replace("\r", "_").replace("\n", "_"), (ctx.ipAddress() + "").replace("\r", "_").replace("\n", "_"));
 
         try {
             TokenUpgradeResponse response = credentialService.authenticateAndUpgradeToken(
-                    ctx.userId(), ctx.username(), request, ctx.deviceId(), ctx.ipAddress());
+                    ctx.userId(), ctx.username(), request, ctx.deviceId(), ctx.ipAddress(),
+                    ctx.userAgent(), timezone);
 
             // 记录成功的认证尝试
             credentialService.logAuthenticationAttempt(

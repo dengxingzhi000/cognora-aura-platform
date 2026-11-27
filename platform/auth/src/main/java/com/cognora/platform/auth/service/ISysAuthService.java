@@ -26,7 +26,18 @@ public interface ISysAuthService {
      * @param deviceId 璁惧 ID
      * @return 鐧诲綍鍝嶅簲锛屽寘鍚闂护鐗屽拰鍒锋柊浠ょ墝
      */
-    LoginResponse login(LoginRequest request, String ipAddress, String deviceId);
+    default LoginResponse login(LoginRequest request, String ipAddress, String deviceId) {
+        return login(request, ipAddress, deviceId, null, null);
+    }
+
+    /**
+     * 用户登录，并记录设备信息用于会话列表展示。
+     *
+     * @param userAgent 客户端 User-Agent，可为空
+     * @param timezone  客户端 IANA 时区，可为空
+     */
+    LoginResponse login(LoginRequest request, String ipAddress, String deviceId,
+                        String userAgent, String timezone);
 
     /**
      * 鐢ㄦ埛鐧诲嚭
@@ -45,7 +56,15 @@ public interface ISysAuthService {
      * @param ipAddress 瀹㈡埛锟絀P鍦板潃
      * @return 鏂扮殑鐧诲綍鍝嶅簲锛屽寘鍚柊鐨勮闂护鐗屽拰鍒锋柊浠ょ墝
      */
-    LoginResponse refreshToken(String refreshToken, String deviceId, String ipAddress);
+    default LoginResponse refreshToken(String refreshToken, String deviceId, String ipAddress) {
+        return refreshToken(refreshToken, deviceId, ipAddress, null, null);
+    }
+
+    /**
+     * 刷新令牌，并沿用当前请求的设备信息更新会话。
+     */
+    LoginResponse refreshToken(String refreshToken, String deviceId, String ipAddress,
+                               String userAgent, String timezone);
 
     /**
      * 寮哄埗鐢ㄦ埛鐧诲嚭

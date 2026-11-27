@@ -81,7 +81,7 @@ public interface IWebauthnCredentialService extends IService<WebauthnCredential>
      */
     TokenUpgradeResponse authenticateAndUpgradeToken(
             UUID userId, String username, WebauthnAuthenticationRequest request,
-            String deviceId, String ipAddress);
+            String deviceId, String ipAddress, String userAgent, String timezone);
 
     /**
      * 鑾峰彇鐢ㄦ埛鎵€鏈夋縺娲荤殑鍑瘉

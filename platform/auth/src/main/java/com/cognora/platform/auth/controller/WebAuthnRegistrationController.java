@@ -9,6 +9,7 @@ import com.cognora.platform.common.dto.auth.WebAuthnRegisterChallengeResponse;
 import com.cognora.platform.common.log.annotation.AuditLog;
 import com.cognora.platform.common.response.ApiResponse;
 import com.cognora.platform.common.security.util.HttpServletRequestUtils;
+import com.cognora.platform.common.security.util.UserAgentUtils;
 import com.cognora.platform.common.web.domain.SecurityUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -72,6 +74,13 @@ public class WebAuthnRegistrationController {
             HttpServletRequest httpRequest) {
 
         WebAuthnRequestContext ctx = WebAuthnRequestContext.of(user, httpRequest, httpServletRequestUtils);
+        // 客户端没给设备名时用 UA 兜底，避免凭证列表里全是「未命名设备」。
+        if (!StringUtils.hasText(request.getDeviceName())) {
+            String deviceName = UserAgentUtils.describe(ctx.userAgent()).deviceName();
+            if (StringUtils.hasText(deviceName)) {
+                request.setDeviceName(deviceName);
+            }
+        }
         log.info("User {} registering new WebAuthn credential from {}", (ctx.userId() + "").replace("\r", "_").replace("\n", "_"), (ctx.ipAddress() + "").replace("\r", "_").replace("\n", "_"));
 
         WebauthnCredentialDTO credential = credentialService.registerCredential(ctx.userId(), request);

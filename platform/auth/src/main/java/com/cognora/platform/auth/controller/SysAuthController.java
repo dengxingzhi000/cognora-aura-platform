@@ -2,6 +2,7 @@ package com.cognora.platform.auth.controller;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.cognora.platform.auth.service.ISysAuthService;
+import com.cognora.platform.common.constant.HttpHeaderConstants;
 import com.cognora.platform.common.dto.user.LoginRequest;
 import com.cognora.platform.common.dto.user.LoginResponse;
 import com.cognora.platform.common.dto.user.LogoutOthersResponse;
@@ -22,6 +23,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.http.HttpHeaders;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -59,9 +61,11 @@ public class SysAuthController {
             HttpServletRequest httpRequest) {
         String ipAddress = IpUtils.getClientIp(httpRequest);
         String deviceId = httpServletRequestUtils.getDeviceId(httpRequest);
+        String userAgent = httpRequest.getHeader(HttpHeaders.USER_AGENT);
+        String timezone = httpRequest.getHeader(HttpHeaderConstants.TIMEZONE);
         String traceId = TraceIdUtil.resolveAndSanitizeTraceId(httpRequest);
 
-        LoginResponse response = authService.login(request, ipAddress, deviceId);
+        LoginResponse response = authService.login(request, ipAddress, deviceId, userAgent, timezone);
         log.info("login success traceId={} user={} ip={} device={}", (traceId + "").replace("\r", "_").replace("\n", "_"), (request.getUsername() + "").replace("\r", "_").replace("\n", "_"), (ipAddress + "").replace("\r", "_").replace("\n", "_"), (deviceId + "").replace("\r", "_").replace("\n", "_"));
 
         return ApiResponse.success(response);
@@ -90,14 +94,15 @@ public class SysAuthController {
         String ipAddress = IpUtils.getClientIp(httpRequest);
 
         String deviceId = httpServletRequestUtils.getDeviceId(httpRequest);
-        if (StringUtils.hasText(request.getDeviceId())) {
-            deviceId = request.getDeviceId();
-        }
+        String userAgent = httpRequest.getHeader(HttpHeaders.USER_AGENT);
+        String timezone = httpRequest.getHeader(HttpHeaderConstants.TIMEZONE);
 
         LoginResponse response = authService.refreshToken(
                 request.getRefreshToken(),
                 deviceId,
-                ipAddress);
+                ipAddress,
+                userAgent,
+                timezone);
 
         return ApiResponse.success(response);
     }

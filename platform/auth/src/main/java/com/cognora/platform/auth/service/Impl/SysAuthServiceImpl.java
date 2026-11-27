@@ -16,6 +16,8 @@ import com.cognora.platform.common.exception.UnauthorizedException;
 import com.cognora.platform.auth.service.ISysAuthService;
 import com.cognora.platform.common.security.util.RecoveryCodeUtils;
 import com.cognora.platform.common.security.util.TotpUtils;
+import com.cognora.platform.common.security.util.UserAgentUtils;
+import com.cognora.platform.auth.service.support.SessionLocationResolver;
 import com.cognora.platform.common.redis.script.LuaScriptRegistry;
 import com.cognora.platform.common.tenant.TenantContextHolder;
 import com.cognora.platform.auth.service.TenantClaimResolver;
@@ -82,7 +84,8 @@ public class SysAuthServiceImpl implements ISysAuthService {
     }
 
     @Override
-    public LoginResponse login(LoginRequest request, String ipAddress, String deviceId) {
+    public LoginResponse login(LoginRequest request, String ipAddress, String deviceId,
+                               String userAgent, String timezone) {
         String username = request.getUsername();
 
         // 1. Atomically check if account is locked or max attempts reached (Lua script)
@@ -160,6 +163,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
                     tenantId, tenantCode, client.audience());
             String refreshToken = jwtUtils.generateRefreshToken(
                     user.getUserId(), username, deviceId, tenantId, tenantCode, client.audience());
+            jwtUtils.recordSessionClient(user.getUserId(), deviceId, userAgent, timezone);
 
             // 6. Clear login attempts
             clearLoginAttempts(username);
@@ -271,7 +275,8 @@ public class SysAuthServiceImpl implements ISysAuthService {
     }
 
     @Override
-    public LoginResponse refreshToken(String refreshToken, String deviceId, String ipAddress) {
+    public LoginResponse refreshToken(String refreshToken, String deviceId, String ipAddress,
+                                      String userAgent, String timezone) {
         if (jwtUtils.isRefreshTokenInvalid(refreshToken)) {
             throw new BadCredentialsException("Refresh token invalid or expired");
         }
@@ -284,6 +289,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
 
         JwtUtils.TokenPair tokenPair = jwtUtils.refreshTokenWithRotation(
                 refreshToken, roles, permissions, deviceId, ipAddress);
+        jwtUtils.recordSessionClient(userId, deviceId, userAgent, timezone);
 
         log.info("Token refreshed with rotation for user: {}", username);
 
@@ -315,25 +321,30 @@ public class SysAuthServiceImpl implements ISysAuthService {
         String currentDeviceId = jwtUtils.getDeviceIdFromToken(accessToken);
 
         return jwtUtils.listActiveSessions(userId).stream()
-                .map(session -> UserSessionDTO.builder()
-                        .sessionId(session.getDeviceId())
-                        .ip(session.getIpAddress())
-                        .lastActiveAt(session.getIssuedAt())
-                        .current(currentDeviceId != null && currentDeviceId.equals(session.getDeviceId()))
-                        .build())
+                .map(session -> toSessionDTO(session, currentDeviceId))
                 .toList();
     }
 
     @Override
     public List<UserSessionDTO> listUserSessions(UUID userId) {
         return jwtUtils.listActiveSessions(userId).stream()
-                .map(session -> UserSessionDTO.builder()
-                        .sessionId(session.getDeviceId())
-                        .ip(session.getIpAddress())
-                        .lastActiveAt(session.getIssuedAt())
-                        .current(false)
-                        .build())
+                .map(session -> toSessionDTO(session, null))
                 .toList();
+    }
+
+    private UserSessionDTO toSessionDTO(JwtUtils.TokenSession session, String currentDeviceId) {
+        UserAgentUtils.ClientInfo client = UserAgentUtils.describe(session.getUserAgent());
+        return UserSessionDTO.builder()
+                .sessionId(session.getDeviceId())
+                .deviceName(client.deviceName())
+                .deviceType(client.deviceType())
+                .ip(session.getIpAddress())
+                .location(SessionLocationResolver.resolve(
+                        session.getIpAddress(), session.getTimezone()))
+                .userAgent(session.getUserAgent())
+                .lastActiveAt(session.getIssuedAt())
+                .current(currentDeviceId != null && currentDeviceId.equals(session.getDeviceId()))
+                .build();
     }
 
     @Override

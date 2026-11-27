@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sanitized request logging and trace IDs to prevent control-character log
   injection and keep structured logs stable.
 
+## [2.3.2] - 2026-11-27
+
+### Added
+
+- Session lists now expose parsed device name/type, User-Agent and a
+  timezone-derived region label; WebAuthn credentials use the same device-name
+  fallback.
+
+### Fixed
+
+- Login, refresh and WebAuthn token upgrades record client metadata without
+  making session display data a reason to reject authentication.
+
 ## [2.3.0] - 2026-11-14
 
 Covers everything merged after `v2.2.0` (`c4f9a350`) through `68ba8ef3`

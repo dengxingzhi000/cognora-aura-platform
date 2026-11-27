@@ -196,7 +196,7 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
     @Transactional(rollbackFor = Exception.class)
     public TokenUpgradeResponse authenticateAndUpgradeToken(
             UUID userId, String username, WebauthnAuthenticationRequest request,
-            String deviceId, String ipAddress) {
+            String deviceId, String ipAddress, String userAgent, String timezone) {
         log.info("Authenticating WebAuthn for user={}, credentialId={}", (userId + "").replace("\r", "_").replace("\n", "_"), (request.getCredentialId() + "").replace("\r", "_").replace("\n", "_"));
 
         String key = WA_CHALLENGE_PREFIX + userId + ":" + deviceId;
@@ -249,6 +249,7 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
         String tenantCode = tenantClaimResolver.resolveTenantCode(tenantId);
         String accessToken = jwtUtils.generateAccessToken(
                 userId, username, roles, permissions, deviceId, ipAddress, amr, tenantId, tenantCode);
+        jwtUtils.recordSessionClient(userId, deviceId, userAgent, timezone);
 
         log.info("Successfully authenticated user={} with WebAuthn", userId);
 
